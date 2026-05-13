@@ -11,17 +11,13 @@ A lightweight SDR (Software Defined Radio) spectrum viewer designed for embedded
 
 zeroSDR was originally developed for the upcoming **M5Stack Cardputer Zero**, a compact Raspberry Pi Zero device. The current development environment uses a **Raspberry Pi 5** with a 320x170 SPI display to prototype and test the interface.
 
+![Running on Raspberry Pi 5](images/runs_on_pi5.jpg)
+
 ## ⚠️ Important Hardware Compatibility Notes
 
 - **Tested Hardware**: This software has **only been tested with RTL-SDR Blog V4** dongles
 - **Driver Version Critical**: You **MUST use the latest rtl-sdr drivers**. Older driver versions cause frequency offset issues where the displayed spectrum does not match the actual tuned frequency
 - **Display**: Optimized for 320x170 pixel SPI displays connected to `/dev/fb0` (Linux framebuffer)
-
-## 📸 Screenshots
-
-| Interface | Running on Pi 5 |
-|-----------|----------------|
-| ![Screenshot](images/screenshot.jpg) | ![Running on Pi 5](images/runs_on_pi5.jpg) |
 
 ## ✨ Features
 
