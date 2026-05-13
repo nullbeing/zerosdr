@@ -1,0 +1,35 @@
+# Build directories
+build/
+cmake-build-*/
+
+# Compiled files
+*.o
+*.so
+*.a
+zerosdr
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Debian packaging
+debian/.debhelper/
+debian/zerosdr/
+debian/files
+debian/*.log
+debian/*.substvars
+*.deb
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+install_manifest.txt
+
+# Other
+*.bak
+.DS_Store
