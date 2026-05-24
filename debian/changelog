@@ -1,3 +1,13 @@
+zerosdr (0.2.0) bullseye; urgency=medium
+
+  * Add audio demodulation support (FM/NFM/AM)
+  * Add ALSA audio output with volume control and squelch detection
+  * Implement ring buffer for continuous data streaming
+  * Update UI status bar layout
+  * Performance optimizations for Raspberry Pi 3B
+
+ -- Weiming Feng <bestedwin@gmail.com>  Wed, 14 May 2026 14:40:00 +0800
+
 zerosdr (0.1.0) unstable; urgency=low
 
   * Initial release

@@ -13,7 +13,7 @@ UIRenderer::UIRenderer(Framebuffer& fb)
 UIRenderer::~UIRenderer() {
 }
 
-void UIRenderer::renderSpectrum(const std::vector<float>& magnitude, uint32_t center_freq, uint32_t span, uint32_t sample_rate) {
+void UIRenderer::renderSpectrum(const std::vector<float>& magnitude, uint32_t center_freq, uint32_t span, uint32_t sample_rate, int demod_mode, uint32_t demod_bandwidth) {
     if (display_mode == 2) return;  // 仅瀑布模式，跳过频谱
     if (magnitude.empty()) return;
 
@@ -38,7 +38,7 @@ void UIRenderer::renderSpectrum(const std::vector<float>& magnitude, uint32_t ce
     drawDbScale(2, 10, SPECTRUM_H - 12, min_mag, max_mag);
 
     // Draw spectrum graph with zoomed data
-    drawSpectrumGraph(zoomed_mag, 0, 0, 320, SPECTRUM_H);
+    drawSpectrumGraph(zoomed_mag, 0, 0, 320, SPECTRUM_H, center_freq, span, demod_bandwidth);
 
     // Draw frequency axis below spectrum
     drawFreqAxis(center_freq, span, FREQAXIS_Y, FREQAXIS_H);
@@ -83,7 +83,9 @@ void UIRenderer::renderWaterfall(const std::vector<float>& magnitude) {
     }
 }
 
-void UIRenderer::renderStatusBar(uint32_t freq, uint32_t span, int gain, const char* freq_input) {
+void UIRenderer::renderStatusBar(uint32_t freq, uint32_t span, int gain, const char* freq_input,
+                                  const char* demod_mode, float volume, bool squelch_open, bool audio_enabled,
+                                  bool agc_enabled) {
     // Background
     fb.fillRect(0, STATUSBAR_Y, 320, STATUSBAR_H, COLOR_STATUSBAR);
 
@@ -95,30 +97,90 @@ void UIRenderer::renderStatusBar(uint32_t freq, uint32_t span, int gain, const c
         return;  // Skip normal status display
     }
 
-    // Format strings
-    char freq_str[16], span_str[16], gain_str[16];
-    formatFrequency(freq, freq_str, sizeof(freq_str));
+    // Layout: Frequency - DemodMode - Span(center) - Volume - Gain(right)
+    // Example: 99.3M  FM  3.2M  ▰▰▰▰▱▱▱▱  +20dB
 
-    //an
+    // 1. Frequency (left, bright)
+    char freq_str[16];
+    formatFrequency(freq, freq_str, sizeof(freq_str));
+    fb.drawText(2, STATUSBAR_Y + 3, freq_str, COLOR_TEXT_BRIGHT);
+
+    // 2. Demod mode (moved right to avoid overlap with frequency)
+    if (audio_enabled) {
+        fb.drawText(65, STATUSBAR_Y + 3, demod_mode, COLOR_TEXT_BRIGHT);
+    } else {
+        fb.drawText(65, STATUSBAR_Y + 3, "--", COLOR_TEXT_DIM);
+    }
+
+    // 3. AGC/Gain (moved right after demod mode)
+    char gain_str[16];
+    if (agc_enabled) {
+        snprintf(gain_str, sizeof(gain_str), "AGC");
+        fb.drawTextBg(95, STATUSBAR_Y + 3, gain_str, COLOR_BLACK, COLOR_WHITE);
+    } else if (gain >= 0) {
+        snprintf(gain_str, sizeof(gain_str), "+%ddB", gain / 10);
+        fb.drawTextBg(95, STATUSBAR_Y + 3, gain_str, COLOR_BLACK, COLOR_WHITE);
+    } else {
+        snprintf(gain_str, sizeof(gain_str), "AUTO");
+        fb.drawText(95, STATUSBAR_Y + 3, gain_str, COLOR_TEXT_DIM);
+    }
+
+    // 4. Span (center, dim)
+    char span_str[16];
     if (span >= 1000000) {
         snprintf(span_str, sizeof(span_str), "%.1fM", span / 1e6);
     } else {
         snprintf(span_str, sizeof(span_str), "%dk", span / 1000);
     }
+    int span_len = strlen(span_str);
+    int span_width = span_len * 7;  // Approximate character width
+    int span_x = (320 - span_width) / 2;  // Center horizontally
+    fb.drawText(span_x, STATUSBAR_Y + 3, span_str, COLOR_TEXT_DIM);
 
-    if (gain >= 0) {
-        snprintf(gain_str, sizeof(gain_str), "+%ddB", gain / 10);
-    } else {
-        snprintf(gain_str, sizeof(gain_str), "AUTO");
+    // 5. Volume bar (right-aligned) - with "VOL" label
+    if (audio_enabled) {
+        // Draw "VOL" text label
+        int label_x = 320 - 40 - 2 - 24;  // 24px left of volume bar (3 chars * 7px + spacing)
+        int label_y = STATUSBAR_Y + 3;
+        uint16_t label_color = squelch_open ? COLOR_TEXT_BRIGHT : COLOR_TEXT_DIM;
+
+        fb.drawText(label_x, label_y, "VOL", label_color);
+
+        int bar_width = 40;   // Bar width
+        int bar_height = 6;   // Bar height
+        int bar_x = 320 - bar_width - 2;  // Right-aligned with 2px margin
+        int bar_y = STATUSBAR_Y + 4;  // Slightly lower for better centering
+
+        // Calculate filled width based on volume (0.0 - 1.0)
+        int filled_width = (int)(volume * bar_width);
+
+        // Choose color based on squelch state
+        uint16_t fill_color = squelch_open ? COLOR_TEXT_BRIGHT : COLOR_TEXT_DIM;
+
+        // Only draw filled part (no background)
+        if (filled_width > 2) {  // Need at least 3 pixels for rounded effect
+            // Draw main filled rectangle
+            fb.fillRect(bar_x + 1, bar_y, filled_width - 2, bar_height, fill_color);
+
+            // Draw rounded left(semi-circle effect)
+            fb.fillRect(bar_x, bar_y + 1, 1, bar_height - 2, fill_color);  // Left edge
+            fb.drawPixel(bar_x, bar_y + 2, fill_color);  // Rounder
+            if (bar_height > 4) fb.drawPixel(bar_x, bar_y + bar_height - 3, fill_color);
+
+            // Draw rounded right end (semi-circle effect)
+            if (filled_width > 1) {
+                fb.fillRect(bar_x + filled_width - 1, bar_y + 1, 1, bar_height - 2, fill_color);  // Right edge
+                fb.drawPixel(bar_x + filled_width - 1, bar_y + 2, fill_color);  // Rounder
+                if (bar_height > 4) fb.drawPixel(bar_x + filled_width - 1, bar_y + bar_height - 3, fill_color);
+            }
+        } else if (filled_width > 0) {
+            // Very small volume, just draw a small indicator
+            fb.fillRect(bar_x, bar_y + 2, filled_width, 2, fill_color);
+        }
     }
-
-    // Draw text: freq in bright, span and gain in dim
-    fb.drawText(2,   STATUSBAR_Y + 3, freq_str,  COLOR_TEXT_BRIGHT);
-    fb.drawText(130, STATUSBAR_Y + 3, span_str,  COLOR_TEXT_DIM);
-    fb.drawText(260, STATUSBAR_Y + 3, gain_str,  COLOR_TEXT_DIM);
 }
 
-void UIRenderer::drawSpectrumGraph(const std::vector<float>& mag, int x, int y, int w, int h) {
+void UIRenderer::drawSpectrumGraph(const std::vector<float>& mag, int x, int y, int w, int h, uint32_t center_freq, uint32_t span, uint32_t demod_bandwidth) {
     if (mag.empty()) return;
 
     float min_mag = *std::min_element(mag.begin(), mag.end());
@@ -172,8 +234,27 @@ void UIRenderer::drawSpectrumGraph(const std::vector<float>& mag, int x, int y, 
         }
     }
 
-    // Draw center frequency indicator (red vertical line)
+    // Calculate demodulation bandwidth indicator
+    // Use the passed demod_bandwidth parameter directly
     int center_x = x + w / 2;
+    float pixels_per_hz = (float)w / span;
+    int bw_half_width = (int)(demod_bandwidth / 2 * pixels_per_hz);
+
+    int bw_left = center_x - bw_half_width;
+    int bw_right = center_x + bw_half_width;
+
+    // Draw bandwidth indicator as semi-transparent shaded region
+    uint16_t shade_color = 0x2945;  // Dark blue-gray for shading
+    for (int bx = bw_left; bx <= bw_right; bx++) {
+        if (bx >= x && bx < x + w) {
+            // Draw vertical shading lines (every other pixel for transparency effect)
+            for (int sy = y; sy < y + h; sy += 2) {
+                fb.drawPixel(bx, sy, shade_color);
+            }
+        }
+    }
+
+    // Draw center frequency indicator (red vertical line)
     for (int cy = y; cy < y + h; cy++) {
         fb.drawPixel(center_x, cy, COLOR_RED);
     }

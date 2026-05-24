@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=zerosdr
+Exec=/usr/share/APPLaunch/bin/zerosdr
+Terminal=false
+Icon=share/images/zerosdr.png
+Type=Application

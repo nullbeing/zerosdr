@@ -6,6 +6,9 @@
 #include <cstring>
 #include <iostream>
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 Framebuffer::Framebuffer(const char* device)
     : device_path(device), fb_fd(-1), fb_ptr(nullptr),
       width(0), height(0), screensize(0), initialized(false) {
@@ -178,32 +181,29 @@ bool Framebuffer::saveScreenshot(const char* filename) {
         return false;
     }
 
-    // Open output file
-    FILE* fp = fopen(filename, "wb");
-    if (!fp) {
-        std::cerr << "Failed to open file: " << filename << std::endl;
-        return false;
-    }
+    // Allocate RGB888 buffer
+    uint8_t* rgb_data = new uint8_t[width * height * 3];
 
-    // Write PPM header (P6 format - binary RGB)
-    fprintf(fp, "P6\n%d %d\n255\n", width, height);
-
-    // Convert RGB565 to RGB888 and write
+    // Convert RGB565 to RGB888
     for (int i = 0; i < width * height; i++) {
         uint16_t pixel = fb_ptr[i];
 
-        // Extract RGB565 components
-        uint8_t r = ((pixel >> 11) & 0x1F) << 3;  // 5 bits -> 8 bits
-        uint8_t g = ((pixel >> 5) & 0x3F) << 2;   // 6 bits -> 8 bits
-        uint8_t b = (pixel & 0x1F) << 3;          // 5 bits -> 8 bits
-
-        // Write RGB bytes
-        fputc(r, fp);
-        fputc(g, fp);
-        fputc(b, fp);
+        // Extract RGB565 components and expand to 8 bits
+        rgb_data[i * 3 + 0] = ((pixel >> 11) & 0x1F) << 3;  // R: 5 bits -> 8 bits
+        rgb_data[i * 3 + 1] = ((pixel >> 5) & 0x3F) << 2;   // G: 6 bits -> 8 bits
+        rgb_data[i * 3 + 2] = (pixel & 0x1F) << 3;          // B: 5 bits -> 8 bits
     }
 
-    fclose(fp);
+    // Write PNG file
+    int result = stbi_write_png(filename, width, height, 3, rgb_data, width * 3);
+
+    delete[] rgb_data;
+
+    if (!result) {
+        std::cerr << "Failed to write PNG file: " << filename << std::endl;
+        return false;
+    }
+
     return true;
 }
 

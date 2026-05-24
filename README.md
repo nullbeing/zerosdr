@@ -3,178 +3,179 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi%20%7C%20M5Stack-orange.svg)]()
 
-A lightweight SDR (Software Defined Radio) spectrum viewer designed for embedded systems with small SPI displays.
+zeroSDR is an open source SDR receiver for Linux-based small screen embedded systems.
 
 ![zeroSDR Interface](images/zerosdr.jpg)
 
-## 🎯 Project Background
-
-zeroSDR was originally developed for the upcoming **M5Stack Cardputer Zero**, a compact Raspberry Pi Zero device. The current development environment uses a **Raspberry Pi 5** with a 320x170 SPI display to prototype and test the interface.
-
-![Running on Raspberry Pi 5](images/runs_on_pi5.jpg)
-
-## ⚠️ Important Hardware Compatibility Notes
-
-- **Tested Hardware**: This software has **only been tested with RTL-SDR Blog V4** dongles
-- **Driver Version Critical**: You **MUST use the latest rtl-sdr drivers**. Older driver versions cause frequency offset issues where the displayed spectrum does not match the actual tuned frequency
-- **Display**: Optimized for 320x170 pixel SPI displays connected to `/dev/fb0` (Linux framebuffer)
-
-## ✨ Features
+## Features
 
 - Real-time spectrum and waterfall visualization
-- RTL-SDR device support
-- Optimized for small embedded displays
-- Low resource footprint suitable for Raspberry Pi Zero 2W
+- Audio demodulation (FM/NFM/AM) with ALSA output
 - Direct framebuffer rendering for minimal overhead
+- Optimized for Raspberry Pi Zero 2W and Pi 5
+- Designed for M5Stack Cardputer Zero (320x170 display)
 
-## 🔧 Hardware Requirements
+## Hardware Requirements
 
-- **Raspberry Pi 5** or **Raspberry Pi Zero 2W** (or M5Stack Cardputer Zero when available)
-- **RTL-SDR Blog V4** USB dongle (other RTL-SDR devices may work but are untested)
-- 320x170 SPI display connected to `/dev/fb0`
+- Raspberry Pi 5 or Pi Zero 2W
+- **RTL-SDR dongle** (tested: RTL-SDR Blog V4, RTL2832U SDR)
+- 320x170 SPI display on `/dev/fb0`
+- **Latest rtl-sdr drivers** (critical for correct frequency tuning)
 
-## 📦 Software Requirements
-
-- **Latest rtl-sdr library and drivers** (critical for correct frequency tuning)
-- Linux framebuffer support (`/dev/fb0`)
-- CMake 3.13+
-- C++17 compatible compiler
-
-## 🛠️ Building from Source
+## Quick Start
 
 ### Install Dependencies
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential cmake librtlsdr-dev git
+sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev
 ```
 
-**Important**: Ensure you have the latest `librtlsdr-dev` package. On older distributions, you may need to build rtl-sdr from source:
+### Build
 
 ```bash
-git clone https://github.com/osmocom/rtl-sdr.git
-cd rtl-sdr
 mkdir build && cd build
-cmake ../ -DINSTALL_UDEV_RULES=ON
-make
-sudo make install
-sudo ldconfig
-```
-
-### Build for Raspberry Pi 5
-
-On Raspberry Pi 5, build directly on the device:
-
-```bash
-mkdir build
-cd build
 cmake ..
 make -j$(nproc)
+sudo make install
 ```
 
-### Build for M5Stack Cardputer Zero (Raspberry Pi Zero 2W)
-
-The Cardputer Zero is based on Raspberry Pi Zero 2W. Due to limited resources, you have two options:
-
-**Option 1: Build directly on the device** (slower but simpler)
+### Run
 
 ```bash
-mkdir build
-cd build
-cmake ..
-make -j4  # Pi Zero 2W has 4 cores, but build will be slow
+zerosdr                    # Start with defaults
+zerosdr -f 100000000       # Tune to 100 MHz (FM broadcast)
+zerosdr -f 118000000       # Tune to 118 MHz (aviation AM)
+zerosdr -s 2048000 -g 20   # Custom sample rate and gain
 ```
 
-**Option 2: Cross-compile on a faster machine** (recommended)
+## Keyboard Controls
 
-On your development machine (e.g., Raspberry Pi 5 or x86_64 Linux):
+### Frequency Tuning
+| Key | Action |
+|-----|--------|
+| `←` `→` | Tune ±100 kHz (hold for acceleration) |
+| `Shift+←` `Shift+→` | Tune ±1 MHz (hold for acceleration) |
+| `0-9` `.` | Direct frequency input (MHz) |
+| `Enter` | Confirm frequency input |
+| `Backspace` | Delete last digit |
+| `Esc` | Cancel frequency input |
+
+### Display Control
+| Key | Action |
+|-----|--------|
+| `Shift+Z` | Cycle display zoom (3.2M → 2.8M → ... → 50k) |
+| `Shift+R` | Cycle FFT resolution (256/512/1024/2048) |
+| `M` | Cycle display mode (spectrum+waterfall / spectrum / waterfall) |
+| `Shift+S` | Take screenshot (saved to ~/zerosdr_*.png) |
+
+### Audio & Demodulation
+| Key | Action |
+|-----|--------|
+| `D` | Cycle demodulation mode (FM → NFM → AM) |
+| `Shift+B` | Cycle demodulation bandwidth |
+| `Space` | Toggle audio on/off |
+| `V` / `C` | Volume up / down |
+| `S` | Adjust squelch (+5% per press) |
+| `S` (long press) | Reset squelch to 0% |
+| `A` | Toggle audio AGC on/off |
+
+### Gain Control
+| Key | Action |
+|-----|--------|
+| `G` | Toggle hardware AGC on/off |
+| `↑` / `↓` | Manual gain ±1 dB (when AGC off) |
+
+### Other
+| Key | Action |
+|-----|--------|
+| `+` / `-` | Cycle sample rate (1.024/1.2/1.8/2.048/2.4 MHz) |
+| `Q` / `Esc` | Quit |
+
+## Demodulation Bandwidth Presets
+
+### FM (Wideband FM Broadcast)
+- 200 kHz: Narrow (crowded bands)
+- 250 kHz: Standard stereo
+- **300 kHz: Default** (full stereo + RDS)
+- 400 kHz: Wide (strong signals)
+- 500 kHz: Maximum (best quality)
+
+### NFM (Narrowband FM Communications)
+- 6.25 kHz: Ultra-narrow
+- **12.5 kHz: Default** (standard NFM)
+- 25 kHz: Wide NFM
+
+### AM (Amplitude Modulation)
+- 5 kHz: Narrow
+- **10 kHz: Default** (standard AM)
+- 15 kHz: Wide
+
+## Display Zoom Levels
+
+Press `Shift+Z`  through zoom levels (from wide to narrow):
+- 3.2 MHz: Full spectrum view
+- 2.8 MHz / 2 MHz: Wide view
+- 1 MHz / 500 kHz: Medium zoom
+- 200 kHz / 100 kHz: Narrow zoom
+- 50 kHz: Ultra-narrow (maximum resolution)
+
+## Command Line Options
+
+```
+Usage: zerosd -k <device>   Set keyboard input device (default: auto-detect)
+  -h            Show help
+```
+
+## Troubleshooting
+
+### Frequency Offset Issues
+If the displayed spectrum doesn't match the actual frequency:
+- **Update rtl-sdr drivers to the latest version** (most common cause)
+- Check PPM correction with `rtl_test`
+
+### RTL-SDR Not Detected
+```bash
+lsusb | grep RTL    # Verify device is connectedlity
+```
+
+### Permission Denied on /dev/fb0
+```bash
+sudo usermod -a -G video $USER
+# Log out and back in
+```
+
+### No Audio Output
+```bash
+aplay -l            # List audio devices
+alsamixer           # Check volume levels
+```
+
+## Cross-Compilation for Pi Zero 2W
 
 ```bash
-# Install cross-compilation toolchain
+# Install toolchain
 sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
-# Create build directory
-mkdir build-zero2w
-cd build-zero2w
-
-# Configure for ARM64 (Pi Zero 2W architecture)
+# Build
+mkdir build-zero2w && cd build-zero2w
 cmake .. \
   -DCMAKE_SYSTEM_NAME=Linux \
   -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
   -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
   -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++
-
-# Build
 make -j$(nproc)
 
-# Copy the binary to your Cardputer Zero
+# Copy to device
 scp zerosdr pi@cardputer-zero.local:/home/pi/
 ```
 
-### Install
+## License
 
-```bash
-sudo make install
-```
-
-Or build and install a DEB package:
-
-```bash
-# Install packaging tools
-sudo apt-get install -y debhelper devscripts
-
-# Build the package
-dpkg-buildpackage -us -uc -b
-
-# Install (from parent directory)
-sudo dpkg -i ../zerosdr_*.deb
-```
-
-## 🚀 Usage
-
-```bash
-z the displayed spectrum doesn't match the actual frequency you're tuned to:
-- **Update your rtl-sdr drivers to the latest version** (this is the most common cause)
-- Check for PPM correction needs with `rtl_test`
-
-### RTL-SDR Not Detec
-```bash
-# Verify framebuffer device exists
-ls -l /dev/fb0
-
-# Check current framebuffer resolution
-fbset
-```
-
-### Permission Denied
-
-```bash
-# Add user to video group
-sudo usermod -a -G video $USER
-
-# Log out and back in, or reboot
-```
-
-## 📖 Documentation
-
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
-
-## 🤝 Contributing
-
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-When reporting issues, please include:
-- RTL-SDR dongle model and version
-- rtl-sdr driver version (`rtl_test` output)
-- Raspberry Pi model
-- Display specNSE) file for details.
-
-## 👤 Author
-
-**Weiming Feng**
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for det Feng**
 - Email: bestedwin@gmail.com
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Built with [rtl-sdr](https://github.com/osmocom/rtl-sdr) library
 - Designed for M5Stack Cardputer Zero

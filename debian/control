@@ -2,13 +2,19 @@ Source: zerosdr
 Section: hamradio
 Priority: optional
 Maintainer: Weiming Feng <bestedwin@gmail.com>
-Build-Depends: debhelper (>= 10), cmake, librtlsdr-dev, libc6-dev
+Build-Depends: debhelper (>= 10), cmake, librtlsdr-dev, libasound2-dev, libc6-dev
 Standards-Version: 4.1.3
 
 Package: zerosdr
 Architecture: armhf
-Depends: ${shlibs:Depends}, ${misc:Depends}, librtlsdr0
-Description: Lightweight SDR interface for Raspberry Pi
+Depends: libasound2 (>= 1.0.18), libc6 (>= 2.31), libgcc-s1 | libgcc1, librtlsdr0 (>= 0.6.0), libstdc++6 (>= 5.2)
+Description: Lightweight SDR interface for Raspberry Pi with audio demodulation
  A graphical SDR application optimized for small SPI displays
  on Raspberry Pi. Supports RTL-SDR devices and provides
- spectrum and waterfall visualization.
+ spectrum and waterfall visualization with FM/NFM/AM audio demodulation.
+ .
+ Features:
+  - Real-time spectrum analyzer and waterfall display
+  - FM/NFM/AM audio demodulation
+  - Volume control and squelch detection
+  - Optimized for Raspberry Pi 3B and newer
