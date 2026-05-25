@@ -5,6 +5,7 @@
 #include "input_handler.h"
 #include "audio_demodulator.h"
 #include "audio_output.h"
+#include "version.h"
 #include <iostream>
 #include <signal.h>
 #include <unistd.h>
@@ -69,7 +70,7 @@ int main(int argc, char* argv[]) {
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
 
-    std::cout << "zeroSDR - Initializing..." << std::endl;
+    std::cout << "zeroSDR " << ZEROSDR_VERSION_STRING << " - Initializing..." << std::endl;
 
     // Initialize framebuffer
     Framebuffer fb(fb_device);
@@ -116,6 +117,12 @@ int main(int argc, char* argv[]) {
 
         // Draw zeroSDR logo in spectrum area
         ui.drawLogo(0, SPECTRUM_Y);
+
+        // Draw red center frequency indicator (vertical line at center)
+        int center_x = 320 / 2;  // 160
+        for (int cy = SPECTRUM_Y; cy < SPECTRUM_Y + SPECTRUM_H; cy++) {
+            fb.drawPixel(center_x, cy, COLOR_RED);
+        }
 
         // Draw frequency axis with default frequency
         ui.drawFreqAxis(center_freq, sample_rate, FREQAXIS_Y, FREQAXIS_H);
