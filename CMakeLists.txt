@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(zeroSDR VERSION 0.1.0 LANGUAGES C CXX)
+project(zeroSDR VERSION 0.2.0 LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -80,6 +80,8 @@ target_link_libraries(zerosdr PRIVATE
 
 # Install
 install(TARGETS zerosdr DESTINATION bin)
+install(FILES share/applications/zerosdr.desktop DESTINATION share/applications)
+install(FILES share/images/zerosdr.png DESTINATION share/zerosdr/images)
 
 # CPack configuration for DEB packaging
 set(CPACK_GENERATOR "DEB")
@@ -92,5 +94,6 @@ set(CPACK_DEBIAN_PACKAGE_DEPENDS "librtlsdr0, libasound2, libc6")
 set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "arm64")
 set(CPACK_DEBIAN_PACKAGE_SECTION "hamradio")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Weiming Feng <bestedwin@gmail.com>")
 
 include(CPack)
