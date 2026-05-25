@@ -30,6 +30,15 @@ public:
     void setMode(int mode) { display_mode = mode; }
     int  getMode() const   { return display_mode; }
 
+    // Dialog rendering
+    void renderDialog(const char* title, const char* message, const char* hint);
+
+    // Public helper for rendering frequency axis (used in device detection)
+    void drawFreqAxis(uint32_t center_freq, uint32_t span, int y, int h);
+
+    // Draw zeroSDR logo in spectrum area
+    void drawLogo(int x, int y);
+
 private:
     Framebuffer& fb;
     int display_mode; // reserved for future use
@@ -44,7 +53,6 @@ private:
 
     // Helpers
     void drawSpectrumGraph(const std::vector<float>& mag, int x, int y, int w, int h, uint32_t center_freq, uint32_t span, uint32_t demod_bandwidth);
-    void drawFreqAxis(uint32_t center_freq, uint32_t span, int y, int h);
     void drawDbScale(int x, int y, int h, float db_min, float db_max);
     uint16_t magnitudeToColor(float norm) const;
     void formatFrequency(uint32_t freq, char* buf, size_t size) const;

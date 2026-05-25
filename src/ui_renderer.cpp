@@ -367,3 +367,210 @@ void UIRenderer::formatFrequency(uint32_t freq, char* buf, size_t size) const {
         snprintf(buf, size, "%uHz", freq);
     }
 }
+
+void UIRenderer::renderDialog(const char* title, const char* message, const char* hint) {
+    // Dialog dimensions (positioned in waterfall area)
+    int dialog_w = 280;
+    int dialog_h = 70;  // Reduced height to fit in waterfall area
+    int dialog_x = (320 - dialog_w) / 2;  // 20
+    int dialog_y = WATERFALL_Y + (WATERFALL_H - dialog_h) / 2;  // Center in waterfall area
+
+    // Draw semi-transparent overlay ONLY in waterfall area
+    for (int y = WATERFALL_Y; y < STATUSBAR_Y; y++) {
+        for (int x = 0; x < 320; x++) {
+            // Darken the waterfall area only
+            if (x < dialog_x || x >= dialog_x + dialog_w ||
+                y < dialog_y || y >= dialog_y + dialog_h) {
+                // Outside dialog: draw dark overlay
+                fb.drawPixel(x, y, 0x2104);  // Very dark gray
+            }
+        }
+    }
+
+    // Draw dialog box background
+    fb.fillRect(dialog_x, dialog_y, dialog_w, dialog_h, 0x2945);  // Dark blue-gray
+
+    // Draw dialog border
+    fb.drawRect(dialog_x, dialog_y, dialog_w, dialog_h, COLOR_TEXT_BRIGHT);
+    fb.drawRect(dialog_x + 1, dialog_y + 1, dialog_w - 2, dialog_h - 2, COLOR_TEXT_BRIGHT);
+
+    // Draw title (centered, top of dialog)
+    int title_len = strlen(title);
+    int title_w = title_len * 7;  // Approximate character width
+    int title_x = dialog_x + (dialog_w - title_w) / 2;
+    fb.drawTextBg(title_x, dialog_y + 8, title, COLOR_YELLOW, 0x2945);
+
+    // Draw message (centered, middle of dialog)
+    int msg_len = strlen(message);
+    int msg_w = msg_len * 7;
+    int msg_x = dialog_x + (dialog_w - msg_w) / 2;
+    fb.drawText(msg_x, dialog_y + 28, message, COLOR_TEXT_BRIGHT);
+
+    // Draw hint (centered, bottom of dialog)
+    int hint_len = strlen(hint);
+    int hint_w = hint_len * 7;
+    int hint_x = dialog_x + (dialog_w - hint_w) / 2;
+    fb.drawText(hint_x, dialog_y + 50, hint, COLOR_TEXT_DIM);
+}
+
+void UIRenderer::drawLogo(int x, int y) {
+    // "zeroSDR" logo with elegant large font (9x13 pixel characters, 3px spacing)
+    // Scaled up for better visibility
+    // Color: subtle cyan-blue gradient
+
+    const uint16_t logo_color_bright = 0x4FDF;  // Bright cyan #4FC3FF
+    const uint16_t logo_color_mid    = 0x2D7F;  // Mid cyan #2DA7FF
+    const uint16_t logo_color_dim    = 0x1C9F;  // Dim cyan #1C93FF
+
+    // Character width: 9 pixels, height: 13 pixels, spacing: 3 pixels between chars
+    // "zeroSDR" = 7 characters
+    const int char_w = 9;
+    const int char_h = 13;
+    const int char_spacing = 3;
+    const int total_width = 7 * char_w + 6 * char_spacing;  // 81 pixels
+
+    // Center the logo horizontally
+    int start_x = x + (320 - total_width) / 2;
+    int start_y = y + 20;  // 20px from top of spectrum area for better centering
+
+    // Define 9x13 bitmap font for "zeroSDR" (larger, more elegant)
+    // Each character is represented as 13 rows, each row has 9 bits
+    const uint16_t font_z[] = {
+        0b111111111,
+        0b111111111,
+        0b000000011,
+        0b000000110,
+        0b000001100,
+        0b000011000,
+        0b000110000,
+        0b001100000,
+        0b011000000,
+        0b110000000,
+        0b110000000,
+        0b111111111,
+        0b111111111
+    };
+
+    const uint16_t font_e[] = {
+        0b111111111,
+        0b111111111,
+        0b110000000,
+        0b110000000,
+        0b110000000,
+        0b111111110,
+        0b111111110,
+        0b110000000,
+        0b110000000,
+        0b110000000,
+        0b110000000,
+        0b111111111,
+        0b111111111
+    };
+
+    const uint16_t font_r[] = {
+        0b111111110,
+        0b111111111,
+        0b110000011,
+        0b110000011,
+        0b110000011,
+        0b111111110,
+        0b111111100,
+        0b110011000,
+        0b110001100,
+        0b110000110,
+        0b110000011,
+        0b110000011,
+        0b110000011
+    };
+
+    const uint16_t font_o[] = {
+        0b001111100,
+        0b011111110,
+        0b110000011,
+        0b110000011,
+        0b110000011,
+        0b110000011,
+        0b110000011,
+        0b110000011,
+        0b110000011,
+        0b110000011,
+        0b110000011,
+        0b011111110,
+        0b001111100
+    };
+
+    const uint16_t font_S[] = {
+        0b011111111,
+        0b111111111,
+        0b110000000,
+        0b110000000,
+        0b110000000,
+        0b011111110,
+        0b001111111,
+        0b000000011,
+        0b000000011,
+        0b000000011,
+        0b000000011,
+        0b111111110,
+        0b111111100
+    };
+
+    const uint16_t font_D[] = {
+        0b111111100,
+        0b111111110,
+        0b110000111,
+        0b110000011,
+        0b110000011,
+        0b110000011,
+        0b110000011,
+        0b110000011,
+        0b110000011,
+        0b110000011,
+        0b110000111,
+        0b111111110,
+        0b111111100
+    };
+
+    const uint16_t font_R[] = {
+        0b111111110,
+        0b111111111,
+        0b110000011,
+        0b110000011,
+        0b110000011,
+        0b111111110,
+        0b111111100,
+        0b110011000,
+        0b110001100,
+        0b110000110,
+        0b110000011,
+        0b110000011,
+        0b110000011
+    };
+
+    const uint16_t* chars[] = {font_z, font_e, font_r, font_o, font_S, font_D, font_R};
+
+    // Draw each character
+    for (int ch = 0; ch < 7; ch++) {
+        int cx = start_x + ch * (char_w + char_spacing);
+        const uint16_t* bitmap = chars[ch];
+
+        for (int row = 0; row < char_h; row++) {
+            uint16_t line = bitmap[row];
+            for (int col = 0; col < char_w; col++) {
+                if (line & (1 << (char_w - 1 - col))) {
+                    // Gradient effect: top rows brighter, bottom rows dimmer
+                    uint16_t color;
+                    if (row < 4) {
+                        color = logo_color_bright;
+                    } else if (row < 9) {
+                        color = logo_color_mid;
+                    } else {
+                        color = logo_color_dim;
+                    }
+                    fb.drawPixel(cx + col, start_y + row, color);
+                }
+            }
+        }
+    }
+}
+

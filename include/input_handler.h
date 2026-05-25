@@ -25,6 +25,7 @@ enum AppKeyCode {
     APPKEY_Q,
     APPKEY_ESC,
     APPKEY_H,
+    APPKEY_R,    // Retry (for device detection)
     APPKEY_RES,  // Shift+R: cycle FFT resolution
     APPKEY_BW,   // Shift+B: cycle demodulation bandwidth
     APPKEY_ZOOM, // Shift+Z: cycle display zoom

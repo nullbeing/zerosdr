@@ -79,12 +79,102 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "Framebuffer initialized: " << fb.getWidth() << "x" << fb.getHeight() << std::endl;
 
-    // Initialize SDR controller
-    SDRController sdr;
-    if (!sdr.init(0)) {
-        std::cerr << "Failed to initialize RTL-SDR device" << std::endl;
-        return 1;
+    // Initialize UI renderer early (for dialog display)
+    UIRenderer ui(fb);
+
+    // Initialize keyboard input early (for screenshot and retry)
+    InputHandler input;
+    if (!input.init(kbd_device)) {
+        std::cerr << "Warning: keyboard input disabled" << std::endl;
     }
+
+    // Try to initialize SDR controller
+    SDRController sdr;
+    bool sdr_initialized = false;
+
+    while (!sdr_initialized) {
+        if (sdr.init(0)) {
+            sdr_initialized = true;
+            std::cout << "RTL-SDR device initialized" << std::endl;
+            break;
+        }
+
+        // SDR initialization failed - show dialog with background UI
+        std::cerr << "Failed to initialize RTL-SDR device" << std::endl;
+
+        // Render background UI (spectrum, freq axis, waterfall, status bar)
+        fb.clear(COLOR_BG_DARK);
+
+        // Draw empty spectrum area with grid
+        for (int i = 1; i <= 3; i++) {
+            int grid_y = SPECTRUM_Y + (i * SPECTRUM_H) / 4;
+            for (int gx = 0; gx < 320; gx += 4) {
+                fb.drawPixel(gx, grid_y, COLOR_GRID);
+                fb.drawPixel(gx + 1, grid_y, COLOR_GRID);
+            }
+        }
+
+        // Draw zeroSDR logo in spectrum area
+        ui.drawLogo(0, SPECTRUM_Y);
+
+        // Draw frequency axis with default frequency
+        ui.drawFreqAxis(center_freq, sample_rate, FREQAXIS_Y, FREQAXIS_H);
+
+        // Draw status bar
+        ui.renderStatusBar(center_freq, sample_rate, gain, nullptr, "--", 0.0f, false, false, false);
+
+        // Draw dialog on top
+        ui.renderDialog(
+            "RTL-SDR Not Found",
+            "Please connect RTL-SDR device",
+            "R: Retry | Q: Quit"
+        );
+        fb.update();
+
+        // Wait for user input
+        bool waiting = true;
+        while (waiting) {
+            usleep(50000);  // 50ms
+            AppKeyCode key = input.pollKey();
+
+            switch (key) {
+                case APPKEY_R:
+                    // Retry initialization
+                    waiting = false;
+                    std::cout << "Retrying RTL-SDR initialization..." << std::endl;
+                    break;
+
+                case APPKEY_SCREENSHOT: {
+                    // Take screenshot
+                    char filename[64];
+                    time_t now = time(nullptr);
+                    struct tm* t = localtime(&now);
+                    snprintf(filename, sizeof(filename),
+                             "/home/edwin/zerosdr_%04d%02d%02d_%02d%02d%02d.png",
+                             t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+                             t->tm_hour, t->tm_min, t->tm_sec);
+                    if (fb.saveScreenshot(filename)) {
+                        std::cout << "Screenshot saved: " << filename << std::endl;
+                    } else {
+                        std::cerr << "Screenshot failed" << std::endl;
+                    }
+                    break;
+                }
+
+                case APPKEY_Q:
+                case APPKEY_ESC:
+                    std::cout << "User cancelled" << std::endl;
+                    input.restore();
+                    fb.clear(COLOR_BG_DARK);
+                    fb.update();
+                    return 0;
+
+                default:
+                    break;
+            }
+        }
+    }
+
     std::cout << "RTL-SDR device initialized" << std::endl;
 
     // Configure SDR
@@ -115,15 +205,6 @@ int main(int argc, char* argv[]) {
 
     // Initialize FFT processor
     FFTProcessor fft(512);
-
-    // Initialize UI renderer
-    UIRenderer ui(fb);
-
-    // Initialize keyboard input
-    InputHandler input;
-    if (!input.init(kbd_device)) {
-        std::cerr << "Warning: keyboard input disabled" << std::endl;
-    }
 
     // Initialize audio components
     AudioDemodulator demod(sample_rate, 48000);
