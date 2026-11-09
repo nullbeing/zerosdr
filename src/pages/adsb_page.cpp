@@ -906,7 +906,7 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
                 selected_index_++;
                 beeps_.play(1000.0f, 15, 0.06f);
                 // Adjust scroll if needed
-                int max_visible = 9;  // MAX_VISIBLE_ROWS - 1 (header row)
+                int max_visible = 8;  // MAX_VISIBLE_ROWS - 1 (header row)
                 if (selected_index_ >= scroll_offset_ + max_visible) {
                     scroll_offset_ = selected_index_ - max_visible + 1;
                 }
@@ -924,7 +924,7 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
         case APPKEY_RIGHT:
         case APPKEY_PAGEDOWN:
             selected_index_ = std::min((int)aircraft_list_.size() - 1, selected_index_ + 5);
-            scroll_offset_ = std::min((int)aircraft_list_.size() - 9, scroll_offset_ + 5);
+            scroll_offset_ = std::min((int)aircraft_list_.size() - 8, scroll_offset_ + 5);
             if (scroll_offset_ < 0) scroll_offset_ = 0;
             beeps_.play(1320.0f, 15, 0.06f);
             break;

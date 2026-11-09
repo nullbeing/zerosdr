@@ -350,8 +350,8 @@ the current sample rate can fill.
 | `G` / `+` / `-` | Radar gain mode / gain |
 | `Tab` | Back to the SDR page |
 
-The radar's left panel lists `ICAO` / altitude / distance; the selected row
-shows the callsign when one has been decoded.
+The radar's left panel lists `ICAO` / altitude / distance, with the selected
+aircraft's callsign shown in large text at the bottom of the panel.
 
 `H` opens a full-screen overlay with two tabs: the key list and a settings tab
 where you can view/edit the observer latitude and longitude (opening the usual

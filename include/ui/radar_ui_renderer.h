@@ -80,7 +80,7 @@ private:
     static const int LIST_W = 126;  // Left 118 pixels for list
     static const int LIST_H = 154;  // 170 - 16 = 154
     static const int ROW_HEIGHT = 14;
-    static const int MAX_VISIBLE_ROWS = 11;  // 154 / 14 = 11 rows
+    static const int MAX_VISIBLE_ROWS = 9;   // header + 8 rows (callsign box below)
 
     // Right panel - Radar display
     static const int RADAR_X = 126;
@@ -91,6 +91,7 @@ private:
     static const int RADAR_CENTER_Y = 93;   // 16 + 154/2 = 93
     static const int RADAR_RADIUS = 66;
     static const int NUM_RANGE_RINGS = 3;
+    static const int CALLSIGN_BOX_Y = 144;
     static const int NUM_TRAIL_LINES = 4;
 
     /**
@@ -111,6 +112,7 @@ private:
      */
     void drawCompassMarkings(int cx, int cy, int radius);
     void drawRingLabels(int cx, int cy, int radius, int num_rings, float max_range);
+    void drawScaledText(int x, int y, const char* text, uint16_t color, int scale);
 
     /**
      * Draw sweep line at current angle

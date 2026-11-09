@@ -59,6 +59,34 @@ void RadarUIRenderer::renderRadarDisplay(const std::vector<AircraftState>& aircr
                            max_range, is_selected);
         }
     }
+
+    // Selected callsign, 2x size, at the bottom of the left panel.
+    char callsign[9] = {0};
+    if (selected_index >= 0 && selected_index < (int)aircraft.size()) {
+        const auto& ac = aircraft[selected_index];
+        snprintf(callsign, sizeof(callsign), "%s", ac.callsign);
+        for (int k = (int)strlen(callsign) - 1; k >= 0 && callsign[k] == ' '; --k) {
+            callsign[k] = '\0';
+        }
+        if (callsign[0] == '\0') {
+            snprintf(callsign, sizeof(callsign), "%06X", ac.icao_addr);
+        }
+    } else {
+        snprintf(callsign, sizeof(callsign), "-----");
+    }
+
+    fb_.fillRect(0, CALLSIGN_BOX_Y - 2, LIST_W, 170 - CALLSIGN_BOX_Y + 2,
+                 COLOR_BG_DARK);
+    for (int x = 0; x < LIST_W; ++x) {
+        fb_.drawPixel(x, CALLSIGN_BOX_Y - 2, COLOR_RADAR_GRID);
+    }
+    {
+        const int scale = 2;
+        int width = (int)strlen(callsign) * 7 * scale;
+        int x = (LIST_W - width) / 2;
+        if (x < 2) x = 2;
+        drawScaledText(x, CALLSIGN_BOX_Y + 4, callsign, COLOR_RADAR_TEXT, scale);
+    }
 }
 
 void RadarUIRenderer::renderStatusBar(int aircraft_count, float max_range) {
@@ -110,21 +138,9 @@ void RadarUIRenderer::renderAircraftList(const std::vector<AircraftState>& aircr
         // Format and draw aircraft info
         char buffer[32];
 
-        // Identifier: callsign for the selected row (more recognisable),
-        // ICAO hex for the rest. Falls back to the hex address when the
-        // aircraft has no callsign yet.
-        char name[9];
-        name[0] = '\0';
-        if (is_selected) {
-            snprintf(name, sizeof(name), "%s", ac.callsign);
-            for (int k = (int)strlen(name) - 1; k >= 0 && name[k] == ' '; --k) {
-                name[k] = '\0';
-            }
-        }
-        if (name[0] == '\0') {
-            snprintf(name, sizeof(name), "%06X", ac.icao_addr);
-        }
-        drawText(LIST_X + 2, row_y + 2, name, text_color);
+        // ICAO (6 hex chars); the selected callsign is shown large below.
+        snprintf(buffer, sizeof(buffer), "%06X", ac.icao_addr);
+        drawText(LIST_X + 2, row_y + 2, buffer, text_color);
 
         // Altitude: 35k / 2.6k (right-aligned, ends at x=76)
         if (ac.position_valid && ac.altitude > 0) {
@@ -198,6 +214,31 @@ void RadarUIRenderer::drawRangeRings(int cx, int cy, int radius, int num_rings, 
         fb_.drawLine(x1, y1, x2, y2, COLOR_RADAR_SWEEP);
     }
 
+}
+
+void RadarUIRenderer::drawScaledText(int x, int y, const char* text,
+                                     uint16_t color, int scale) {
+    if (scale < 1) scale = 1;
+    int cursor_x = x;
+    for (const char* p = text; *p; ++p) {
+        unsigned char c = static_cast<unsigned char>(*p);
+        if (c < 0x20 || c > 0x7E) c = '?';
+        const uint8_t* glyph = font6x8[c - 0x20];
+        for (int row = 0; row < FONT_6X8_HEIGHT; ++row) {
+            const uint8_t line = glyph[row];
+            for (int col = 0; col < FONT_6X8_WIDTH; ++col) {
+                if (line & (0x80 >> col)) {
+                    if (scale == 1) {
+                        fb_.drawPixel(cursor_x + col, y + row, color);
+                    } else {
+                        fb_.fillRect(cursor_x + col * scale, y + row * scale,
+                                     scale, scale, color);
+                    }
+                }
+            }
+        }
+        cursor_x += (FONT_6X8_WIDTH + 1) * scale;
+    }
 }
 
 void RadarUIRenderer::drawRingLabels(int cx, int cy, int radius, int num_rings,
