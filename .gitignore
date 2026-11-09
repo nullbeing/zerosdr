@@ -33,3 +33,10 @@ install_manifest.txt
 # Other
 *.bak
 .DS_Store
+
+# dpkg-buildpackage artifacts
+obj-*/
+debian/debhelper-build-stamp
+debian/files
+debian/.debhelper/
+debian/zerosdr/

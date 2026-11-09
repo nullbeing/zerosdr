@@ -1,0 +1,49 @@
+#!/bin/sh
+set -eu
+
+# APPLaunch starts GUI apps in the desktop user session. Reuse that user's
+# PipeWire runtime so ALSA's "default" device reaches the speaker.
+if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
+    for d in /run/user/*; do
+        if [ -S "$d/pipewire-0" ]; then
+            XDG_RUNTIME_DIR="$d"
+            break
+        fi
+    done
+fi
+if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+    export XDG_RUNTIME_DIR
+    export PIPEWIRE_RUNTIME_DIR="$XDG_RUNTIME_DIR"
+fi
+
+# Keep PipeWire out of its 128-frame low-latency quantum: on the CM0 that
+# causes periodic xruns (audible dropouts).
+if command -v pw-metadata >/dev/null 2>&1; then
+    pw-metadata -n settings 0 clock.force-quantum 1024 >/dev/null 2>&1 || true
+fi
+
+# The ES8389 speaker amp cuts out at 0 dB DAC volume; -6 dB (179) is stable.
+amixer -c 1 cset name='DACL Playback Volume' 179 >/dev/null 2>&1 || true
+amixer -c 1 cset name='DACR Playback Volume' 179 >/dev/null 2>&1 || true
+
+# Prefer the Cardputer Zero LCD, fall back to the first framebuffer.
+if [ -n "${LV_LINUX_FBDEV_DEVICE:-}" ]; then
+    FB="$LV_LINUX_FBDEV_DEVICE"
+elif [ -e /dev/fb_lcd ]; then
+    FB=/dev/fb_lcd
+else
+    FB=/dev/fb0
+fi
+
+# TCA8418 matrix keyboard.
+KBD=/dev/input/by-path/platform-3f804000.i2c-event
+
+set -- -d "$FB" "$@"
+if [ -e "$KBD" ]; then
+    set -- "$@" -k "$KBD"
+fi
+
+# Works both from the APPLaunch package layout and a plain /usr/bin install.
+BIN=/usr/share/APPLaunch/bin/zerosdr
+[ -x "$BIN" ] || BIN=/usr/bin/zerosdr
+exec "$BIN" "$@"

@@ -1,19 +1,46 @@
 {
-  "name": "zeroSDR",
+  "app_name": "zeroSDR",
+  "package_name": "zerosdr",
   "version": "0.3.0",
-  "description": "Lightweight SDR Receiver with FM/NFM/AM demodulation",
-  "author": "Weiming Feng",
-  "icon": "share/images/zerosdr.png",
+  "description": "Lightweight SDR receiver with spectrum, waterfall and audio demodulation for small-screen Linux devices.",
   "store": {
-    "summary": "Real-time SDR spectrum analyzer and audio demodulator for RTL-SDR devices",
-    "description": "zeroSDR is a lightweight Software Defined Radio (SDR) receiver optimized for embedded Linux systems with small displays. Features real-time spectrum and waterfall visualization, FM/NFM/AM audio demodulation with AGC and squelch, and direct framebuffer rendering for minimal overhead. Designed for Raspberry Pi Zero 2W and Pi 5 with RTL-SDR dongles.",
-    "categories": ["hamradio", "utility", "multimedia"],
-    "icon": "share/images/zerosdr.png",
+    "summary": "Real-time SDR spectrum, waterfall and audio for RTL-SDR",
+    "description": "zeroSDR is a lightweight Software Defined Radio receiver for small-screen Linux devices. It renders the spectrum and waterfall directly into the framebuffer and demodulates FM, NFM, AM, USB and LSB audio through ALSA, with squelch, audio AGC, FM de-emphasis and display zoom. An on-screen help/settings overlay is available with the H key. It also includes an ADSB aircraft page driven by readsb.",
+    "locales": {
+      "zh-CN": {
+        "summary": "RTL-SDR 实时频谱、瀑布与解调收听",
+        "description": "zeroSDR 是面向小屏幕 Linux 设备的轻量 SDR 接收程序：频谱和瀑布直接渲染到 framebuffer，FM/NFM/AM/USB/LSB 解调通过 ALSA 输出，支持静噪、音频 AGC、FM 去加重和显示缩放；按 H 打开屏幕帮助与设置；另含基于 readsb 的 ADSB 飞机页面。"
+      },
+      "ja": {
+        "summary": "RTL-SDR のリアルタイム・スペクトラム/ウォーターフォールと音声復調"
+      }
+    },
+    "icon": "store/icon.png",
     "screenshots": [
       "store/screenshots/screenshot1.png",
       "store/screenshots/screenshot2.png",
       "store/screenshots/screenshot3.png",
       "store/screenshots/screenshot4.png"
-    ]
+    ],
+    "categories": [
+      "Radio & Comms",
+      "System Tools"
+    ],
+    "permissions": {
+      "camera": false,
+      "microphone": false,
+      "imu": false,
+      "network": false,
+      "additional_hardware": true,
+      "background_service": false,
+      "external_display": false
+    },
+    "author": {
+      "display_name": "Weiming Feng",
+      "github": "nullbeing"
+    },
+    "source_repo": "https://github.com/nullbeing/zerosdr",
+    "license": "GPL-3.0-only",
+    "share_code": "ZSDR"
   }
 }

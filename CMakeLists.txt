@@ -110,6 +110,15 @@ target_link_libraries(zerosdr PRIVATE
 )
 
 # Install
+# 1) APPLaunch layout (used by the CardputerZero AppStore package)
+install(TARGETS zerosdr DESTINATION share/APPLaunch/bin)
+install(PROGRAMS share/bin/run-zerosdr DESTINATION share/APPLaunch/bin)
+install(FILES share/APPLaunch/applications/zerosdr.desktop
+        DESTINATION share/APPLaunch/applications)
+install(FILES share/images/zerosdr.png
+        DESTINATION share/APPLaunch/share/images)
+
+# 2) Plain desktop install (CLI + system application menu)
 install(TARGETS zerosdr DESTINATION bin)
 install(FILES share/applications/zerosdr.desktop DESTINATION share/applications)
 install(FILES share/images/zerosdr.png DESTINATION share/zerosdr/images)
