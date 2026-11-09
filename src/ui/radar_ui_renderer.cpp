@@ -75,10 +75,12 @@ void RadarUIRenderer::renderRadarDisplay(const std::vector<AircraftState>& aircr
         snprintf(callsign, sizeof(callsign), "-----");
     }
 
-    fb_.fillRect(0, CALLSIGN_BOX_Y - 2, LIST_W, 170 - CALLSIGN_BOX_Y + 2,
-                 COLOR_BG_DARK);
+    // Full-width plate at the bottom of the sidebar (kept dim so it does
+    // not glare on the small panel).
+    fb_.fillRect(0, CALLSIGN_BOX_Y, LIST_W, 170 - CALLSIGN_BOX_Y,
+                 0x2124);  // dim navy strip (COLOR_GRID)
     for (int x = 0; x < LIST_W; ++x) {
-        fb_.drawPixel(x, CALLSIGN_BOX_Y - 2, COLOR_RADAR_GRID);
+        fb_.drawPixel(x, CALLSIGN_BOX_Y, COLOR_RADAR_GRID);
     }
     if (!callsign_font_loaded_) {
         callsign_font_loaded_ = true;
@@ -86,16 +88,12 @@ void RadarUIRenderer::renderRadarDisplay(const std::vector<AircraftState>& aircr
     }
 
     if (callsign_font_.valid()) {
-        // Inverted (knock-out) plate: light bar with dark glyphs.
-        const int pad = 3;
         const int width = callsign_font_.textWidth(callsign);
         int x = (LIST_W - width) / 2;
-        if (x < pad) x = pad;
-        const int bar_y = CALLSIGN_BOX_Y + 1;
-        const int bar_h = 23;
-        fb_.fillRect(x - pad, bar_y, width + pad * 2, bar_h,
-                     COLOR_RADAR_TEXT);
-        callsign_font_.draw(fb_, x, bar_y + 17, callsign, COLOR_BG_DARK);
+        if (x < 2) x = 2;
+        // Tight padding: baseline 17 px below the plate top.
+        callsign_font_.draw(fb_, x, CALLSIGN_BOX_Y + 17, callsign,
+                            COLOR_RADAR_TEXT);
     } else {
         const int scale = 2;
         int width = (int)strlen(callsign) * 7 * scale;

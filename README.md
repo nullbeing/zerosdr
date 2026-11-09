@@ -351,9 +351,9 @@ the current sample rate can fill.
 | `Tab` | Back to the SDR page |
 
 The radar's left panel lists `ICAO` / altitude / distance, with the selected
-aircraft's callsign shown in large text at the bottom of the panel on an
-inverted plate (light background, dark glyphs). The callsign and the ADSB
-status/detail text are rendered with an anti-aliased TrueType font.
+aircraft's callsign shown in large text on a dim strip that spans the full
+width of the panel. The callsign and the ADSB status/detail text are rendered
+with an anti-aliased TrueType font.
 
 `H` opens a full-screen overlay with two tabs: the key list and a settings tab
 where you can view/edit the observer latitude and longitude (opening the usual
