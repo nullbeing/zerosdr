@@ -38,11 +38,8 @@ void RadarUIRenderer::renderRadarDisplay(const std::vector<AircraftState>& aircr
     // Draw compass markings
     drawCompassMarkings(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS);
 
-    // Draw sweep trail (fading lines behind sweep)
-    drawSweepTrail(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS, sweep_angle);
-
-    // Draw main sweep line
-    drawSweepLine(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS, sweep_angle);
+    // Translucent sweep with an angular gradient tail.
+    drawSweep(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS, sweep_angle);
 
     // Draw aircraft blips
     for (size_t i = 0; i < aircraft.size(); i++) {
@@ -227,56 +224,40 @@ void RadarUIRenderer::drawCompassMarkings(int cx, int cy, int radius) {
     }
 }
 
-void RadarUIRenderer::drawSweepLine(int cx, int cy, int radius, float angle) {
-    // Convert angle to radians (0° = North, clockwise)
-    float rad = (angle - 90.0f) * M_PI / 180.0f;
+void RadarUIRenderer::drawSweep(int cx, int cy, int radius, float angle) {
+    // A single translucent wedge instead of a stack of discrete lines:
+    // every pixel inside the circle is blended by its angular distance
+    // behind the sweep, so the tail fades smoothly with no banding.
+    constexpr float kTrailDeg = 50.0f;   // visible tail length
+    constexpr float kInvDeg = 57.29578f; // 180/pi
 
-    // Calculate end point
-    int x = cx + (int)(radius * cos(rad));
-    int y = cy + (int)(radius * sin(rad));
+    const int x0 = std::max(0, cx - radius);
+    const int x1 = std::min(fb_.getWidth() - 1, cx + radius);
+    const int y0 = std::max(0, cy - radius);
+    const int y1 = std::min(fb_.getHeight() - 1, cy + radius);
+    const int r2_max = radius * radius;
 
-    // Draw line from center to edge
-    fb_.drawLine(cx, cy, x, y, COLOR_RADAR_SWEEP);
-}
+    for (int y = y0; y <= y1; ++y) {
+        const int dy = cy - y;                 // screen y grows downwards
+        const int dy2 = dy * dy;
+        for (int x = x0; x <= x1; ++x) {
+            const int dx = x - cx;
+            if (dx * dx + dy2 > r2_max) continue;
 
-void RadarUIRenderer::drawSweepTrail(int cx, int cy, int radius, float angle) {
-    // Draw enhanced fading trail behind sweep line with more lines and smoother gradient
-    const int num_trails = 12;  // More trail lines for smoother effect
+            // Convert to the radar convention: 0 deg = north, clockwise.
+            // math angle is counter-clockwise from +x, so radar = 90 - math.
+            float pix_angle = 90.0f - atan2f((float)dy, (float)dx) * kInvDeg;
+            if (pix_angle < 0.0f) pix_angle += 360.0f;
 
-    for (int i = 1; i <= num_trails; i++) {
-        // Exponential falloff for more dramatic effect
-        float trail_angle = angle - (i * 3.0f);  // 3° spacing between trails
-        if (trail_angle < 0) trail_angle += 360.0f;
+            float delta = angle - pix_angle;
+            if (delta < 0.0f) delta += 360.0f;  // 0..360 behind the sweep
+            if (delta > kTrailDeg) continue;
 
-        // Exponential alpha decay for more dramatic fade
-        float alpha = powf(1.0f - (float)i / num_trails, 2.0f);
-
-        // Blend sweep color with background
-        uint16_t trail_color = blendColor(COLOR_RADAR_SWEEP, COLOR_RADAR_BG, alpha);
-
-        // Convert angle to radians
-        float rad = (trail_angle - 90.0f) * M_PI / 180.0f;
-
-        // Calculate end point
-        int x = cx + (int)(radius * cos(rad));
-        int y = cy + (int)(radius * sin(rad));
-
-        // Draw trail line
-        fb_.drawLine(cx, cy, x, y, trail_color);
-    }
-
-    // Add a bright glow effect right behind the main sweep
-    for (int i = 1; i <= 3; i++) {
-        float glow_angle = angle - (i * 0.5f);
-        if (glow_angle < 0) glow_angle += 360.0f;
-
-        float rad = (glow_angle - 90.0f) * M_PI / 180.0f;
-        int x = cx + (int)(radius * cos(rad));
-        int y = cy + (int)(radius * sin(rad));
-
-        // Bright glow (90-95% brightness)
-        uint16_t glow_color = blendColor(COLOR_RADAR_SWEEP, COLOR_RADAR_BG, 0.95f - i * 0.05f);
-        fb_.drawLine(cx, cy, x, y, glow_color);
+            const float t = 1.0f - delta / kTrailDeg;
+            float alpha = t * t * 0.80f;        // quadratic fade
+            if (delta < 1.0f) alpha = 0.95f;    // bright leading edge
+            fb_.blendPixel(x, y, COLOR_RADAR_SWEEP, alpha);
+        }
     }
 }
 

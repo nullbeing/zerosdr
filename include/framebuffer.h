@@ -14,6 +14,8 @@ public:
     bool init();
     void clear(uint16_t color = 0x0000);
     void drawPixel(int x, int y, uint16_t color);
+    // Alpha-blend a colour over the existing back-buffer pixel (0.0 .. 1.0).
+    void blendPixel(int x, int y, uint16_t color, float alpha);
     void drawLine(int x0, int y0, int x1, int y1, uint16_t color);
     void drawRect(int x, int y, int w, int h, uint16_t color);
     void fillRect(int x, int y, int w, int h, uint16_t color);

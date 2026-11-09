@@ -118,7 +118,7 @@ private:
      * @param radius Radar radius
      * @param angle Sweep angle (0-360°)
      */
-    void drawSweepLine(int cx, int cy, int radius, float angle);
+    void drawSweep(int cx, int cy, int radius, float angle);
 
     /**
      * Draw fading trail behind sweep line
@@ -127,7 +127,6 @@ private:
      * @param radius Radar radius
      * @param angle Current sweep angle
      */
-    void drawSweepTrail(int cx, int cy, int radius, float angle);
 
     /**
      * Draw aircraft blip with heading vector

@@ -79,6 +79,30 @@ void Framebuffer::drawPixel(int x, int y, uint16_t color) {
     back_buffer_[y * width + x] = color;
 }
 
+void Framebuffer::blendPixel(int x, int y, uint16_t color, float alpha) {
+    if (!initialized || x < 0 || x >= width || y < 0 || y >= height) return;
+    if (alpha <= 0.0f) return;
+    if (alpha >= 1.0f) {
+        back_buffer_[y * width + x] = color;
+        return;
+    }
+
+    const uint16_t dst = back_buffer_[y * width + x];
+    const int dr = (dst >> 11) & 0x1F;
+    const int dg = (dst >> 5) & 0x3F;
+    const int db = dst & 0x1F;
+    const int sr = (color >> 11) & 0x1F;
+    const int sg = (color >> 5) & 0x3F;
+    const int sb = color & 0x1F;
+
+    const int r = dr + (int)((sr - dr) * alpha + 0.5f);
+    const int g = dg + (int)((sg - dg) * alpha + 0.5f);
+    const int b = db + (int)((sb - db) * alpha + 0.5f);
+
+    back_buffer_[y * width + x] =
+        (uint16_t)((r << 11) | (g << 5) | b);
+}
+
 void Framebuffer::drawLine(int x0, int y0, int x1, int y1, uint16_t color) {
     if (!initialized) return;
 
