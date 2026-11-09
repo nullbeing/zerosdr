@@ -1,3 +1,17 @@
+zerosdr (0.3.1) trixie; urgency=medium
+
+  * ADSB: translucent radar sweep with a gradient tail, per-revolution
+    sonar ping, 90-degree ticks and a new-aircraft chime
+  * ADSB: Enter cycles list -> detail -> radar -> list; Left/Right page
+    the aircraft list (the Cardputer has no PgUp/PgDn)
+  * ADSB: H overlay with the key list and observer position settings
+  * ADSB: compact ICAO/ALT/DIST list, selected callsign on a full-width
+    strip at the bottom of the panel, anti-aliased TrueType text
+  * Link FreeType for the callsign and ADSB status/detail text
+  * Fix the debian package architecture note and dependency list
+
+ -- Weiming Feng <bestedwin@gmail.com>  Mon, 09 Nov 2026 15:20:00 +0800
+
 zerosdr (0.3.0) trixie; urgency=medium
 
   * Add on-screen help overlay (H) with a settings tab: FM de-emphasis,
