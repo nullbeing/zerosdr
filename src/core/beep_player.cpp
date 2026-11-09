@@ -12,6 +12,7 @@ constexpr float kTwoPi = 6.28318530718f;
 bool BeepPlayer::ensureOpen() {
     if (open_) return true;
     open_ = out_.init("default", kSampleRate, 1);
+    if (open_) out_.setQuiet(true);
     return open_;
 }
 

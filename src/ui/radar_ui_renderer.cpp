@@ -35,11 +35,13 @@ void RadarUIRenderer::renderRadarDisplay(const std::vector<AircraftState>& aircr
     // Draw range rings
     drawRangeRings(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS, NUM_RANGE_RINGS, max_range);
 
-    // Draw compass markings
-    drawCompassMarkings(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS);
-
     // Translucent sweep with an angular gradient tail.
     drawSweep(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS, sweep_angle);
+
+    // Labels go on top of the sweep so they stay readable.
+    drawCompassMarkings(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS);
+    drawRingLabels(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS,
+                   NUM_RANGE_RINGS, max_range);
 
     // Draw aircraft blips
     for (size_t i = 0; i < aircraft.size(); i++) {
@@ -79,7 +81,9 @@ void RadarUIRenderer::renderAircraftList(const std::vector<AircraftState>& aircr
     fb_.fillRect(LIST_X, LIST_Y, LIST_W, LIST_H, COLOR_BG_DARK);
 
     // Draw list header
-    drawText(LIST_X + 2, LIST_Y + 2, "ICAO   ALT  DST", COLOR_TEXT_BRIGHT);
+    drawText(LIST_X + 2, LIST_Y + 2, "ICAO", COLOR_TEXT_BRIGHT);
+    drawText(LIST_X + 76 - 3 * 7, LIST_Y + 2, "ALT", COLOR_TEXT_BRIGHT);
+    drawText(LIST_X + 114 - 2 * 7, LIST_Y + 2, "KM", COLOR_TEXT_BRIGHT);
 
     // Draw horizontal line under header
     for (int x = LIST_X; x < LIST_X + LIST_W; x++) {
@@ -110,15 +114,19 @@ void RadarUIRenderer::renderAircraftList(const std::vector<AircraftState>& aircr
         snprintf(buffer, sizeof(buffer), "%06X", ac.icao_addr);
         drawText(LIST_X + 2, row_y + 2, buffer, text_color);
 
-        // Altitude (5 chars, right-aligned at x=50)
+        // Altitude: 35k / 2.6k (right-aligned, ends at x=76)
         if (ac.position_valid && ac.altitude > 0) {
-            snprintf(buffer, sizeof(buffer), "%5d", ac.altitude / 100);  // Show in hundreds of feet
+            if (ac.altitude >= 10000) {
+                snprintf(buffer, sizeof(buffer), "%dk", ac.altitude / 1000);
+            } else {
+                snprintf(buffer, sizeof(buffer), "%.1fk", ac.altitude / 1000.0f);
+            }
         } else {
-            snprintf(buffer, sizeof(buffer), "    -");
+            snprintf(buffer, sizeof(buffer), "-");
         }
-        drawText(LIST_X + 42, row_y + 2, buffer, text_color);
+        drawText(LIST_X + 76 - (int)strlen(buffer) * 7, row_y + 2, buffer, text_color);
 
-        // Distance (4 chars with unit, right-aligned at x=85)
+        // Distance from the observer in km (right-aligned, ends at x=114)
         if (ac.distance > 0) {
             if (ac.distance < 10.0f) {
                 snprintf(buffer, sizeof(buffer), "%.1f", ac.distance);
@@ -128,7 +136,7 @@ void RadarUIRenderer::renderAircraftList(const std::vector<AircraftState>& aircr
         } else {
             snprintf(buffer, sizeof(buffer), "-");
         }
-        drawText(LIST_X + 78, row_y + 2, buffer, text_color);
+        drawText(LIST_X + 114 - (int)strlen(buffer) * 7, row_y + 2, buffer, text_color);
     }
 
     // Draw scroll indicator if needed
@@ -178,40 +186,37 @@ void RadarUIRenderer::drawRangeRings(int cx, int cy, int radius, int num_rings, 
         fb_.drawLine(x1, y1, x2, y2, COLOR_RADAR_SWEEP);
     }
 
-    // Draw range labels at bottom of each ring
+}
+
+void RadarUIRenderer::drawRingLabels(int cx, int cy, int radius, int num_rings,
+                                     float max_range) {
+    // Range labels sit on the south-west diagonal (225 deg), inside the ring,
+    // away from the S cardinal label. Drawn after the sweep so they stay
+    // readable while it passes.
+    const float diag = 0.7071f;
     for (int i = 1; i <= num_rings; i++) {
-        int ring_radius = (radius * i) / num_rings;
-        float ring_range = (max_range * i) / num_rings;
+        const int ring_radius = (radius * i) / num_rings;
+        const float ring_range = (max_range * i) / num_rings;
 
         char label[8];
         snprintf(label, sizeof(label), "%.0f", ring_range);
 
-        // Position label below ring
-        int label_x = cx - 8;  // Approximate center
-        int label_y = cy + ring_radius + 2;
+        const int label_x = cx - (int)(ring_radius * diag) - 8;
+        const int label_y = cy + (int)(ring_radius * diag) - 4;
 
-        // Only draw if within bounds
-        if (label_y < RADAR_Y + RADAR_H - 10) {
-            drawText(label_x, label_y, label, COLOR_RADAR_SWEEP);
+        if (label_y > RADAR_Y && label_y < RADAR_Y + RADAR_H - 8) {
+            drawText(label_x, label_y, label, COLOR_RADAR_TEXT);
         }
     }
 }
 
 void RadarUIRenderer::drawCompassMarkings(int cx, int cy, int radius) {
-    // N/E/S/W labels anchored to panel edges (independent of ring radius)
-    // to avoid status-bar and panel-bottom overflow.
-
-    // North (0°) - just below status bar
-    drawText(cx - 4, RADAR_Y + 2, "N", COLOR_RADAR_TEXT);
-
-    // South (180°) - just above panel bottom
-    drawText(cx - 4, RADAR_Y + RADAR_H - FONT_6X8_HEIGHT - 2, "S", COLOR_RADAR_TEXT);
-
-    // East (90°) - right of radar circle
-    drawText(cx + radius + 4, cy - 4, "E", COLOR_RADAR_TEXT);
-
-    // West (270°) - left of radar circle
-    drawText(cx - radius - 12, cy - 4, "W", COLOR_RADAR_TEXT);
+    // Cardinal labels sit *inside* the ring so they never collide with the
+    // outer circle or the panel edges.
+    drawText(cx - 3, cy - radius + 4, "N", COLOR_RADAR_TEXT);
+    drawText(cx - 3, cy + radius - FONT_6X8_HEIGHT - 2, "S", COLOR_RADAR_TEXT);
+    drawText(cx + radius - 10, cy - 4, "E", COLOR_RADAR_TEXT);
+    drawText(cx - radius + 4, cy - 4, "W", COLOR_RADAR_TEXT);
 
     // Draw tick marks at cardinal directions
     for (int angle = 0; angle < 360; angle += 90) {

@@ -77,19 +77,19 @@ private:
     // Left panel - Aircraft list
     static const int LIST_X = 0;
     static const int LIST_Y = 16;
-    static const int LIST_W = 110;  // Left 110 pixels for list
+    static const int LIST_W = 118;  // Left 118 pixels for list
     static const int LIST_H = 154;  // 170 - 16 = 154
     static const int ROW_HEIGHT = 14;
     static const int MAX_VISIBLE_ROWS = 11;  // 154 / 14 = 11 rows
 
     // Right panel - Radar display
-    static const int RADAR_X = 110;
+    static const int RADAR_X = 118;
     static const int RADAR_Y = 16;
-    static const int RADAR_W = 210;  // Right 210 pixels for radar
+    static const int RADAR_W = 202;  // Right 202 pixels for radar
     static const int RADAR_H = 154;
-    static const int RADAR_CENTER_X = 215;  // 110 + 210/2 = 215
+    static const int RADAR_CENTER_X = 219;  // 118 + 202/2 = 219
     static const int RADAR_CENTER_Y = 93;   // 16 + 154/2 = 93
-    static const int RADAR_RADIUS = 70;
+    static const int RADAR_RADIUS = 66;
     static const int NUM_RANGE_RINGS = 3;
     static const int NUM_TRAIL_LINES = 4;
 
@@ -110,6 +110,7 @@ private:
      * @param radius Radar radius
      */
     void drawCompassMarkings(int cx, int cy, int radius);
+    void drawRingLabels(int cx, int cy, int radius, int num_rings, float max_range);
 
     /**
      * Draw sweep line at current angle

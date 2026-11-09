@@ -147,12 +147,12 @@ bool AudioOutput::write(const std::vector<int16_t>& samples) {
 
         if (written < 0) {
             if (written == -EPIPE) {
-                std::cerr << "Audio buffer underrun" << std::endl;
+                if (!quiet_) std::cerr << "Audio buffer underrun" << std::endl;
                 if (++recoveries > 4) return false;
                 if (!recover(written)) return false;
                 continue;
             } else if (written == -ESTRPIPE) {
-                std::cerr << "Audio stream suspended" << std::endl;
+                if (!quiet_) std::cerr << "Audio stream suspended" << std::endl;
                 if (++recoveries > 4) return false;
                 if (!recover(written)) return false;
                 continue;
