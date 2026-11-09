@@ -37,7 +37,7 @@ and demodulates FM / NFM / AM / USB / LSB audio through ALSA.
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev
+sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libfreetype-dev
 
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
@@ -66,7 +66,7 @@ relative to `/usr/share/APPLaunch`. The final layout is:
 ### 1. Build (on the device, recommended)
 
 ```bash
-sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev
+sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libfreetype-dev
 cd ~/zerosdr
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
@@ -448,7 +448,7 @@ Run manually to isolate APPLaunch:
 ## Cross-compilation
 
 ```bash
-sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libfreetype-dev
 
 cmake -S . -B build-aarch64 -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_SYSTEM_NAME=Linux \

@@ -35,7 +35,7 @@ framebuffer，音频解调（FM / NFM / AM / USB / LSB）通过 ALSA 输出。
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev
+sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libfreetype-dev
 
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
@@ -63,7 +63,7 @@ APPLaunch 以桌面用户 `pi` 启动应用，`Exec` / `Icon` 按 `/usr/share/AP
 ### 1. 在设备上构建（推荐）
 
 ```bash
-sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev
+sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libfreetype-dev
 cd ~/zerosdr
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
@@ -438,7 +438,7 @@ ls -l /dev/fb*
 ## 交叉编译
 
 ```bash
-sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libfreetype-dev
 
 cmake -S . -B build-aarch64 -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_SYSTEM_NAME=Linux \

@@ -46,6 +46,9 @@ if(NOT RTL_SDR_LIB)
     message(FATAL_ERROR "librtlsdr not found. Please install librtlsdr-dev")
 endif()
 
+# FreeType for the anti-aliased radar callsign
+find_package(Freetype REQUIRED)
+
 # Find math library
 if(CMAKE_CROSSCOMPILING)
     find_library(M_LIB m PATHS /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE} NO_DEFAULT_PATH)
@@ -78,6 +81,7 @@ set(SOURCES
     src/ui/sdr_ui_renderer.cpp
     src/ui/adsb_ui_renderer.cpp
     src/ui/radar_ui_renderer.cpp
+    src/ui/ttf_text.cpp
 
     # Hardware
     src/framebuffer.cpp
@@ -108,6 +112,7 @@ target_link_libraries(zerosdr PRIVATE
     ${M_LIB}
     Threads::Threads
     ALSA::ALSA
+    Freetype::Freetype
 )
 
 # Install

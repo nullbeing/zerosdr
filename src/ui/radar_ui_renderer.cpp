@@ -80,7 +80,27 @@ void RadarUIRenderer::renderRadarDisplay(const std::vector<AircraftState>& aircr
     for (int x = 0; x < LIST_W; ++x) {
         fb_.drawPixel(x, CALLSIGN_BOX_Y - 2, COLOR_RADAR_GRID);
     }
-    {
+    if (!callsign_font_loaded_) {
+        callsign_font_loaded_ = true;
+        static const char* kFonts[] = {
+            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf",
+            "/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf",
+        };
+        for (const char* path : kFonts) {
+            if (callsign_font_.load(path, 19)) break;
+        }
+    }
+
+    if (callsign_font_.valid()) {
+        const int width = callsign_font_.textWidth(callsign);
+        int x = (LIST_W - width) / 2;
+        if (x < 2) x = 2;
+        // Slight dark shadow keeps the glyphs readable over the panel edge.
+        callsign_font_.draw(fb_, x + 1, CALLSIGN_BOX_Y + 19, callsign, 0x0841);
+        callsign_font_.draw(fb_, x, CALLSIGN_BOX_Y + 18, callsign,
+                            COLOR_RADAR_TEXT);
+    } else {
         const int scale = 2;
         int width = (int)strlen(callsign) * 7 * scale;
         int x = (LIST_W - width) / 2;

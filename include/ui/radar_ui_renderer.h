@@ -2,6 +2,7 @@
 #define RADAR_UI_RENDERER_H
 
 #include "ui/base_ui_renderer.h"
+#include "ui/ttf_text.h"
 #include "adsb/adsb_message.h"
 #include <vector>
 #include <cmath>
@@ -113,6 +114,10 @@ private:
     void drawCompassMarkings(int cx, int cy, int radius);
     void drawRingLabels(int cx, int cy, int radius, int num_rings, float max_range);
     void drawScaledText(int x, int y, const char* text, uint16_t color, int scale);
+
+    // Anti-aliased font for the selected callsign (loaded lazily).
+    mutable TtfText callsign_font_;
+    mutable bool callsign_font_loaded_ = false;
 
     /**
      * Draw sweep line at current angle
