@@ -259,12 +259,15 @@ void ADSBPage::handleListInput(AppKeyCode key) {
             }
             break;
 
+        // No PgUp/PgDn on the Cardputer keyboard: Left/Right page the list.
+        case APPKEY_LEFT:
         case APPKEY_PAGEUP:
             selected_index_ = std::max(0, selected_index_ - 5);
             scroll_offset_ = std::max(0, scroll_offset_ - 5);
             beeps_.play(1320.0f, 15, 0.06f);
             break;
 
+        case APPKEY_RIGHT:
         case APPKEY_PAGEDOWN:
             selected_index_ = std::min((int)aircraft_list_.size() - 1, selected_index_ + 5);
             scroll_offset_ = std::min((int)aircraft_list_.size() - 10, scroll_offset_ + 5);
@@ -890,16 +893,20 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
             }
             break;
 
+        // No PgUp/PgDn on the Cardputer keyboard: Left/Right page the list.
+        case APPKEY_LEFT:
         case APPKEY_PAGEUP:
             selected_index_ = std::max(0, selected_index_ - 5);
             scroll_offset_ = std::max(0, scroll_offset_ - 5);
             beeps_.play(1320.0f, 15, 0.06f);
             break;
 
+        case APPKEY_RIGHT:
         case APPKEY_PAGEDOWN:
             selected_index_ = std::min((int)aircraft_list_.size() - 1, selected_index_ + 5);
             scroll_offset_ = std::min((int)aircraft_list_.size() - 9, scroll_offset_ + 5);
             if (scroll_offset_ < 0) scroll_offset_ = 0;
+            beeps_.play(1320.0f, 15, 0.06f);
             break;
 
         case APPKEY_ENTER:

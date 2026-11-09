@@ -342,7 +342,7 @@ the current sample rate can fill.
 | Key | Action |
 |-----|--------|
 | `↑` / `↓` | Select aircraft |
-| `PgUp` / `PgDn` | Move 5 rows |
+| `←` / `→` | Move 5 rows (`PgUp`/`PgDn` also work) |
 | `Enter` | Cycle views: list → detail → radar → list |
 | `R` | Jump straight to the radar view (needs an observer position; `L` opens the settings) |
 | `Tab` | Back to the SDR page |
