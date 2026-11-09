@@ -2,6 +2,7 @@
 #define ADSB_PAGE_H
 
 #include "core/ipage.h"
+#include "core/beep_player.h"
 #include "framebuffer.h"
 #include "sdr_controller.h"
 #include "ui/adsb_ui_renderer.h"
@@ -14,6 +15,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <set>
 
 /**
  * ADSBPage - ADSB receiver page
@@ -71,6 +73,12 @@ private:
     bool show_position_prompt_;   // Show "position not set" dialog in radar view
     float blink_timer_;           // Timer for blinking selected aircraft
     bool blink_state_;            // Current blink state (true = visible)
+    int last_sweep_sector_;       // Radar sector (90 deg) for the tick sound
+
+    // UI sounds
+    BeepPlayer beeps_;
+    std::set<uint32_t> known_icaos_;  // for the "new aircraft" chime
+    time_t last_new_aircraft_chime_ = 0;  // throttle: at most one per 3 s
 
     // Settings menu state
     int settings_selected_item_;  // 0=latitude, 1=longitude, 2=save, 3=cancel

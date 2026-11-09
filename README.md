@@ -335,6 +335,25 @@ Settings are stored in:
 `Y` cycles 50k / 100k / 200k / 500k / 1M / 2M / 2.8M / 3.2M, limited to what
 the current sample rate can fill.
 
+## ADSB page
+
+`Tab` switches between the SDR page and the ADSB aircraft list. In the list:
+
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` | Select aircraft |
+| `PgUp` / `PgDn` | Move 5 rows |
+| `Enter` | Aircraft detail view |
+| `R` | Radar view (needs an observer position; `L` opens the settings) |
+| `Tab` | Back to the SDR page |
+
+Audio feedback:
+
+- a short beep when the list selection moves,
+- one sonar ping per radar revolution (6 s at 60°/s),
+- a quiet tick every 90° of the sweep,
+- a two-tone chime when a new aircraft appears (at most once every 3 s).
+
 ## Command line options
 
 ```text

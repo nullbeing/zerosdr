@@ -63,6 +63,7 @@ set(SOURCES
 
     # Core framework
     src/core/page_manager.cpp
+    src/core/beep_player.cpp
 
     # Pages
     src/pages/sdr_page.cpp

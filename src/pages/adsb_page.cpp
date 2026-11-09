@@ -18,6 +18,7 @@ ADSBPage::ADSBPage(Framebuffer& fb, SDRController& sdr, ADSBUIRenderer& ui, Rada
       show_position_prompt_(false),
       blink_timer_(0.0f),
       blink_state_(true),
+      last_sweep_sector_(-1),
       settings_selected_item_(0),
       editing_lat_(false),
       editing_lon_(false),
@@ -98,6 +99,7 @@ void ADSBPage::onEnter() {
     json_path_ = readsb_->getJSONPath();
     last_json_read_ = 0;
     aircraft_db_.clear();
+    known_icaos_.clear();
 
     // Reset view state
     view_mode_ = VIEW_LIST;
@@ -112,6 +114,7 @@ void ADSBPage::onEnter() {
 
 void ADSBPage::onExit() {
     std::cout << "ADSBPage: Exiting ADSB mode" << std::endl;
+    beeps_.close();
 
     // Don't stop readsb or reset the pointer - let it keep running
     // If switching to Radar page, it will reuse the same readsb instance
@@ -126,8 +129,21 @@ void ADSBPage::update(float delta_time) {
     // Update radar sweep angle if in radar view
     if (view_mode_ == VIEW_RADAR) {
         sweep_angle_ += sweep_speed_ * delta_time;
+        bool wrapped = false;
         if (sweep_angle_ >= 360.0f) {
             sweep_angle_ -= 360.0f;
+            wrapped = true;
+            // One sonar ping per revolution.
+            beeps_.play(880.0f, 90, 0.20f);
+            last_sweep_sector_ = -1;
+        }
+        if (!wrapped) {
+            // Quiet tick every 90 degrees while the sweep turns.
+            const int sector = static_cast<int>(sweep_angle_ / 90.0f);
+            if (sector != last_sweep_sector_) {
+                last_sweep_sector_ = sector;
+                beeps_.play(1568.0f, 12, 0.045f);
+            }
         }
 
         // Update blink timer (blink every 0.5 seconds)
@@ -143,6 +159,19 @@ void ADSBPage::update(float delta_time) {
         if (readsb_ && readsb_->isRunning()) {
             if (json_parser_.parseFile(json_path_, aircraft_db_)) {
                 last_json_read_ = now;
+
+                // Chime when a new ICAO address shows up.
+                const size_t known_before = known_icaos_.size();
+                for (const auto& pair : aircraft_db_) {
+                    known_icaos_.insert(pair.first);
+                }
+                // Throttle: a busy sky would otherwise chime every second.
+                if (known_icaos_.size() > known_before &&
+                    now - last_new_aircraft_chime_ >= 3) {
+                    last_new_aircraft_chime_ = now;
+                    beeps_.play(1200.0f, 45, 0.16f);
+                    beeps_.play(1600.0f, 55, 0.16f);
+                }
 
                 // Calculate distance and accumulate total messages
                 uint32_t new_total = 0;
@@ -194,6 +223,7 @@ void ADSBPage::handleListInput(AppKeyCode key) {
         case APPKEY_UP:
             if (selected_index_ > 0) {
                 selected_index_--;
+                beeps_.play(1000.0f, 15, 0.06f);
                 // Adjust scroll if needed
                 if (selected_index_ < scroll_offset_) {
                     scroll_offset_ = selected_index_;
@@ -204,6 +234,7 @@ void ADSBPage::handleListInput(AppKeyCode key) {
         case APPKEY_DOWN:
             if (selected_index_ < (int)aircraft_list_.size() - 1) {
                 selected_index_++;
+                beeps_.play(1000.0f, 15, 0.06f);
                 // Adjust scroll if needed
                 int max_visible = 10;  // MAX_VISIBLE_ROWS from renderer
                 if (selected_index_ >= scroll_offset_ + max_visible) {
@@ -215,12 +246,14 @@ void ADSBPage::handleListInput(AppKeyCode key) {
         case APPKEY_PAGEUP:
             selected_index_ = std::max(0, selected_index_ - 5);
             scroll_offset_ = std::max(0, scroll_offset_ - 5);
+            beeps_.play(1320.0f, 15, 0.06f);
             break;
 
         case APPKEY_PAGEDOWN:
             selected_index_ = std::min((int)aircraft_list_.size() - 1, selected_index_ + 5);
             scroll_offset_ = std::min((int)aircraft_list_.size() - 10, scroll_offset_ + 5);
             if (scroll_offset_ < 0) scroll_offset_ = 0;
+            beeps_.play(1320.0f, 15, 0.06f);
             break;
 
         case APPKEY_ENTER:
@@ -238,6 +271,7 @@ void ADSBPage::handleListInput(AppKeyCode key) {
             if (observer_position_set_) {
                 view_mode_ = VIEW_RADAR;
                 sweep_angle_ = 0.0f;  // Reset sweep angle
+                last_sweep_sector_ = -1;
                 std::cout << "ADSBPage: Switching to radar view" << std::endl;
             } else {
                 std::cout << "ADSBPage: Observer position not set, opening settings" << std::endl;
@@ -823,6 +857,7 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
         case APPKEY_UP:
             if (selected_index_ > 0) {
                 selected_index_--;
+                beeps_.play(1000.0f, 15, 0.06f);
                 // Adjust scroll if needed
                 if (selected_index_ < scroll_offset_) {
                     scroll_offset_ = selected_index_;
@@ -833,6 +868,7 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
         case APPKEY_DOWN:
             if (selected_index_ < (int)aircraft_list_.size() - 1) {
                 selected_index_++;
+                beeps_.play(1000.0f, 15, 0.06f);
                 // Adjust scroll if needed
                 int max_visible = 9;  // MAX_VISIBLE_ROWS - 1 (header row)
                 if (selected_index_ >= scroll_offset_ + max_visible) {
@@ -844,6 +880,7 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
         case APPKEY_PAGEUP:
             selected_index_ = std::max(0, selected_index_ - 5);
             scroll_offset_ = std::max(0, scroll_offset_ - 5);
+            beeps_.play(1320.0f, 15, 0.06f);
             break;
 
         case APPKEY_PAGEDOWN:
