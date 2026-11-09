@@ -1,6 +1,6 @@
 {
   "name": "zeroSDR",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Lightweight SDR Receiver with FM/NFM/AM demodulation",
   "author": "Weiming Feng",
   "icon": "share/images/zerosdr.png",

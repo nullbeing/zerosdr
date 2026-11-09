@@ -1,3 +1,19 @@
+zerosdr (0.3.0) trixie; urgency=medium
+
+  * Add on-screen help overlay (H) with a settings tab: FM de-emphasis,
+    audio AGC, FFT size and sample rate, persisted in
+    ~/.config/zerosdr/sdr_settings.json
+  * Rework the Cardputer Zero TCA8418 keymap (F/Z/X/C arrows, Shift for
+    coarse tuning, fn layer codes, sym-layer decimal point)
+  * Keep the display span inside the captured band when the sample rate
+    changes and cycle Y only through usable spans
+  * Default FM de-emphasis to 50 us (CN/EU/Asia)
+  * Rewrite the README with step-by-step Cardputer Zero deployment and
+    add a Simplified Chinese translation
+  * Fix the Debian package architecture (arm64)
+
+ -- Weiming Feng <bestedwin@gmail.com>  Mon, 09 Nov 2026 13:10:00 +0800
+
 zerosdr (0.2.0) bullseye; urgency=medium
 
   * Add audio demodulation support (FM/NFM/AM)
