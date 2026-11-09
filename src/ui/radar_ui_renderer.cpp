@@ -82,24 +82,20 @@ void RadarUIRenderer::renderRadarDisplay(const std::vector<AircraftState>& aircr
     }
     if (!callsign_font_loaded_) {
         callsign_font_loaded_ = true;
-        static const char* kFonts[] = {
-            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf",
-            "/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf",
-        };
-        for (const char* path : kFonts) {
-            if (callsign_font_.load(path, 19)) break;
-        }
+        loadDefaultUiFont(callsign_font_, 19);
     }
 
     if (callsign_font_.valid()) {
+        // Inverted (knock-out) plate: light bar with dark glyphs.
+        const int pad = 3;
         const int width = callsign_font_.textWidth(callsign);
         int x = (LIST_W - width) / 2;
-        if (x < 2) x = 2;
-        // Slight dark shadow keeps the glyphs readable over the panel edge.
-        callsign_font_.draw(fb_, x + 1, CALLSIGN_BOX_Y + 19, callsign, 0x0841);
-        callsign_font_.draw(fb_, x, CALLSIGN_BOX_Y + 18, callsign,
-                            COLOR_RADAR_TEXT);
+        if (x < pad) x = pad;
+        const int bar_y = CALLSIGN_BOX_Y + 1;
+        const int bar_h = 23;
+        fb_.fillRect(x - pad, bar_y, width + pad * 2, bar_h,
+                     COLOR_RADAR_TEXT);
+        callsign_font_.draw(fb_, x, bar_y + 17, callsign, COLOR_BG_DARK);
     } else {
         const int scale = 2;
         int width = (int)strlen(callsign) * 7 * scale;
@@ -119,7 +115,15 @@ void RadarUIRenderer::renderStatusBar(int aircraft_count, float max_range) {
              aircraft_count, max_range);
 
     // Draw status text (left-aligned)
-    drawText(5, STATUS_BAR_Y + 2, status, COLOR_RADAR_TEXT);
+    if (!ui_font_loaded_) {
+        ui_font_loaded_ = true;
+        loadDefaultUiFont(ui_font_, 12);
+    }
+    if (ui_font_.valid()) {
+        ui_font_.draw(fb_, 5, STATUS_BAR_Y + 12, status, COLOR_RADAR_TEXT);
+    } else {
+        drawText(5, STATUS_BAR_Y + 2, status, COLOR_RADAR_TEXT);
+    }
 }
 
 void RadarUIRenderer::renderAircraftList(const std::vector<AircraftState>& aircraft,

@@ -2,6 +2,7 @@
 #define ADSB_UI_RENDERER_H
 
 #include "ui/base_ui_renderer.h"
+#include "ui/ttf_text.h"
 #include "adsb/adsb_message.h"
 #include <vector>
 
@@ -89,6 +90,11 @@ public:
     int getTextWidth(const char* text) const override;
 
 private:
+    // Anti-aliased font for status/detail text (loaded lazily).
+    mutable TtfText ui_font_;
+    mutable bool ui_font_loaded_ = false;
+    void ensureUiFont() const;
+
     // Layout constants (320x170 display) - adjusted for 8x16 font
     static const int STATUS_BAR_Y = 0;
     static const int STATUS_BAR_H = 20;      // 16px font + 4px padding

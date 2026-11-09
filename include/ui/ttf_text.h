@@ -58,4 +58,8 @@ private:
     mutable std::unordered_map<unsigned char, Glyph> cache_;
 };
 
+/** Load the first available UI font (DejaVu Mono Bold, Liberation Mono
+ *  Bold, Noto Sans Mono) at the given pixel size. */
+bool loadDefaultUiFont(TtfText& font, int pixel_size);
+
 #endif // TTF_TEXT_H

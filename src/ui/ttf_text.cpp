@@ -5,6 +5,18 @@
 #include <algorithm>
 #include <cstring>
 
+bool loadDefaultUiFont(TtfText& font, int pixel_size) {
+    static const char* kFonts[] = {
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf",
+    };
+    for (const char* path : kFonts) {
+        if (font.load(path, pixel_size)) return true;
+    }
+    return false;
+}
+
 TtfText::~TtfText() {
     if (face_ != nullptr) {
         FT_Done_Face(face_);

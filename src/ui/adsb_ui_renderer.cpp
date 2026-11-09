@@ -104,6 +104,13 @@ int ADSBUIRenderer::getTextWidth(const char* text) const {
     return strlen(text) * (FONT_8X16_WIDTH + 1);
 }
 
+void ADSBUIRenderer::ensureUiFont() const {
+    if (!ui_font_loaded_) {
+        ui_font_loaded_ = true;
+        loadDefaultUiFont(ui_font_, 12);
+    }
+}
+
 void ADSBUIRenderer::renderStatusBar(int aircraft_count,
                                      uint32_t message_count,
                                      float message_rate) {
@@ -115,7 +122,13 @@ void ADSBUIRenderer::renderStatusBar(int aircraft_count,
     snprintf(status, sizeof(status), "AC:%d Msg:%u %.0f/s 1090MHz",
              aircraft_count, message_count, message_rate);
 
-    drawText(2, STATUS_BAR_Y + 2, status, COLOR_ADSB_STATUSBAR_TEXT);
+    ensureUiFont();
+    if (ui_font_.valid()) {
+        ui_font_.draw(fb_, 2, STATUS_BAR_Y + 12, status,
+                      COLOR_ADSB_STATUSBAR_TEXT);
+    } else {
+        drawText(2, STATUS_BAR_Y + 2, status, COLOR_ADSB_STATUSBAR_TEXT);
+    }
 }
 
 void ADSBUIRenderer::renderColumnHeaders() {
@@ -240,7 +253,13 @@ void ADSBUIRenderer::renderStatistics(uint32_t total_messages,
     snprintf(stats, sizeof(stats), "Total:%u CRC:%u Range:%.0fkm",
              total_messages, crc_errors, max_range);
 
-    drawText(2, STATS_BAR_Y + 2, stats, COLOR_ADSB_STATUSBAR_TEXT);
+    ensureUiFont();
+    if (ui_font_.valid()) {
+        ui_font_.draw(fb_, 2, STATS_BAR_Y + 14, stats,
+                      COLOR_ADSB_STATUSBAR_TEXT);
+    } else {
+        drawText(2, STATS_BAR_Y + 2, stats, COLOR_ADSB_STATUSBAR_TEXT);
+    }
 }
 
 void ADSBUIRenderer::renderAircraftDetail(const AircraftState& aircraft,
@@ -315,12 +334,18 @@ void ADSBUIRenderer::renderAircraftDetail(const AircraftState& aircraft,
     fb_.fillRect(INFO_X, INFO_Y, INFO_W, INFO_H, COLOR_BG_DARK);
 
     // Render scrollable text on right side
-    const int LINE_HEIGHT = 18;
-    int y = INFO_Y + 5 - scroll_offset;
+    ensureUiFont();
+    const int LINE_HEIGHT = 15;
+    int y = INFO_Y + 2 - scroll_offset;
 
     for (size_t i = 0; i < lines.size(); i++) {
         if (y + LINE_HEIGHT > INFO_Y && y < STATS_BAR_Y) {
-            drawText(INFO_X + 5, y, lines[i].c_str(), COLOR_TEXT_BRIGHT);
+            if (ui_font_.valid()) {
+                ui_font_.draw(fb_, INFO_X + 5, y + 11, lines[i].c_str(),
+                              COLOR_TEXT_BRIGHT);
+            } else {
+                drawText(INFO_X + 5, y, lines[i].c_str(), COLOR_TEXT_BRIGHT);
+            }
         }
         y += LINE_HEIGHT;
     }

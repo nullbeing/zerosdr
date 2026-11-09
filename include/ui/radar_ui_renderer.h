@@ -118,6 +118,8 @@ private:
     // Anti-aliased font for the selected callsign (loaded lazily).
     mutable TtfText callsign_font_;
     mutable bool callsign_font_loaded_ = false;
+    mutable TtfText ui_font_;
+    mutable bool ui_font_loaded_ = false;
 
     /**
      * Draw sweep line at current angle
