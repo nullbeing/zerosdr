@@ -286,12 +286,11 @@ void RadarUIRenderer::drawRingLabels(int cx, int cy, int radius, int num_rings,
 }
 
 void RadarUIRenderer::drawCompassMarkings(int cx, int cy, int radius) {
-    // Cardinal labels sit *inside* the ring so they never collide with the
-    // outer circle or the panel edges.
+    // N/S sit inside the ring (no room outside), E/W stay outside as before.
     drawText(cx - 3, cy - radius + 4, "N", COLOR_RADAR_TEXT);
     drawText(cx - 3, cy + radius - FONT_6X8_HEIGHT - 2, "S", COLOR_RADAR_TEXT);
-    drawText(cx + radius - 10, cy - 4, "E", COLOR_RADAR_TEXT);
-    drawText(cx - radius + 4, cy - 4, "W", COLOR_RADAR_TEXT);
+    drawText(cx + radius + 4, cy - 4, "E", COLOR_RADAR_TEXT);
+    drawText(cx - radius - 12, cy - 4, "W", COLOR_RADAR_TEXT);
 
     // Draw tick marks at cardinal directions
     for (int angle = 0; angle < 360; angle += 90) {
