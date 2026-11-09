@@ -106,15 +106,14 @@ int ADSBUIRenderer::getTextWidth(const char* text) const {
 
 void ADSBUIRenderer::renderStatusBar(int aircraft_count,
                                      uint32_t message_count,
-                                     float message_rate,
-                                     float gain) {
+                                     float message_rate) {
     // Clear status bar area with blue background
     fb_.fillRect(0, STATUS_BAR_Y, 320, STATUS_BAR_H, COLOR_ADSB_STATUSBAR_BG);
 
-    // Format status string: "AC:5 Msg:1234 45/s G:49.6 1090MHz"
+    // Format status string: "AC:5 Msg:1234 45/s 1090MHz"
     char status[64];
-    snprintf(status, sizeof(status), "AC:%d Msg:%u %.0f/s G:%.1f 1090MHz",
-             aircraft_count, message_count, message_rate, gain);
+    snprintf(status, sizeof(status), "AC:%d Msg:%u %.0f/s 1090MHz",
+             aircraft_count, message_count, message_rate);
 
     drawText(2, STATUS_BAR_Y + 2, status, COLOR_ADSB_STATUSBAR_TEXT);
 }

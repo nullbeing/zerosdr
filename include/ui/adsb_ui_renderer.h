@@ -35,8 +35,7 @@ public:
      */
     void renderStatusBar(int aircraft_count,
                         uint32_t message_count,
-                        float message_rate,
-                        float gain);
+                        float message_rate);
 
     /**
      * Render bottom statistics bar

@@ -549,12 +549,9 @@ void ADSBPage::renderCurrentView() {
     }
 
     if (view_mode_ == VIEW_LIST) {
-        // Get current gain (in ADSB mode SDR is closed, use stored gain_ or readsb default)
-        float gain_db = (gain_ >= 0) ? (gain_ / 10.0f) : 35.0f;
-
         // Render status bar
         ui_.renderStatusBar(aircraft_list_.size(), total_messages_,
-                           message_rate_, gain_db);
+                           message_rate_);
 
         // Render column headers
         ui_.renderColumnHeaders();
@@ -588,13 +585,12 @@ void ADSBPage::renderCurrentView() {
     } else if (view_mode_ == VIEW_RADAR) {
         // Render radar view
         float max_range = calculateMaxRange();
-        float gain_db = (gain_ >= 0) ? (gain_ / 10.0f) : 35.0f;
 
         // Clear screen
         fb_.clear(COLOR_RADAR_BG);
 
         // Render status bar
-        radar_ui_.renderStatusBar(aircraft_list_.size(), max_range, gain_db);
+        radar_ui_.renderStatusBar(aircraft_list_.size(), max_range);
 
         // Render radar display with split layout
         radar_ui_.renderRadarDisplay(aircraft_list_, sweep_angle_, max_range,

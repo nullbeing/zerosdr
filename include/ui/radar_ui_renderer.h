@@ -47,7 +47,7 @@ public:
      * @param max_range Maximum range (km)
      * @param gain Current gain value
      */
-    void renderStatusBar(int aircraft_count, float max_range, float gain);
+    void renderStatusBar(int aircraft_count, float max_range);
 
     /**
      * Render aircraft list in left panel
@@ -77,17 +77,17 @@ private:
     // Left panel - Aircraft list
     static const int LIST_X = 0;
     static const int LIST_Y = 16;
-    static const int LIST_W = 118;  // Left 118 pixels for list
+    static const int LIST_W = 126;  // Left 118 pixels for list
     static const int LIST_H = 154;  // 170 - 16 = 154
     static const int ROW_HEIGHT = 14;
     static const int MAX_VISIBLE_ROWS = 11;  // 154 / 14 = 11 rows
 
     // Right panel - Radar display
-    static const int RADAR_X = 118;
+    static const int RADAR_X = 126;
     static const int RADAR_Y = 16;
-    static const int RADAR_W = 202;  // Right 202 pixels for radar
+    static const int RADAR_W = 194;  // Right 194 pixels for radar
     static const int RADAR_H = 154;
-    static const int RADAR_CENTER_X = 219;  // 118 + 202/2 = 219
+    static const int RADAR_CENTER_X = 223;  // 126 + 194/2 = 223
     static const int RADAR_CENTER_Y = 93;   // 16 + 154/2 = 93
     static const int RADAR_RADIUS = 66;
     static const int NUM_RANGE_RINGS = 3;

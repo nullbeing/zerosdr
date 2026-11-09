@@ -61,14 +61,14 @@ void RadarUIRenderer::renderRadarDisplay(const std::vector<AircraftState>& aircr
     }
 }
 
-void RadarUIRenderer::renderStatusBar(int aircraft_count, float max_range, float gain) {
+void RadarUIRenderer::renderStatusBar(int aircraft_count, float max_range) {
     // Clear status bar with dark background
     fb_.fillRect(0, STATUS_BAR_Y, 320, STATUS_BAR_H, COLOR_BG_DARK);
 
-    // Format status Aircraft: 5  Range: 50km  Gain: 35dB"
+    // Format status "Aircraft: 5  Range: 50km"
     char status[64];
-    snprintf(status, sizeof(status), "Aircraft:%d Range:%.0fkm Gain:%.0fdB",
-             aircraft_count, max_range, gain);
+    snprintf(status, sizeof(status), "Aircraft:%d Range:%.0fkm",
+             aircraft_count, max_range);
 
     // Draw status text (left-aligned)
     drawText(5, STATUS_BAR_Y + 2, status, COLOR_RADAR_TEXT);
@@ -82,8 +82,8 @@ void RadarUIRenderer::renderAircraftList(const std::vector<AircraftState>& aircr
 
     // Draw list header
     drawText(LIST_X + 2, LIST_Y + 2, "ICAO", COLOR_TEXT_BRIGHT);
-    drawText(LIST_X + 76 - 3 * 7, LIST_Y + 2, "ALT", COLOR_TEXT_BRIGHT);
-    drawText(LIST_X + 114 - 2 * 7, LIST_Y + 2, "KM", COLOR_TEXT_BRIGHT);
+    drawText(LIST_X + 88 - 3 * 7, LIST_Y + 2, "ALT", COLOR_TEXT_BRIGHT);
+    drawText(LIST_X + 122 - 4 * 7, LIST_Y + 2, "DIST", COLOR_TEXT_BRIGHT);
 
     // Draw horizontal line under header
     for (int x = LIST_X; x < LIST_X + LIST_W; x++) {
@@ -110,9 +110,21 @@ void RadarUIRenderer::renderAircraftList(const std::vector<AircraftState>& aircr
         // Format and draw aircraft info
         char buffer[32];
 
-        // ICAO (6 chars)
-        snprintf(buffer, sizeof(buffer), "%06X", ac.icao_addr);
-        drawText(LIST_X + 2, row_y + 2, buffer, text_color);
+        // Identifier: callsign for the selected row (more recognisable),
+        // ICAO hex for the rest. Falls back to the hex address when the
+        // aircraft has no callsign yet.
+        char name[9];
+        name[0] = '\0';
+        if (is_selected) {
+            snprintf(name, sizeof(name), "%s", ac.callsign);
+            for (int k = (int)strlen(name) - 1; k >= 0 && name[k] == ' '; --k) {
+                name[k] = '\0';
+            }
+        }
+        if (name[0] == '\0') {
+            snprintf(name, sizeof(name), "%06X", ac.icao_addr);
+        }
+        drawText(LIST_X + 2, row_y + 2, name, text_color);
 
         // Altitude: 35k / 2.6k (right-aligned, ends at x=76)
         if (ac.position_valid && ac.altitude > 0) {
@@ -124,7 +136,7 @@ void RadarUIRenderer::renderAircraftList(const std::vector<AircraftState>& aircr
         } else {
             snprintf(buffer, sizeof(buffer), "-");
         }
-        drawText(LIST_X + 76 - (int)strlen(buffer) * 7, row_y + 2, buffer, text_color);
+        drawText(LIST_X + 88 - (int)strlen(buffer) * 7, row_y + 2, buffer, text_color);
 
         // Distance from the observer in km (right-aligned, ends at x=114)
         if (ac.distance > 0) {
@@ -136,7 +148,7 @@ void RadarUIRenderer::renderAircraftList(const std::vector<AircraftState>& aircr
         } else {
             snprintf(buffer, sizeof(buffer), "-");
         }
-        drawText(LIST_X + 114 - (int)strlen(buffer) * 7, row_y + 2, buffer, text_color);
+        drawText(LIST_X + 122 - (int)strlen(buffer) * 7, row_y + 2, buffer, text_color);
     }
 
     // Draw scroll indicator if needed
