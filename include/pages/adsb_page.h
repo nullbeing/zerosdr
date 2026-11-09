@@ -80,6 +80,9 @@ private:
     std::set<uint32_t> known_icaos_;  // for the "new aircraft" chime
     time_t last_new_aircraft_chime_ = 0;  // throttle: at most one per 3 s
 
+    // Enter-key view cycle helper
+    void openRadarView();
+
     // Settings menu state
     int settings_selected_item_;  // 0=latitude, 1=longitude, 2=save, 3=cancel
     std::string lat_input_;

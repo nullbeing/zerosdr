@@ -343,8 +343,8 @@ the current sample rate can fill.
 |-----|--------|
 | `↑` / `↓` | Select aircraft |
 | `PgUp` / `PgDn` | Move 5 rows |
-| `Enter` | Aircraft detail view |
-| `R` | Radar view (needs an observer position; `L` opens the settings) |
+| `Enter` | Cycle views: list → detail → radar → list |
+| `R` | Jump straight to the radar view (needs an observer position; `L` opens the settings) |
 | `Tab` | Back to the SDR page |
 
 Audio feedback:

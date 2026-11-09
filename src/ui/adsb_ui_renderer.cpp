@@ -328,7 +328,7 @@ void ADSBUIRenderer::renderAircraftDetail(const AircraftState& aircraft,
 
     // Render bottom status bar
     fb_.fillRect(0, STATS_BAR_Y, 320, STATS_BAR_H, COLOR_ADSB_STATUSBAR_BG);
-    drawText(2, STATS_BAR_Y + 2, "Enter:Back  Up/Down:Scroll", COLOR_ADSB_STATUSBAR_TEXT);
+    drawText(2, STATS_BAR_Y + 2, "Enter:Radar  Up/Down:Scroll", COLOR_ADSB_STATUSBAR_TEXT);
 }
 
 void ADSBUIRenderer::formatTimeSince(time_t seconds, char* buffer) {

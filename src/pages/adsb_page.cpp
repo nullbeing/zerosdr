@@ -205,6 +205,22 @@ void ADSBPage::update(float delta_time) {
     fb_.update();
 }
 
+void ADSBPage::openRadarView() {
+    if (observer_position_set_) {
+        view_mode_ = VIEW_RADAR;
+        sweep_angle_ = 0.0f;
+        last_sweep_sector_ = -1;
+        std::cout << "ADSBPage: Switching to radar view" << std::endl;
+    } else {
+        view_mode_ = VIEW_SETTINGS;
+        settings_selected_item_ = 0;
+        lat_input_.clear();
+        lon_input_.clear();
+        std::cout << "ADSBPage: Observer position not set, opening settings"
+                  << std::endl;
+    }
+}
+
 bool ADSBPage::handleInput(AppKeyCode key) {
     if (view_mode_ == VIEW_LIST) {
         handleListInput(key);
@@ -261,25 +277,18 @@ void ADSBPage::handleListInput(AppKeyCode key) {
                 selected_index_ < (int)aircraft_list_.size()) {
                 view_mode_ = VIEW_DETAIL;
                 selected_icao_ = aircraft_list_[selected_index_].icao_addr;
+                detail_scroll_offset_ = 0;
                 std::cout << "ADSBPage: Switching to detail view for aircraft "
                           << std::hex << selected_icao_ << std::dec << std::endl;
+            } else {
+                // Nothing selected: Enter continues the page cycle.
+                openRadarView();
             }
             break;
 
         case APPKEY_R:
-            // Switch to radar view
-            if (observer_position_set_) {
-                view_mode_ = VIEW_RADAR;
-                sweep_angle_ = 0.0f;  // Reset sweep angle
-                last_sweep_sector_ = -1;
-                std::cout << "ADSBPage: Switching to radar view" << std::endl;
-            } else {
-                std::cout << "ADSBPage: Observer position not set, opening settings" << std::endl;
-                view_mode_ = VIEW_SETTINGS;
-                settings_selected_item_ = 0;
-                lat_input_.clear();
-                lon_input_.clear();
-            }
+            // Direct shortcut to the radar view.
+            openRadarView();
             break;
 
         case APPKEY_SCREENSHOT: {
@@ -406,6 +415,10 @@ void ADSBPage::handleDetailInput(AppKeyCode key) {
             break;
 
         case APPKEY_ENTER:
+            // Continue the page cycle: detail -> radar.
+            openRadarView();
+            break;
+
         case APPKEY_ESC:
             view_mode_ = VIEW_LIST;
             detail_scroll_offset_ = 0;  // Reset scroll when returning to list
@@ -889,9 +902,10 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
             if (scroll_offset_ < 0) scroll_offset_ = 0;
             break;
 
+        case APPKEY_ENTER:
         case APPKEY_ESC:
         case APPKEY_R:
-            // Return to list view
+            // Enter continues the cycle: radar -> list.
             view_mode_ = VIEW_LIST;
             std::cout << "ADSBPage: Returning to list view from radar" << std::endl;
             break;
