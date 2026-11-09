@@ -83,6 +83,13 @@ private:
     // Enter-key view cycle helper
     void openRadarView();
 
+    // H overlay (key list + position settings)
+    bool help_visible_ = false;
+    int help_tab_ = 0;           // 0 = keys, 1 = settings
+    int help_setting_index_ = 0; // 0 = latitude, 1 = longitude, 2 = clear
+    ViewMode settings_return_view_ = VIEW_DETAIL;
+    void handleHelpInput(AppKeyCode key);
+
     // Settings menu state
     int settings_selected_item_;  // 0=latitude, 1=longitude, 2=save, 3=cancel
     std::string lat_input_;

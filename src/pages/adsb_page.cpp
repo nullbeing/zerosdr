@@ -212,6 +212,7 @@ void ADSBPage::openRadarView() {
         last_sweep_sector_ = -1;
         std::cout << "ADSBPage: Switching to radar view" << std::endl;
     } else {
+        settings_return_view_ = VIEW_RADAR;
         view_mode_ = VIEW_SETTINGS;
         settings_selected_item_ = 0;
         lat_input_.clear();
@@ -222,6 +223,17 @@ void ADSBPage::openRadarView() {
 }
 
 bool ADSBPage::handleInput(AppKeyCode key) {
+    if (help_visible_) {
+        handleHelpInput(key);
+        return true;
+    }
+    if (key == APPKEY_H) {
+        help_visible_ = true;
+        help_tab_ = 0;
+        help_setting_index_ = 0;
+        return true;
+    }
+
     if (view_mode_ == VIEW_LIST) {
         handleListInput(key);
     } else if (view_mode_ == VIEW_DETAIL) {
@@ -445,7 +457,8 @@ void ADSBPage::handleDetailInput(AppKeyCode key) {
         }
 
         case APPKEY_L:
-            // Open settings menu
+            // Open settings menu, return here when done
+            settings_return_view_ = VIEW_LIST;
             view_mode_ = VIEW_SETTINGS;
             settings_selected_item_ = 0;
             lat_input_.clear();
@@ -524,6 +537,17 @@ void ADSBPage::calculateDistance(AircraftState& aircraft) {
 }
 
 void ADSBPage::renderCurrentView() {
+    if (help_visible_) {
+        if (help_tab_ == 0) {
+            ui_.renderKeyHelp();
+        } else {
+            ui_.renderSettingsOverview(observer_lat_, observer_lon_,
+                                       observer_position_set_,
+                                       help_setting_index_);
+        }
+        return;
+    }
+
     if (view_mode_ == VIEW_LIST) {
         // Get current gain (in ADSB mode SDR is closed, use stored gain_ or readsb default)
         float gain_db = (gain_ >= 0) ? (gain_ / 10.0f) : 35.0f;
@@ -841,8 +865,8 @@ void ADSBPage::handleSettingsInput(AppKeyCode key) {
                     std::cout << "ADSBPage: Observer position set to "
                               << observer_lat_ << ", " << observer_lon_ << std::endl;
                 }
-                // Return to previous view
-                view_mode_ = VIEW_DETAIL;
+                // Return to the view the editor was opened from
+                view_mode_ = settings_return_view_;
                 lat_input_.clear();
                 lon_input_.clear();
                 settings_selected_item_ = 0;
@@ -856,8 +880,8 @@ void ADSBPage::handleSettingsInput(AppKeyCode key) {
             break;
 
         case APPKEY_ESC:
-            // Cancel and return
-            view_mode_ = VIEW_DETAIL;
+            // Cancel and return to the view the editor was opened from
+            view_mode_ = settings_return_view_;
             lat_input_.clear();
             lon_input_.clear();
             settings_selected_item_ = 0;
@@ -918,7 +942,8 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
             break;
 
         case APPKEY_L:
-            // Open settings menu
+            // Open settings menu, return to the radar when done
+            settings_return_view_ = VIEW_RADAR;
             view_mode_ = VIEW_SETTINGS;
             settings_selected_item_ = 0;
             lat_input_.clear();
@@ -974,6 +999,56 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
 
         default:
             break;
+    }
+}
+
+void ADSBPage::handleHelpInput(AppKeyCode key) {
+    if (key == APPKEY_H) {
+        help_visible_ = false;
+        return;
+    }
+    if (key == APPKEY_LEFT || key == APPKEY_RIGHT) {
+        help_tab_ = (help_tab_ + 1) % 2;
+        help_setting_index_ = 0;
+        beeps_.play(1000.0f, 12, 0.05f);
+        return;
+    }
+    if (help_tab_ != 1) {
+        return;
+    }
+    if (key == APPKEY_UP) {
+        help_setting_index_ = (help_setting_index_ + 2) % 3;
+    } else if (key == APPKEY_DOWN) {
+        help_setting_index_ = (help_setting_index_ + 1) % 3;
+    } else if (key == APPKEY_ENTER) {
+        if (help_setting_index_ <= 1) {
+            // Hand over to the existing position editor.
+            settings_return_view_ = VIEW_LIST;
+            help_visible_ = false;
+            view_mode_ = VIEW_SETTINGS;
+            settings_selected_item_ = help_setting_index_;
+            lat_input_.clear();
+            lon_input_.clear();
+            if (help_setting_index_ == 0) {
+                editing_lat_ = true;
+                if (observer_position_set_) {
+                    lat_input_ = std::to_string(observer_lat_);
+                }
+            } else {
+                editing_lon_ = true;
+                if (observer_position_set_) {
+                    lon_input_ = std::to_string(observer_lon_);
+                }
+            }
+        } else {
+            observer_lat_ = 0.0;
+            observer_lon_ = 0.0;
+            observer_position_set_ = false;
+            config_.clearObserverPosition();
+            config_.save(config_path_);
+            beeps_.play(880.0f, 40, 0.12f);
+            std::cout << "ADSBPage: Observer position cleared" << std::endl;
+        }
     }
 }
 

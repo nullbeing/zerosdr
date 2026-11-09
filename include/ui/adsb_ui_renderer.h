@@ -53,6 +53,10 @@ public:
      */
     void renderColumnHeaders();
 
+    // H overlay: key reference and settings summary
+    void renderKeyHelp();
+    void renderSettingsOverview(double lat, double lon, bool pos_set, int selected);
+
     /**
      * Render detail view for selected aircraft
      * @param aircraft Aircraft to display

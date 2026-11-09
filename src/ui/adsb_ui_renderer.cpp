@@ -756,3 +756,64 @@ void ADSBUIRenderer::renderText(int x, int y, const char* text, uint16_t color, 
     // Simply delegate to drawText (bold parameter ignored)
     drawText(x, y, text, color);
 }
+
+void ADSBUIRenderer::renderKeyHelp() {
+    fb_.fillRect(0, 0, 320, 170, COLOR_BG_DARK);
+    renderText(6, 4, "KEYS", COLOR_TEXT_BRIGHT, true);
+    drawSmallText(60, 10, "H close   <> settings", COLOR_TEXT_DIM);
+
+    struct Row { const char* key; const char* action; };
+    static const Row rows[] = {
+        {"TAB",        "SDR / ADSB"},
+        {"UP/DOWN",    "SELECT AIRCRAFT"},
+        {"LEFT/RIGHT", "PAGE 5 ROWS"},
+        {"ENTER",      "LIST>DETAIL>RADAR"},
+        {"R",          "RADAR VIEW"},
+        {"L",          "POSITION SETTINGS"},
+        {"H",          "HELP / SETTINGS"},
+        {"G",          "GAIN MODE (RADAR)"},
+        {"+ / -",      "GAIN (RADAR)"},
+        {"Q / ESC",    "QUIT"},
+    };
+
+    int y = 30;
+    for (const auto& r : rows) {
+        drawSmallText(6, y, r.key, COLOR_YELLOW);
+        drawSmallText(96, y, r.action, COLOR_WHITE);
+        y += 13;
+    }
+}
+
+void ADSBUIRenderer::renderSettingsOverview(double lat, double lon,
+                                            bool pos_set, int selected) {
+    fb_.fillRect(0, 0, 320, 170, COLOR_BG_DARK);
+    renderText(6, 4, "SETTINGS", COLOR_TEXT_BRIGHT, true);
+    drawSmallText(86, 10, "H close   <> keys", COLOR_TEXT_DIM);
+
+    char lat_s[32];
+    char lon_s[32];
+    if (pos_set) {
+        snprintf(lat_s, sizeof(lat_s), "%.4f", lat);
+        snprintf(lon_s, sizeof(lon_s), "%.4f", lon);
+    } else {
+        snprintf(lat_s, sizeof(lat_s), "NOT SET");
+        snprintf(lon_s, sizeof(lon_s), "NOT SET");
+    }
+
+    static const char* labels[3] = {"LATITUDE", "LONGITUDE", "CLEAR POSITION"};
+    const char* values[3] = {lat_s, lon_s, pos_set ? "ENTER to clear" : "-"};
+
+    for (int i = 0; i < 3; ++i) {
+        const int y = 44 + i * 30;
+        if (i == selected) {
+            fb_.fillRect(4, y - 6, 312, 22, COLOR_SELECTED);
+            drawSmallText(10, y + 2, ">", COLOR_YELLOW);
+        }
+        renderText(24, y, labels[i],
+                   i == selected ? COLOR_WHITE : COLOR_TEXT_BRIGHT, false);
+        drawSmallText(186, y + 2, values[i], COLOR_YELLOW);
+    }
+
+    drawSmallText(6, 150, "UP/DOWN select   ENTER edit/clear   H close",
+                  COLOR_TEXT_DIM);
+}

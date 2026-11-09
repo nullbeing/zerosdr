@@ -344,8 +344,16 @@ the current sample rate can fill.
 | `↑` / `↓` | Select aircraft |
 | `←` / `→` | Move 5 rows (`PgUp`/`PgDn` also work) |
 | `Enter` | Cycle views: list → detail → radar → list |
-| `R` | Jump straight to the radar view (needs an observer position; `L` opens the settings) |
+| `R` | Jump straight to the radar view (needs an observer position) |
+| `H` | Key list + settings (latitude, longitude, clear position) |
+| `L` | Position editor |
+| `G` / `+` / `-` | Radar gain mode / gain |
 | `Tab` | Back to the SDR page |
+
+`H` opens a full-screen overlay with two tabs: the key list and a settings tab
+where you can view/edit the observer latitude and longitude (opening the usual
+position editor) or clear the stored position. `←`/`→` switch tabs, `↑`/`↓`
+select, `Enter` edits, `H` closes.
 
 Audio feedback:
 
