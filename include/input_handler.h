@@ -21,11 +21,18 @@ enum AppKeyCode {
     APPKEY_V,      // Volume up
     APPKEY_C,      // Volume down
     APPKEY_S,      // Adjust squelch
+    APPKEY_E,      // Cycle FM deemphasis (50/75us)
+    APPKEY_T,      // Cycle tuning step (Auto / 100Hz / 1k / 5k / 10k / 100k / 1M)
     APPKEY_SPACE,  // Toggle audio
+    APPKEY_LEFT_COARSE,   // Shift+Left  = current step × 10 (coarse tune)
+    APPKEY_RIGHT_COARSE,  // Shift+Right = current step × 10 (coarse tune)
     APPKEY_Q,
     APPKEY_ESC,
     APPKEY_H,
+    APPKEY_L,      // Location settings (ADSB)
     APPKEY_R,    // Retry (for device detection)
+    APPKEY_TAB,  // Page switching
+    APPKEY_P,    // Page switching (alternative)
     APPKEY_RES,  // Shift+R: cycle FFT resolution
     APPKEY_BW,   // Shift+B: cycle demodulation bandwidth
     APPKEY_ZOOM, // Shift+Z: cycle display zoom
@@ -55,8 +62,10 @@ public:
 private:
     int kbd_fd;
     bool initialized;
+    bool cardputer_zero_;
 
     AppKeyCode translateKeyCode(int linux_keycode, bool shift_pressed);
+    AppKeyCode translateCardputerZero(int linux_keycode, bool shift_pressed);
 
     // Track key hold state
     AppKeyCode last_nav_key;

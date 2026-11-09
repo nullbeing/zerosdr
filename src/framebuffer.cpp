@@ -60,6 +60,9 @@ bool Framebuffer::init() {
         return false;
     }
 
+    // Allocate software back buffer for double-buffered drawing
+    back_buffer_.resize(width * height, 0x0000);
+
     initialized = true;
     return true;
 }
@@ -67,15 +70,13 @@ bool Framebuffer::init() {
 void Framebuffer::clear(uint16_t color) {
     if (!initialized) return;
 
-    for (int i = 0; i < width * height; i++) {
-        fb_ptr[i] = color;
-    }
+    std::fill(back_buffer_.begin(), back_buffer_.end(), color);
 }
 
 void Framebuffer::drawPixel(int x, int y, uint16_t color) {
     if (!initialized || x < 0 || x >= width || y < 0 || y >= height) return;
 
-    fb_ptr[y * width + x] = color;
+    back_buffer_[y * width + x] = color;
 }
 
 void Framebuffer::drawLine(int x0, int y0, int x1, int y1, uint16_t color) {
@@ -123,56 +124,11 @@ void Framebuffer::fillRect(int x, int y, int w, int h, uint16_t color) {
     }
 }
 
-void Framebuffer::drawChar(int x, int y, char c, uint16_t color) {
-    if (!initialized) return;
-
-    // Only support printable ASCII
-    if (c < 0x20 || c > 0x7E) return;
-
-    // Get font data (defined in font.h)
-    extern const uint8_t font6x8[95][8];
-    const uint8_t* glyph = font6x8[c - 0x20];
-
-    // Draw 6x8 character
-    for (int row = 0; row < 8; row++) {
-        uint8_t line = glyph[row];
-        for (int col = 0; col < 6; col++) {
-            if (line & (0x80 >> col)) {
-                drawPixel(x + col, y + row, color);
-            }
-        }
-    }
-}
-
-void Framebuffer::drawText(int x, int y, const char* text, uint16_t color) {
-    if (!initialized || !text) return;
-
-    int cursor_x = x;
-    while (*text) {
-        drawChar(cursor_x, y, *text, color);
-        cursor_x += 7; // 6 pixels + 1 pixel spacing
-        text++;
-    }
-}
-
-void Framebuffer::drawTextBg(int x, int y, const char* text, uint16_t fg, uint16_t bg) {
-    if (!initialized || !text) return;
-
-    // Calculate text width
-    int len = 0;
-    while (text[len]) len++;
-    int text_width = len * 7 - 1; // Remove last spacing
-
-    // Draw background
-    fillRect(x, y, text_width, 8, bg);
-
-    // Draw text on top
-    drawText(x, y, text, fg);
-}
-
 void Framebuffer::update() {
-    // For most framebuffers, no explicit update is needed
-    // The memory-mapped buffer is automatically displayed
+    // Copy back buffer to the framebuffer in one shot
+    // This eliminates tearing because the user sees a complete frame
+    if (!initialized) return;
+    memcpy(fb_ptr, back_buffer_.data(), back_buffer_.size() * sizeof(uint16_t));
 }
 
 bool Framebuffer::saveScreenshot(const char* filename) {
@@ -184,9 +140,9 @@ bool Framebuffer::saveScreenshot(const char* filename) {
     // Allocate RGB888 buffer
     uint8_t* rgb_data = new uint8_t[width * height * 3];
 
-    // Convert RGB565 to RGB888
+    // Convert RGB565 to RGB888 (read from back buffer to capture last rendered frame)
     for (int i = 0; i < width * height; i++) {
-        uint16_t pixel = fb_ptr[i];
+        uint16_t pixel = back_buffer_[i];
 
         // Extract RGB565 components and expand to 8 bits
         rgb_data[i * 3 + 0] = ((pixel >> 11) & 0x1F) << 3;  // R: 5 bits -> 8 bits

@@ -32,8 +32,14 @@ public:
     void stopCapture();
     bool isCapturing() const { return capturing; }
 
-    // Get continuous IQ samples from ring buffer
+    // Get continuous IQ samples from ring buffer (consumes them)
     bool getLatestSamples(std::vector<uint8_t>& samples, size_t count);
+
+    // Copy the most recent IQ samples without consuming them (for FFT/UI)
+    bool getLatestSamplesSnapshot(std::vector<uint8_t>& samples, size_t count);
+
+    // Number of IQ bytes dropped because the ring buffer was full
+    uint64_t getDroppedBytes() const { return dropped_bytes.load(); }
 
 private:
     rtlsdr_dev_t* device;
@@ -52,6 +58,7 @@ private:
     size_t ring_buffer_size;
     std::atomic<size_t> write_pos;  // Where RTL-SDR writes
     std::atomic<size_t> read_pos;   // Where we read from
+    std::atomic<uint64_t> dropped_bytes{0};
     std::mutex buffer_mutex;
 
     static void rtlsdr_callback(unsigned char* buf, uint32_t len, void* ctx);

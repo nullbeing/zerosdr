@@ -4,7 +4,7 @@
 
 AudioOutput::AudioOutput()
     : pcm_handle(nullptr), sample_rate(48000), channels(1),
-      period_size(2048), buffer_size(8192) {
+      period_size(2048), buffer_size(16384) {
 }
 
 AudioOutput::~AudioOutput() {
@@ -113,6 +113,12 @@ bool AudioOutput::init(const char* device_name, uint32_t sample_rate, int channe
               << channels << " channel(s), period=" << period_size
               << ", buffer=" << buffer_size << std::endl;
 
+    // Prime the buffer with silence. The audio thread needs up to ~200 ms
+    // to collect and demodulate its first chunk; without this cushion ALSA
+    // reports a short burst of underruns at startup.
+    std::vector<int16_t> silence(static_cast<size_t>(buffer_size) * channels, 0);
+    write(silence);
+
     return true;
 }
 
@@ -130,26 +136,44 @@ bool AudioOutput::write(const std::vector<int16_t>& samples) {
     }
 
     snd_pcm_sframes_t frames = samples.size() / channels;
-    snd_pcm_sframes_t written = snd_pcm_writei(pcm_handle, samples.data(), frames);
+    snd_pcm_sframes_t total = 0;
+    int recoveries = 0;
 
-    if (written < 0) {
-        // Handle errors
-        if (written == -EPIPE) {
-            std::cerr << "Audio buffer underrun" << std::endl;
-            return recover(written);
-        } else if (written == -ESTRPIPE) {
-            std::cerr << "Audio stream suspended" << std::endl;
-            return recover(written);
-        } else {
-            std::cerr << "Audio write error: " << snd_strerror(written) << std::endl;
-            return false;
+    while (total < frames) {
+        snd_pcm_sframes_t written = snd_pcm_writei(
+            pcm_handle,
+            samples.data() + total * channels,
+            frames - total);
+
+        if (written < 0) {
+            if (written == -EPIPE) {
+                std::cerr << "Audio buffer underrun" << std::endl;
+                if (++recoveries > 4) return false;
+                if (!recover(written)) return false;
+                continue;
+            } else if (written == -ESTRPIPE) {
+                std::cerr << "Audio stream suspended" << std::endl;
+                if (++recoveries > 4) return false;
+                if (!recover(written)) return false;
+                continue;
+            } else {
+                std::cerr << "Audio write error: " << snd_strerror(written) << std::endl;
+                return false;
+            }
         }
-    } else if (written < frames) {
-        std::cerr << "Warning: short write (expected " << frames
-                  << ", wrote " << written << ")" << std::endl;
+
+        if (written == 0) {
+            break;
+        }
+        total += written;
     }
 
-    return true;
+    if (total < frames) {
+        std::cerr << "Warning: short write (expected " << frames
+                  << ", wrote " << total << ")" << std::endl;
+    }
+
+    return total > 0;
 }
 
 snd_pcm_sframes_t AudioOutput::getAvailableFrames() {

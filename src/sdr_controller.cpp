@@ -6,8 +6,9 @@
 SDRController::SDRController()
     : device(nullptr), initialized(false), agc_enabled(false), capturing(false),
       current_frequency(100000000), current_sample_rate(2048000),
-      current_gain(0), ring_buffer_size(1048576), write_pos(0), read_pos(0) {
-    // Ring buffer: 1MB = ~0.5 seconds at 2.048 MHz
+      current_gain(0), ring_buffer_size(2097152), write_pos(0), read_pos(0) {
+    // Ring buffer: 2MB = ~2 seconds at 1.024 MHz, ~0.87 s at 2.4 MHz.
+    // Extra headroom absorbs scheduling jitter without dropping USB data.
     ring_buffer.resize(ring_buffer_size);
 }
 
@@ -107,8 +108,9 @@ bool SDRController::setAutoGain(bool enable) {
 bool SDRController::setAGCMode(bool enable) {
     if (!initialized) return false;
 
-    // Set digital AGC (RTL2832 chip)
-    int ret = rtlsdr_set_agc_mode(device, enable ? 1 : 0);
+    // The RTL2832 digital AGC makes abrupt gain changes that can sound like
+    // brief audio dropouts. Keep it off; use the tuner's auto/manual gain.
+    int ret = rtlsdr_set_agc_mode(device, 0);
     if (ret < 0) {
         std::cerr << "Failed to set AGC mode: " << ret << std::endl;
         return false;
@@ -154,6 +156,8 @@ void SDRController::stopCapture() {
 bool SDRController::getLatestSamples(std::vector<uint8_t>& samples, size_t count) {
     if (!capturing) return false;
 
+    std::lock_guard<std::mutex> lock(buffer_mutex);
+
     size_t available = getAvailableSamples();
     if (available < count) {
         // Not enough data yet
@@ -163,13 +167,35 @@ bool SDRController::getLatestSamples(std::vector<uint8_t>& samples, size_t count
     samples.resize(count);
     size_t current_read = read_pos.load();
 
-    // Read from ring buffer (handle wrap-around)
-    for (size_t i = 0; i < count; i++) {
-        samples[i] = ring_buffer[(current_read + i) % ring_buffer_size];
+    // Two-segment memcpy to handle ring buffer wrap-around
+    size_t first_chunk = std::min(count, ring_buffer_size - current_read);
+    memcpy(samples.data(), &ring_buffer[current_read], first_chunk);
+    if (count > first_chunk) {
+        memcpy(samples.data() + first_chunk, &ring_buffer[0], count - first_chunk);
     }
 
     // Update read position
     read_pos = (current_read + count) % ring_buffer_size;
+
+    return true;
+}
+
+bool SDRController::getLatestSamplesSnapshot(std::vector<uint8_t>& samples, size_t count) {
+    if (!capturing || count == 0 || count > ring_buffer_size) return false;
+
+    std::lock_guard<std::mutex> lock(buffer_mutex);
+
+    // The newest `count` bytes end at write_pos. This does not advance
+    // read_pos, so the audio thread can keep consuming the same stream.
+    size_t current_write = write_pos.load();
+    size_t start = (current_write + ring_buffer_size - count) % ring_buffer_size;
+
+    samples.resize(count);
+    size_t first_chunk = std::min(count, ring_buffer_size - start);
+    memcpy(samples.data(), &ring_buffer[start], first_chunk);
+    if (count > first_chunk) {
+        memcpy(samples.data() + first_chunk, &ring_buffer[0], count - first_chunk);
+    }
 
     return true;
 }
@@ -190,20 +216,33 @@ void SDRController::rtlsdr_callback(unsigned char* buf, uint32_t len, void* ctx)
 
     if (len == 0 || !controller->capturing) return;
 
+    std::lock_guard<std::mutex> lock(controller->buffer_mutex);
+
     size_t current_write = controller->write_pos.load();
 
-    // Write to ring buffer (handle wrap-around)
-    for (uint32_t i = 0; i < len; i++) {
-        controller->ring_buffer[(current_write + i) % controller->ring_buffer_size] = buf[i];
+    // Detect overflow: if write would overtake read, drop new data
+    size_t free_space = (controller->read_pos.load() + controller->ring_buffer_size - current_write - 1)
+                        % controller->ring_buffer_size;
+    if (len > free_space) {
+        // Drop incoming data to avoid corruption
+        controller->dropped_bytes += len;
+        return;
+    }
+
+    // Two-segment memcpy to handle ring buffer wrap-around
+    size_t first_chunk = std::min((size_t)len, controller->ring_buffer_size - current_write);
+    memcpy(&controller->ring_buffer[current_write], buf, first_chunk);
+    if (len > first_chunk) {
+        memcpy(&controller->ring_buffer[0], buf + first_chunk, len - first_chunk);
     }
 
     // Update write position
     controller->write_pos = (current_write + len) % controller->ring_buffer_size;
-
-    // Removed buffer warning - this is normal during continuous operation
 }
 
 void SDRController::captureLoop() {
-    // Use smaller buffer size for RTL-SDR callback (16KB)
-    rtlsdr_read_async(device, rtlsdr_callback, this, 0, 16384);
+    // 32 x 32 KB = 1 MB of USB transfer buffering. The default (15 x 16 KB)
+    // only gives ~120 ms at 1.024 MHz; a short scheduler/USB stall can then
+    // drop URBs and produce an audible click every few seconds.
+    rtlsdr_read_async(device, rtlsdr_callback, this, 32, 32768);
 }

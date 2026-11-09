@@ -1,20 +1,20 @@
-#include "ui_renderer.h"
+#include "ui/sdr_ui_renderer.h"
 #include <algorithm>
 #include <cstdio>
 #include <cmath>
 #include <cstring>
 
-UIRenderer::UIRenderer(Framebuffer& fb)
-    : fb(fb), display_mode(0), wf_floor(-80.0f), wf_ceiling(-20.0f) {
+SDRUIRenderer::SDRUIRenderer(Framebuffer& fb)
+    : BaseUIRenderer(fb), display_mode_(0), wf_floor_(-80.0f), wf_ceiling_(-20.0f) {
     // Allocate waterfall pixel buffer (80 rows × 320 pixels)
-    wf_pixels.resize(WATERFALL_H * 320, COLOR_BG_DARK);
+    wf_pixels_.resize(WATERFALL_H * 320, COLOR_BG_DARK);
 }
 
-UIRenderer::~UIRenderer() {
+SDRUIRenderer::~SDRUIRenderer() {
 }
 
-void UIRenderer::renderSpectrum(const std::vector<float>& magnitude, uint32_t center_freq, uint32_t span, uint32_t sample_rate, int demod_mode, uint32_t demod_bandwidth) {
-    if (display_mode == 2) return;  // 仅瀑布模式，跳过频谱
+void SDRUIRenderer::renderSpectrum(const std::vector<float>& magnitude, uint32_t center_freq, uint32_t span, uint32_t sample_rate, int demod_mode, uint32_t demod_bandwidth) {
+    if (display_mode_ == 2) return;  // 仅瀑布模式，跳过频谱
     if (magnitude.empty()) return;
 
     // Calculate zoom: extract center portion of magnitude based on span/sample_rate ratio
@@ -26,7 +26,12 @@ void UIRenderer::renderSpectrum(const std::vector<float>& magnitude, uint32_t ce
     size_t display_bins = (size_t)(total_bins * zoom_ratio);
     if (display_bins < 4) display_bins = 4;  // Minimum 4 bins
 
-    size_t start_bin = (total_bins - display_bins) / 2;
+    // Keep the FFT's DC bin (total_bins / 2 after the FFT shift) exactly
+    // in the middle of the zoomed window, including odd display_bins.
+    size_t start_bin = total_bins / 2 - display_bins / 2;
+    if (start_bin + display_bins > total_bins) {
+        start_bin = total_bins - display_bins;
+    }
     std::vector<float> zoomed_mag(magnitude.begin() + start_bin,
                                    magnitude.begin() + start_bin + display_bins);
 
@@ -44,85 +49,110 @@ void UIRenderer::renderSpectrum(const std::vector<float>& magnitude, uint32_t ce
     drawFreqAxis(center_freq, span, FREQAXIS_Y, FREQAXIS_H);
 }
 
-void UIRenderer::renderWaterfall(const std::vector<float>& magnitude) {
-    if (display_mode == 1) return;  // 仅频谱模式，跳过瀑布
-    if (magnitude.empty()) return;
+void SDRUIRenderer::renderWaterfall(const std::vector<float>& magnitude, uint32_t span, uint32_t sample_rate) {
+    if (display_mode_ == 1) return;  // 仅频谱模式，跳过瀑布
+    if (magnitude.empty() || sample_rate == 0) return;
 
     int width = 320;
 
-    // Update dynamic range (exponential smoothing)
-    float frame_min = *std::min_element(magnitude.begin(), magnitude.end());
-    float frame_max = *std::max_element(magnitude.begin(), magnitude.end());
-    wf_floor   = 0.95f * wf_floor   + 0.05f * frame_min;
-    wf_ceiling = 0.95f * wf_ceiling + 0.05f * frame_max;
-    float range = wf_ceiling - wf_floor;
+    // Use the same center zoom as renderSpectrum(), otherwise a zoomed
+    // spectrum and a full-band waterfall show different frequency ranges
+    // and the signal appears misaligned with the center marker/axis.
+    float zoom_ratio = (float)span / (float)sample_rate;
+    if (zoom_ratio > 1.0f) zoom_ratio = 1.0f;
+    if (zoom_ratio < 0.01f) zoom_ratio = 0.01f;
+
+    size_t total_bins = magnitude.size();
+    size_t display_bins = (size_t)(total_bins * zoom_ratio);
+    if (display_bins < 4) display_bins = 4;
+    if (display_bins > total_bins) display_bins = total_bins;
+    size_t start_bin = total_bins / 2 - display_bins / 2;
+    if (start_bin + display_bins > total_bins) {
+        start_bin = total_bins - display_bins;
+    }
+
+    // Update dynamic range (exponential smoothing) over the displayed range
+    float frame_min = magnitude[start_bin];
+    float frame_max = magnitude[start_bin];
+    for (size_t i = start_bin; i < start_bin + display_bins; i++) {
+        frame_min = std::min(frame_min, magnitude[i]);
+        frame_max = std::max(frame_max, magnitude[i]);
+    }
+    wf_floor_   = 0.95f * wf_floor_   + 0.05f * frame_min;
+    wf_ceiling_ = 0.95f * wf_ceiling_ + 0.05f * frame_max;
+    float range = wf_ceiling_ - wf_floor_;
     if (range < 1.0f) range = 1.0f;
 
     // Shift existing waterfall down by 1 row (memmove for performance)
     if (WATERFALL_H > 1) {
-        memmove(&wf_pixels[width], &wf_pixels[0], (WATERFALL_H - 1) * width * sizeof(uint16_t));
+        memmove(&wf_pixels_[width], &wf_pixels_[0], (WATERFALL_H - 1) * width * sizeof(uint16_t));
     }
 
-    // Render new line at top (row 0 of wf_pixels)
-    size_t mag_size = magnitude.size();
+    // Render new line at top (row 0 of wf_pixels_)
     for (int x = 0; x < width; x++) {
-        size_t idx = (x * mag_size) / width;
-        if (idx >= mag_size) idx = mag_size - 1;
+        size_t idx = start_bin + (size_t)((x * display_bins) / width);
+        if (idx >= start_bin + display_bins) idx = start_bin + display_bins - 1;
 
-        float norm = (magnitude[idx] - wf_floor) / range;
+        float norm = (magnitude[idx] - wf_floor_) / range;
         norm = std::max(0.0f, std::min(1.0f, norm));
 
-        wf_pixels[x] = magnitudeToColor(norm);
+        wf_pixels_[x] = magnitudeToColor(norm);
     }
 
     // Blit waterfall buffer to framebuffer at y=WATERFALL_Y
     for (int row = 0; row < WATERFALL_H; row++) {
         for (int x = 0; x < width; x++) {
-            fb.drawPixel(x, WATERFALL_Y + row, wf_pixels[row * width + x]);
+            fb_.drawPixel(x, WATERFALL_Y + row, wf_pixels_[row * width + x]);
         }
     }
 }
 
-void UIRenderer::renderStatusBar(uint32_t freq, uint32_t span, int gain, const char* freq_input,
-                                  const char* demod_mode, float volume, bool squelch_open, bool audio_enabled,
-                                  bool agc_enabled) {
+void SDRUIRenderer::renderStatusBar(uint32_t freq, uint32_t span, int gain, const char* freq_input,
+                                  const char* demod_mode, float volume, bool squelch_open, float squelch,
+                                  bool audio_enabled, bool agc_enabled, const char* step_label) {
     // Background
-    fb.fillRect(0, STATUSBAR_Y, 320, STATUSBAR_H, COLOR_STATUSBAR);
+    fb_.fillRect(0, STATUSBAR_Y, 320, STATUSBAR_H, COLOR_STATUSBAR);
 
     // If frequency input mode is active, show input buffer
     if (freq_input != nullptr && freq_input[0] != '\0') {
         char input_display[32];
         snprintf(input_display, sizeof(input_display), "Freq: %s MHz", freq_input);
-        fb.drawText(2, STATUSBAR_Y + 3, input_display, COLOR_TEXT_BRIGHT);
+        drawText(2, STATUSBAR_Y + 3, input_display, COLOR_TEXT_BRIGHT);
         return;  // Skip normal status display
     }
 
-    // Layout: Frequency - DemodMode - Span(center) - Volume - Gain(right)
-    // Example: 99.3M  FM  3.2M  ▰▰▰▰▱▱▱▱  +20dB
+    // Layout: Frequency - DemodMode - Step - AGC - Span(center) - Volume
+    // Example: 99.3M  FM  100k  AGC  3.2M  VOL▰▰▰▱
 
     // 1. Frequency (left, bright)
     char freq_str[16];
     formatFrequency(freq, freq_str, sizeof(freq_str));
-    fb.drawText(2, STATUSBAR_Y + 3, freq_str, COLOR_TEXT_BRIGHT);
+    drawText(2, STATUSBAR_Y + 3, freq_str, COLOR_TEXT_BRIGHT);
 
-    // 2. Demod mode (moved right to avoid overlap with frequency)
+    // 2. Demod mode
     if (audio_enabled) {
-        fb.drawText(65, STATUSBAR_Y + 3, demod_mode, COLOR_TEXT_BRIGHT);
+        drawText(58, STATUSBAR_Y + 3, demod_mode, COLOR_TEXT_BRIGHT);
     } else {
-        fb.drawText(65, STATUSBAR_Y + 3, "--", COLOR_TEXT_DIM);
+        drawText(58, STATUSBAR_Y + 3, "--", COLOR_TEXT_DIM);
     }
 
-    // 3. AGC/Gain (moved right after demod mode)
+    // 3. Tuning step (just after demod mode, dim if Auto)
+    if (step_label != nullptr) {
+        uint16_t step_color = (step_label[0] == 'A') ? COLOR_TEXT_DIM : COLOR_TEXT_BRIGHT;
+        drawText(85, STATUSBAR_Y + 3, step_label, step_color);
+    }
+
+    // 4. AGC/Gain (right of step)
     char gain_str[16];
     if (agc_enabled) {
         snprintf(gain_str, sizeof(gain_str), "AGC");
-        fb.drawTextBg(95, STATUSBAR_Y + 3, gain_str, COLOR_BLACK, COLOR_WHITE);
+        drawTextBg(120, STATUSBAR_Y + 3, gain_str, COLOR_BLACK, COLOR_WHITE);
     } else if (gain >= 0) {
         snprintf(gain_str, sizeof(gain_str), "+%ddB", gain / 10);
-        fb.drawTextBg(95, STATUSBAR_Y + 3, gain_str, COLOR_BLACK, COLOR_WHITE);
+        drawTextBg(120, STATUSBAR_Y + 3, gain_str, COLOR_BLACK, COLOR_WHITE);
     } else {
         snprintf(gain_str, sizeof(gain_str), "AUTO");
-        fb.drawText(95, STATUSBAR_Y + 3, gain_str, COLOR_TEXT_DIM);
+        drawText(120, STATUSBAR_Y + 3, gain_str, COLOR_TEXT_DIM);
     }
 
     // 4. Span (center, dim)
@@ -135,7 +165,16 @@ void UIRenderer::renderStatusBar(uint32_t freq, uint32_t span, int gain, const c
     int span_len = strlen(span_str);
     int span_width = span_len * 7;  // Approximate character width
     int span_x = (320 - span_width) / 2;  // Center horizontally
-    fb.drawText(span_x, STATUSBAR_Y + 3, span_str, COLOR_TEXT_DIM);
+    drawText(span_x, STATUSBAR_Y + 3, span_str, COLOR_TEXT_DIM);
+
+    // 4.5 Squelch indicator (between span and VOL, right of center)
+    char sq_str[8];
+    if (squelch <= 0.0f) {
+        snprintf(sq_str, sizeof(sq_str), "SQ:OFF");
+    } else {
+        snprintf(sq_str, sizeof(sq_str), "SQ:%d%%", (int)(squelch * 100));
+    }
+    drawText(190, STATUSBAR_Y + 3, sq_str, COLOR_TEXT_DIM);
 
     // 5. Volume bar (right-aligned) - with "VOL" label
     if (audio_enabled) {
@@ -144,7 +183,7 @@ void UIRenderer::renderStatusBar(uint32_t freq, uint32_t span, int gain, const c
         int label_y = STATUSBAR_Y + 3;
         uint16_t label_color = squelch_open ? COLOR_TEXT_BRIGHT : COLOR_TEXT_DIM;
 
-        fb.drawText(label_x, label_y, "VOL", label_color);
+        drawText(label_x, label_y, "VOL", label_color);
 
         int bar_width = 40;   // Bar width
         int bar_height = 6;   // Bar height
@@ -160,27 +199,27 @@ void UIRenderer::renderStatusBar(uint32_t freq, uint32_t span, int gain, const c
         // Only draw filled part (no background)
         if (filled_width > 2) {  // Need at least 3 pixels for rounded effect
             // Draw main filled rectangle
-            fb.fillRect(bar_x + 1, bar_y, filled_width - 2, bar_height, fill_color);
+            fb_.fillRect(bar_x + 1, bar_y, filled_width - 2, bar_height, fill_color);
 
             // Draw rounded left(semi-circle effect)
-            fb.fillRect(bar_x, bar_y + 1, 1, bar_height - 2, fill_color);  // Left edge
-            fb.drawPixel(bar_x, bar_y + 2, fill_color);  // Rounder
-            if (bar_height > 4) fb.drawPixel(bar_x, bar_y + bar_height - 3, fill_color);
+            fb_.fillRect(bar_x, bar_y + 1, 1, bar_height - 2, fill_color);  // Left edge
+            fb_.drawPixel(bar_x, bar_y + 2, fill_color);  // Rounder
+            if (bar_height > 4) fb_.drawPixel(bar_x, bar_y + bar_height - 3, fill_color);
 
             // Draw rounded right end (semi-circle effect)
             if (filled_width > 1) {
-                fb.fillRect(bar_x + filled_width - 1, bar_y + 1, 1, bar_height - 2, fill_color);  // Right edge
-                fb.drawPixel(bar_x + filled_width - 1, bar_y + 2, fill_color);  // Rounder
-                if (bar_height > 4) fb.drawPixel(bar_x + filled_width - 1, bar_y + bar_height - 3, fill_color);
+                fb_.fillRect(bar_x + filled_width - 1, bar_y + 1, 1, bar_height - 2, fill_color);  // Right edge
+                fb_.drawPixel(bar_x + filled_width - 1, bar_y + 2, fill_color);  // Rounder
+                if (bar_height > 4) fb_.drawPixel(bar_x + filled_width - 1, bar_y + bar_height - 3, fill_color);
             }
         } else if (filled_width > 0) {
             // Very small volume, just draw a small indicator
-            fb.fillRect(bar_x, bar_y + 2, filled_width, 2, fill_color);
+            fb_.fillRect(bar_x, bar_y + 2, filled_width, 2, fill_color);
         }
     }
 }
 
-void UIRenderer::drawSpectrumGraph(const std::vector<float>& mag, int x, int y, int w, int h, uint32_t center_freq, uint32_t span, uint32_t demod_bandwidth) {
+void SDRUIRenderer::drawSpectrumGraph(const std::vector<float>& mag, int x, int y, int w, int h, uint32_t center_freq, uint32_t span, uint32_t demod_bandwidth) {
     if (mag.empty()) return;
 
     float min_mag = *std::min_element(mag.begin(), mag.end());
@@ -192,8 +231,8 @@ void UIRenderer::drawSpectrumGraph(const std::vector<float>& mag, int x, int y, 
     for (int i = 1; i <= 3; i++) {
         int grid_y = y + (i * h) / 4;
         for (int gx = x; gx < x + w; gx += 4) {
-            fb.drawPixel(gx,     grid_y, COLOR_GRID);
-            fb.drawPixel(gx + 1, grid_y, COLOR_GRID);
+            fb_.drawPixel(gx,     grid_y, COLOR_GRID);
+            fb_.drawPixel(gx + 1, grid_y, COLOR_GRID);
         }
     }
 
@@ -203,8 +242,13 @@ void UIRenderer::drawSpectrumGraph(const std::vector<float>& mag, int x, int y, 
     const uint16_t COLOR_GREEN_MID   = 0x07E0;  // 中绿 #00FF00
     const uint16_t COLOR_GREEN_LIGHT = 0x9FE7;  // 亮绿 #99FF99
 
-    for (size_t i = 0; i < mag.size(); i++) {
-        int px = x + (i * w) / mag.size();
+    // Sample by output pixel rather than by FFT bin. This guarantees that
+    // pixel 160 maps to the FFT DC bin (and therefore to the red center
+    // marker), even when a zoom level shows only a few bins.
+    for (int px = x; px < x + w; px++) {
+        size_t i = (size_t)((px - x) * mag.size()) / (size_t)w;
+        if (i >= mag.size()) i = mag.size() - 1;
+
         float norm = (mag[i] - min_mag) / range;
         int py = y + h - (int)(norm * (h - 2));
         py = std::max(y, std::min(y + h - 1, py));
@@ -217,11 +261,9 @@ void UIRenderer::drawSpectrumGraph(const std::vector<float>& mag, int x, int y, 
 
             if (fill_ratio < 0.5f) {
                 // Dark to mid green
-                float t = fill_ratio * 2.0f;
                 color = COLOR_GREEN_DARK;  // Simplified, use dark green
             } else {
                 // Mid to light green
-                float t = (fill_ratio - 0.5f) * 2.0f;
                 color = COLOR_GREEN_MID;
             }
 
@@ -230,7 +272,7 @@ void UIRenderer::drawSpectrumGraph(const std::vector<float>& mag, int x, int y, 
                 color = COLOR_GREEN_LIGHT;
             }
 
-            fb.drawPixel(px, fy, color);
+            fb_.drawPixel(px, fy, color);
         }
     }
 
@@ -249,23 +291,23 @@ void UIRenderer::drawSpectrumGraph(const std::vector<float>& mag, int x, int y, 
         if (bx >= x && bx < x + w) {
             // Draw vertical shading lines (every other pixel for transparency effect)
             for (int sy = y; sy < y + h; sy += 2) {
-                fb.drawPixel(bx, sy, shade_color);
+                fb_.drawPixel(bx, sy, shade_color);
             }
         }
     }
 
     // Draw center frequency indicator (red vertical line)
     for (int cy = y; cy < y + h; cy++) {
-        fb.drawPixel(center_x, cy, COLOR_RED);
+        fb_.drawPixel(center_x, cy, COLOR_RED);
     }
 }
 
-void UIRenderer::drawFreqAxis(uint32_t center_freq, uint32_t span, int y, int h) {
+void SDRUIRenderer::drawFreqAxis(uint32_t center_freq, uint32_t span, int y, int h) {
     // Clear axis area completely first
-    fb.fillRect(0, y, 320, h, COLOR_BG_DARK);
+    fb_.fillRect(0, y, 320, h, COLOR_BG_DARK);
 
     // Background for axis area
-    fb.fillRect(0, y, 320, h, 0x0841); // 极深灰蓝
+    fb_.fillRect(0, y, 320, h, 0x0841); // 极深灰蓝
 
     // Draw 5 tick marks: left-edge, 1/4, center, 3/4, right-edge
     // Frequencies at each tick
@@ -283,14 +325,14 @@ void UIRenderer::drawFreqAxis(uint32_t center_freq, uint32_t span, int y, int h)
         int tx = tick_x[i];
 
         // Tick mark (short vertical line)
-        fb.drawPixel(tx, y + 1, COLOR_TEXT_DIM);
-        fb.drawPixel(tx, y + 2, COLOR_TEXT_DIM);
+        fb_.drawPixel(tx, y + 1, COLOR_TEXT_DIM);
+        fb_.drawPixel(tx, y + 2, COLOR_TEXT_DIM);
 
         // Center tick is red and taller
         if (i == 2) {
-            fb.drawPixel(tx, y + 1, COLOR_RED);
-            fb.drawPixel(tx, y + 2, COLOR_RED);
-            fb.drawPixel(tx, y + 3, COLOR_RED);
+            fb_.drawPixel(tx, y + 1, COLOR_RED);
+            fb_.drawPixel(tx, y + 2, COLOR_RED);
+            fb_.drawPixel(tx, y + 3, COLOR_RED);
         }
 
         // Frequency label
@@ -305,11 +347,11 @@ void UIRenderer::drawFreqAxis(uint32_t center_freq, uint32_t span, int y, int h)
         if (lx + label_w > 320) lx = 320 - label_w;
 
         uint16_t color = (i == 2) ? COLOR_TEXT_BRIGHT : COLOR_TEXT_DIM;
-        fb.drawText(lx, y + 4, buf, color);
+        drawText(lx, y + 4, buf, color);
     }
 }
 
-void UIRenderer::drawDbScale(int x, int y, int h, float db_min, float db_max) {
+void SDRUIRenderer::drawDbScale(int x, int y, int h, float db_min, float db_max) {
     char buf[8];
     float range = db_max - db_min;
     if (range < 1.0f) return;
@@ -319,11 +361,11 @@ void UIRenderer::drawDbScale(int x, int y, int h, float db_min, float db_max) {
         float db = db_max - (i * range / 3);
         int label_y = y + (i * h) / 3;
         snprintf(buf, sizeof(buf), "%+.0f", db);
-        fb.drawText(x, label_y, buf, COLOR_TEXT_DIM);
+        drawText(x, label_y, buf, COLOR_TEXT_DIM);
     }
 }
 
-uint16_t UIRenderer::magnitudeToColor(float norm) const {
+uint16_t SDRUIRenderer::magnitudeToColor(float norm) const {
     // Professional theme: deep purple -> blue -> cyan -> white
     // 0.00-0.25: #0D0D14 (bg) -> #1A0A3A (deep purple)
     // 0.25-0.50: #1A0A3A (deep purple) -> #1A3AFF (blue)
@@ -356,7 +398,7 @@ uint16_t UIRenderer::magnitudeToColor(float norm) const {
     return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
 }
 
-void UIRenderer::formatFrequency(uint32_t freq, char* buf, size_t size) const {
+void SDRUIRenderer::formatFrequency(uint32_t freq, char* buf, size_t size) const {
     if (freq >= 1000000000) {
         snprintf(buf, size, "%.3fG", freq / 1e9);
     } else if (freq >= 1000000) {
@@ -368,7 +410,7 @@ void UIRenderer::formatFrequency(uint32_t freq, char* buf, size_t size) const {
     }
 }
 
-void UIRenderer::renderDialog(const char* title, const char* message, const char* hint) {
+void SDRUIRenderer::renderDialog(const char* title, const char* message, const char* hint) {
     // Dialog dimensions (positioned in waterfall area)
     int dialog_w = 280;
     int dialog_h = 70;  // Reduced height to fit in waterfall area
@@ -382,38 +424,38 @@ void UIRenderer::renderDialog(const char* title, const char* message, const char
             if (x < dialog_x || x >= dialog_x + dialog_w ||
                 y < dialog_y || y >= dialog_y + dialog_h) {
                 // Outside dialog: draw dark overlay
-                fb.drawPixel(x, y, 0x2104);  // Very dark gray
+                fb_.drawPixel(x, y, 0x2104);  // Very dark gray
             }
         }
     }
 
     // Draw dialog box background
-    fb.fillRect(dialog_x, dialog_y, dialog_w, dialog_h, 0x2945);  // Dark blue-gray
+    fb_.fillRect(dialog_x, dialog_y, dialog_w, dialog_h, 0x2945);  // Dark blue-gray
 
     // Draw dialog border
-    fb.drawRect(dialog_x, dialog_y, dialog_w, dialog_h, COLOR_TEXT_BRIGHT);
-    fb.drawRect(dialog_x + 1, dialog_y + 1, dialog_w - 2, dialog_h - 2, COLOR_TEXT_BRIGHT);
+    fb_.drawRect(dialog_x, dialog_y, dialog_w, dialog_h, COLOR_TEXT_BRIGHT);
+    fb_.drawRect(dialog_x + 1, dialog_y + 1, dialog_w - 2, dialog_h - 2, COLOR_TEXT_BRIGHT);
 
     // Draw title (centered, top of dialog)
     int title_len = strlen(title);
     int title_w = title_len * 7;  // Approximate character width
     int title_x = dialog_x + (dialog_w - title_w) / 2;
-    fb.drawTextBg(title_x, dialog_y + 8, title, COLOR_YELLOW, 0x2945);
+    drawTextBg(title_x, dialog_y + 8, title, COLOR_YELLOW, 0x2945);
 
     // Draw message (centered, middle of dialog)
     int msg_len = strlen(message);
     int msg_w = msg_len * 7;
     int msg_x = dialog_x + (dialog_w - msg_w) / 2;
-    fb.drawText(msg_x, dialog_y + 28, message, COLOR_TEXT_BRIGHT);
+    drawText(msg_x, dialog_y + 28, message, COLOR_TEXT_BRIGHT);
 
     // Draw hint (centered, bottom of dialog)
     int hint_len = strlen(hint);
     int hint_w = hint_len * 7;
     int hint_x = dialog_x + (dialog_w - hint_w) / 2;
-    fb.drawText(hint_x, dialog_y + 50, hint, COLOR_TEXT_DIM);
+    drawText(hint_x, dialog_y + 50, hint, COLOR_TEXT_DIM);
 }
 
-void UIRenderer::drawLogo(int x, int y) {
+void SDRUIRenderer::drawLogo(int x, int y) {
     // "zeroSDR" logo with elegant large font (9x13 pixel characters, 3px spacing)
     // Scaled up for better visibility
     // Color: subtle cyan-blue gradient
@@ -567,10 +609,99 @@ void UIRenderer::drawLogo(int x, int y) {
                     } else {
                         color = logo_color_dim;
                     }
-                    fb.drawPixel(cx + col, start_y + row, color);
+                    fb_.drawPixel(cx + col, start_y + row, color);
                 }
             }
         }
     }
 }
 
+
+// Full-screen key reference. Uses the 6x8 base font so all bindings fit on
+// the 320x170 panel: two columns of 12 rows plus a one-line title.
+void SDRUIRenderer::renderKeyHelp() {
+    struct Entry {
+        const char* key;
+        const char* action;
+    };
+
+    static const Entry left[] = {
+        {"Z/LEFT",  "TUNE DOWN"},
+        {"C/RIGHT", "TUNE UP"},
+        {"SH+Z/C",  "COARSE x10"},
+        {"F/UP",    "GAIN UP"},
+        {"X/DOWN",  "GAIN DOWN"},
+        {"PGUP",    "+1 MHz"},
+        {"PGDN",    "-1 MHz"},
+        {"0-9 .",   "FREQ INPUT"},
+        {"ENTER",   "APPLY"},
+        {"ESC",     "CANCEL/QUIT"},
+        {"B",       "BANDWIDTH"},
+        {"D",       "DEMOD MODE"},
+    };
+    static const Entry right[] = {
+        {"FN+D/S",  "VOLUME +/-"},
+        {"S",       "SQUELCH"},
+        {"T",       "TUNE STEP"},
+        {"SPACE",   "AUDIO ON/OFF"},
+        {"G",       "HW AGC"},
+        {"M",       "DISPLAY MODE"},
+        {"Y",       "ZOOM"},
+        {"FN+J",    "SCREENSHOT"},
+        {"H",       "THIS HELP"},
+        {"RIGHT",   "SETTINGS TAB"},
+        {"TAB",     "SWITCH PAGE"},
+        {"Q",       "QUIT"},
+    };
+    constexpr int rows = sizeof(left) / sizeof(left[0]);
+
+    fb_.fillRect(0, 0, 320, 170, COLOR_BLACK);
+    fb_.drawRect(1, 1, 318, 168, COLOR_TEXT_DIM);
+
+    drawText(6, 5, "KEY HELP", COLOR_YELLOW);
+    drawText(68, 5, "H close   > settings", COLOR_TEXT_DIM);
+
+    constexpr int left_x = 6;
+    constexpr int right_x = 168;
+    constexpr int action_dx = 56;
+
+    for (int i = 0; i < rows; ++i) {
+        const int y = 20 + i * 12;
+        drawText(left_x, y, left[i].key, COLOR_YELLOW);
+        drawText(left_x + action_dx, y, left[i].action, COLOR_WHITE);
+        drawText(right_x, y, right[i].key, COLOR_YELLOW);
+        drawText(right_x + action_dx, y, right[i].action, COLOR_WHITE);
+    }
+}
+
+// Settings tab: the knobs that do not deserve a dedicated hotkey.
+void SDRUIRenderer::renderSettings(const SdrSettingsView& view) {
+    static const char* labels[4] = {
+        "FM DEEMPH", "AUDIO AGC", "FFT SIZE", "SAMPLE RATE"
+    };
+    char values[4][24] = {{0}};
+    std::snprintf(values[0], sizeof(values[0]), "%d us (%s)",
+                  view.deemphasis_us, view.deemphasis_us == 50 ? "CN/EU" : "US");
+    std::snprintf(values[1], sizeof(values[1]), "%s", view.audio_agc ? "ON" : "OFF");
+    std::snprintf(values[2], sizeof(values[2]), "%d", view.fft_size);
+    std::snprintf(values[3], sizeof(values[3]), "%.3f MHz", view.sample_rate / 1e6);
+
+    fb_.fillRect(0, 0, 320, 170, COLOR_BLACK);
+    fb_.drawRect(1, 1, 318, 168, COLOR_TEXT_DIM);
+
+    drawText(6, 5, "SETTINGS", COLOR_YELLOW);
+    drawText(76, 5, "H close   <> keys", COLOR_TEXT_DIM);
+
+    for (int i = 0; i < 4; ++i) {
+        const int y = 40 + i * 24;
+        if (i == view.selected) {
+            fb_.fillRect(6, y - 6, 308, 18, COLOR_SELECTED);
+            drawText(12, y, ">", COLOR_YELLOW);
+        }
+        drawText(24, y, labels[i],
+                 i == view.selected ? COLOR_WHITE : COLOR_TEXT_BRIGHT);
+        drawText(196, y, values[i], COLOR_YELLOW);
+    }
+
+    drawText(6, 150, "^v select   ENTER change", COLOR_TEXT_DIM);
+}

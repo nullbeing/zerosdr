@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.13)
 project(zeroSDR VERSION 0.2.0 LANGUAGES C CXX)
 
+# Default to an optimized build. Without this, a plain `cmake ..` produces
+# an unoptimized binary that cannot keep up with real-time audio on the
+# Cortex-A53 in the Cardputer Zero.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -51,15 +58,39 @@ endif()
 
 # Source files
 set(SOURCES
+    # Main
     src/main.cpp
+
+    # Core framework
+    src/core/page_manager.cpp
+
+    # Pages
+    src/pages/sdr_page.cpp
+    src/pages/adsb_page.cpp
+    # ADSB integration
+    src/adsb/readsb_controller.cpp
+    src/adsb/readsb_json_parser.cpp
+    src/adsb/adsb_config.cpp
+
+    # UI rendering
+    src/ui/base_ui_renderer.cpp
+    src/ui/sdr_ui_renderer.cpp
+    src/ui/adsb_ui_renderer.cpp
+    src/ui/radar_ui_renderer.cpp
+
+    # Hardware
     src/framebuffer.cpp
     src/sdr_controller.cpp
-    src/ui_renderer.cpp
-    src/fft_processor.cpp
-    src/font.cpp
-    src/input_handler.cpp
-    src/audio_demodulator.cpp
     src/audio_output.cpp
+
+    # Processing
+    src/fft_processor.cpp
+    src/audio_demodulator.cpp
+
+    # Utils
+    src/font.cpp
+    src/font8x16.cpp
+    src/input_handler.cpp
 )
 
 # Executable
