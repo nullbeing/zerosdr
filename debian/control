@@ -7,7 +7,7 @@ Standards-Version: 4.1.3
 
 Package: zerosdr
 Architecture: arm64
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, libasound2-plugins
 Description: Lightweight SDR interface for Raspberry Pi with audio demodulation
  A graphical SDR application optimized for small SPI displays
  on Raspberry Pi. Supports RTL-SDR devices and provides

@@ -17,12 +17,30 @@ bool AudioOutput::init(const char* device_name, uint32_t sample_rate, int channe
 
     int err;
 
-    // Open PCM device for playback
+    // Open PCM device for playback. On images where the ALSA "default"
+    // route is missing, fall back to the usual bridges: the PulseAudio
+    // plugin (libasound2-plugins), PipeWire's own ALSA plugin, then the
+    // codec card directly.
     err = snd_pcm_open(&pcm_handle, device_name, SND_PCM_STREAM_PLAYBACK, 0);
     if (err < 0) {
-        std::cerr << "Cannot open audio device " << device_name << ": "
-                  << snd_strerror(err) << std::endl;
-        return false;
+        static const char* const kFallbacks[] = {
+            "pulse", "pipewire", "plughw:1,0", "plughw:0,0",
+        };
+        const int primary_err = err;
+        for (const char* alt : kFallbacks) {
+            if (std::strcmp(alt, device_name) == 0) continue;
+            err = snd_pcm_open(&pcm_handle, alt, SND_PCM_STREAM_PLAYBACK, 0);
+            if (err >= 0) {
+                std::cout << "Audio device: " << alt << " (fallback from "
+                          << device_name << ")" << std::endl;
+                break;
+            }
+        }
+        if (err < 0) {
+            std::cerr << "Cannot open audio device " << device_name << ": "
+                      << snd_strerror(primary_err) << std::endl;
+            return false;
+        }
     }
 
     // Allocate hardware parameters object

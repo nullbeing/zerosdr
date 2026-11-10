@@ -430,6 +430,14 @@ aplay -L | head             # "default" 应指向 PipeWire
 amixer -c 1 sget Speaker
 ```
 
+精简系统里可能没有 ALSA 的 `default` 路由（日志会显示
+`Cannot open audio device default`）。程序会自动回退到 `pulse` / `pipewire` /
+声卡设备；如果都没有，安装 `libasound2-plugins`：
+
+```bash
+sudo apt-get install -y libasound2-plugins
+```
+
 wrapper 会把 `DACL/DACR Playback Volume` 设为 179（-6 dB）；0 dB 时 ES8389
 功放会断音。
 

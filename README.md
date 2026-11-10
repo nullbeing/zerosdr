@@ -445,6 +445,15 @@ aplay -L | head             # "default" should point at PipeWire
 amixer -c 1 sget Speaker
 ```
 
+On a minimal image the ALSA `default` route may be missing (the app then logs
+`Cannot open audio device default`). zeroSDR automatically falls back to
+`pulse` / `pipewire` / the codec device; install `libasound2-plugins` if none of
+them exist:
+
+```bash
+sudo apt-get install -y libasound2-plugins
+```
+
 The wrapper sets `DACL/DACR Playback Volume` to 179 (-6 dB); 0 dB causes the
 ES8389 amplifier to drop out.
 
