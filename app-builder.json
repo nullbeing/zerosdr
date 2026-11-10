@@ -1,7 +1,7 @@
 {
   "app_name": "zeroSDR",
   "package_name": "zerosdr",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Pocket SDR receiver for Cardputer Zero: spectrum, waterfall, FM/NFM/AM/USB/LSB audio and an ADSB aircraft page. Requires an RTL-SDR USB dongle and an antenna.",
   "store": {
     "summary": "Pocket SDR receiver for RTL-SDR: spectrum, waterfall, audio and ADSB",

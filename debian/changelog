@@ -1,3 +1,13 @@
+zerosdr (0.3.4) trixie; urgency=medium
+
+  * First-run guide: while editing the observer latitude/longitude, ESC
+    cancels the edit, LEFT/RIGHT cancels and changes page, UP/DOWN
+    cancels and switches field; the first keystroke replaces the field,
+    invalid values show INVALID VALUE instead of silently staying in
+    edit mode
+
+ -- Weiming Feng <bestedwin@gmail.com>  Tue, 10 Nov 2026 21:45:00 +0800
+
 zerosdr (0.3.3) trixie; urgency=medium
 
   * Add a dismissible first-run guide: H/Tab/Enter overview, observer

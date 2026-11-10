@@ -123,6 +123,9 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
     int field = 0;  // 0 = lat, 1 = lon
     bool show_again = false;
     bool manual_entered = false;
+    bool edit_fresh = true;       // first keystroke replaces the field
+    bool edit_invalid = false;    // show "INVALID" when confirming
+    char edit_backup[24] = {0};   // restore on ESC / page change
 
     char lat_buf[24] = {0};
     char lon_buf[24] = {0};
@@ -180,14 +183,20 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
             text.draw(fb, 20, 58, lat_line, lat_color, 12);
             text.draw(fb, 20, 78, lon_line, lon_color, 12);
 
-            text.draw(fb, 12, 104, "UP/DOWN: select   ENTER: edit/confirm",
-                      COLOR_TEXT_DIM, 12);
+            if (edit_invalid) {
+                text.draw(fb, 12, 104, "INVALID VALUE", COLOR_RED, 12);
+            } else {
+                text.draw(fb, 12, 104, "UP/DOWN select   ENTER edit/confirm",
+                          COLOR_TEXT_DIM, 12);
+            }
             text.draw(fb, 12, 120, "digits and . to type, BACKSPACE deletes",
                       COLOR_TEXT_DIM, 12);
             text.draw(fb, 12, 136,
                       "GPS updates the position unless you edit",
                       COLOR_TEXT_DIM, 12);
-            text.draw(fb, 12, 152, "LEFT/RIGHT: page    ESC: skip",
+            text.draw(fb, 12, 152,
+                      editing ? "ESC: cancel edit   <>: cancel + page"
+                              : "LEFT/RIGHT: page    ESC: skip",
                       COLOR_TEXT_DIM, 12);
         } else {
             text.draw(fb, 12, 10, "READY", COLOR_YELLOW, 16);
@@ -227,15 +236,43 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
         if (key == APPKEY_NONE) continue;
 
         if (editing) {
-            if (key >= APPKEY_0 && key <= APPKEY_9) {
-                char* buf = (field == 0) ? lat_buf : lon_buf;
+            char* buf = (field == 0) ? lat_buf : lon_buf;
+
+            if (key == APPKEY_ESC) {
+                // Cancel: restore the value that was there before editing.
+                snprintf(buf, sizeof(lat_buf), "%s", edit_backup);
+                editing = false;
+                edit_invalid = false;
+            } else if (key == APPKEY_LEFT || key == APPKEY_RIGHT ||
+                       key == APPKEY_UP || key == APPKEY_DOWN) {
+                // Leave the editor instead of swallowing navigation keys.
+                snprintf(buf, sizeof(lat_buf), "%s", edit_backup);
+                editing = false;
+                edit_invalid = false;
+                if (key == APPKEY_LEFT) {
+                    page = (page + 2) % 3;
+                } else if (key == APPKEY_RIGHT) {
+                    page = (page + 1) % 3;
+                } else if (key == APPKEY_UP) {
+                    field = 0;
+                } else {
+                    field = 1;
+                }
+            } else if (key >= APPKEY_0 && key <= APPKEY_9) {
+                if (edit_fresh) {
+                    buf[0] = '\0';
+                    edit_fresh = false;
+                }
                 const size_t len = strlen(buf);
                 if (len + 2 < sizeof(lat_buf)) {
                     buf[len] = static_cast<char>('0' + (key - APPKEY_0));
                     buf[len + 1] = '\0';
                 }
             } else if (key == APPKEY_DOT) {
-                char* buf = (field == 0) ? lat_buf : lon_buf;
+                if (edit_fresh) {
+                    buf[0] = '\0';
+                    edit_fresh = false;
+                }
                 const size_t len = strlen(buf);
                 if (strchr(buf, '.') == nullptr && len + 2 < sizeof(lat_buf)) {
                     if (len == 0) {
@@ -248,21 +285,29 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
                     }
                 }
             } else if (key == APPKEY_BACKSPACE) {
-                char* buf = (field == 0) ? lat_buf : lon_buf;
+                edit_fresh = false;
                 const size_t len = strlen(buf);
                 if (len > 0) buf[len - 1] = '\0';
             } else if (key == APPKEY_ENTER) {
-                editing = false;
+                const double lat = atof(lat_buf);
+                const double lon = atof(lon_buf);
+                const bool lat_ok = lat_buf[0] && lat >= -90.0 && lat <= 90.0;
+                const bool lon_ok = lon_buf[0] && lon >= -180.0 && lon <= 180.0;
+
                 if (field == 0) {
-                    field = 1;
-                } else {
-                    const double lat = atof(lat_buf);
-                    const double lon = atof(lon_buf);
-                    if (lat >= -90.0 && lat <= 90.0 &&
-                        lon >= -180.0 && lon <= 180.0 &&
-                        lat_buf[0] && lon_buf[0]) {
-                        manual_entered = true;
+                    if (lat_ok) {
+                        editing = false;
+                        edit_invalid = false;
+                        field = 1;
+                    } else {
+                        edit_invalid = true;
                     }
+                } else if (lon_ok) {
+                    editing = false;
+                    edit_invalid = false;
+                    if (lat_ok) manual_entered = true;
+                } else {
+                    edit_invalid = true;
                 }
             }
             draw();
@@ -287,13 +332,11 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
             if (page == 0) {
                 page = 1;
             } else if (page == 1) {
-                if (field == 0) {
-                    editing = true;
-                    lat_buf[0] = '\0';
-                } else {
-                    editing = true;
-                    lon_buf[0] = '\0';
-                }
+                editing = true;
+                edit_fresh = true;
+                edit_invalid = false;
+                snprintf(edit_backup, sizeof(edit_backup), "%s",
+                         (field == 0) ? lat_buf : lon_buf);
             } else {
                 running = false;
             }
