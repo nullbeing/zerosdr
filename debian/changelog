@@ -1,3 +1,14 @@
+zerosdr (0.3.5) trixie; urgency=medium
+
+  * H -> settings -> SHOW GUIDE now opens the guide immediately instead of
+    only arming it for the next start; the ADSB page reloads the observer
+    position when entering, so changes made in the guide apply at once
+  * Audio: fall back to pulse / pipewire / plughw when ALSA "default" is
+    unavailable (store images may not ship the ALSA-to-PipeWire bridge),
+    and depend on libasound2-plugins so the pulse route exists
+
+ -- Weiming Feng <bestedwin@gmail.com>  Tue, 10 Nov 2026 22:00:00 +0800
+
 zerosdr (0.3.4) trixie; urgency=medium
 
   * First-run guide: while editing the observer latitude/longitude, ESC
