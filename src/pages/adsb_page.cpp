@@ -4,6 +4,7 @@
 #include <cstring>
 #include <ctime>
 #include <cmath>
+#include <cstdlib>
 #include <unistd.h>
 
 namespace {
@@ -47,8 +48,10 @@ ADSBPage::ADSBPage(Framebuffer& fb, SDRController& sdr, ADSBUIRenderer& ui, Rada
       observer_lat_(0.0),
       observer_lon_(0.0),
       observer_position_set_(false),
-      last_json_read_(0),
-      config_path_("/home/pi/.config/zerosdr/adsb_config.json") {
+      last_json_read_(0) {
+    const char* home = getenv("HOME");
+    config_path_ = std::string(home ? home : "/home/pi") +
+                   "/.config/zerosdr/adsb_config.json";
 }
 
 ADSBPage::~ADSBPage() {
@@ -780,7 +783,7 @@ void ADSBPage::renderSettingsMenu() {
     } else {
         snprintf(lat_label, sizeof(lat_label), "%s Latitude: %s",
                  (settings_selected_item_ == 0) ? ">" : " ",
-                 lat_input_.empty() ? (observer_position_set_ ? std::to_string(observer_lat_).c_str() : "0.0") : lat_input_.c_str());
+                 lat_input_.empty() ? (observer_position_set_ ? std::to_string(observer_lat_).c_str() : "NOT SET") : lat_input_.c_str());
     }
     ui_.renderText(20, y, lat_label,
                    (settings_selected_item_ == 0 || editing_lat_) ? COLOR_TEXT_BRIGHT : COLOR_TEXT,
@@ -794,7 +797,7 @@ void ADSBPage::renderSettingsMenu() {
     } else {
         snprintf(lon_label, sizeof(lon_label), "%s Longitude: %s",
                  (settings_selected_item_ == 1) ? ">" : " ",
-                 lon_input_.empty() ? (observer_position_set_ ? std::to_string(observer_lon_).c_str() : "0.0") : lon_input_.c_str());
+                 lon_input_.empty() ? (observer_position_set_ ? std::to_string(observer_lon_).c_str() : "NOT SET") : lon_input_.c_str());
     }
     ui_.renderText(20, y, lon_label,
                    (settings_selected_item_ == 1 || editing_lon_) ? COLOR_TEXT_BRIGHT : COLOR_TEXT,
@@ -817,6 +820,23 @@ void ADSBPage::renderSettingsMenu() {
     // Help text
     ui_.renderText(10, 150, "Enter: Select/Confirm  ESC: Cancel", COLOR_TEXT_DIM, false);
 }
+
+namespace {
+bool parseLatLon(const std::string& lat_text, const std::string& lon_text,
+                 double& lat, double& lon) {
+    if (lat_text.empty() || lon_text.empty()) return false;
+    try {
+        size_t used = 0;
+        lat = std::stod(lat_text, &used);
+        if (used != lat_text.size()) return false;
+        lon = std::stod(lon_text, &used);
+        if (used != lon_text.size()) return false;
+    } catch (...) {
+        return false;
+    }
+    return lat >= -90.0 && lat <= 90.0 && lon >= -180.0 && lon <= 180.0;
+}
+}  // namespace
 
 void ADSBPage::handleSettingsInput(AppKeyCode key) {
     // Handle text input when editing
@@ -898,10 +918,12 @@ void ADSBPage::handleSettingsInput(AppKeyCode key) {
                     lon_input_ = std::to_string(observer_lon_);
                 }
             } else if (settings_selected_item_ == 2) {
-                // Save
-                if (!lat_input_.empty() && !lon_input_.empty()) {
-                    observer_lat_ = std::stod(lat_input_);
-                    observer_lon_ = std::stod(lon_input_);
+                // Save (ignore incomplete or out-of-range input)
+                double lat = 0.0;
+                double lon = 0.0;
+                if (parseLatLon(lat_input_, lon_input_, lat, lon)) {
+                    observer_lat_ = lat;
+                    observer_lon_ = lon;
                     observer_position_set_ = true;
                     config_.setManualOverride(true);
                     saveConfig();

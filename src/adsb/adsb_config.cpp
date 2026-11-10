@@ -77,13 +77,16 @@ bool ADSBConfig::parseConfigFile(const std::string& content) {
 
     const char* json = content.c_str();
 
+    bool lat_ok = false;
+    bool lon_ok = false;
+
     // Find observer_latitude
     const char* lat_field = strstr(json, "\"observer_latitude\"");
     if (lat_field) {
         const char* colon = strchr(lat_field, ':');
         if (colon) {
             observer_lat_ = atof(colon + 1);
-            observer_position_set_ = true;
+            lat_ok = true;
         }
     }
 
@@ -93,8 +96,16 @@ bool ADSBConfig::parseConfigFile(const std::string& content) {
         const char* colon = strchr(lon_field, ':');
         if (colon) {
             observer_lon_ = atof(colon + 1);
+            lon_ok = true;
         }
     }
+
+    // A half-written file must not create a fake position, and an all-zero
+    // pair is what "clear position" writes, so it does not count as set.
+    const bool all_zero = observer_lat_ == 0.0 && observer_lon_ == 0.0;
+    observer_position_set_ = lat_ok && lon_ok && !all_zero &&
+                             observer_lat_ >= -90.0 && observer_lat_ <= 90.0 &&
+                             observer_lon_ >= -180.0 && observer_lon_ <= 180.0;
 
     // Manual override flag (older files do not have it).
     const char* manual_field = strstr(json, "\"manual_override\"");
