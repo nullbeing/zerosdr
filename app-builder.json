@@ -2,17 +2,17 @@
   "app_name": "zeroSDR",
   "package_name": "zerosdr",
   "version": "0.3.1",
-  "description": "Lightweight SDR receiver with spectrum, waterfall and audio demodulation for small-screen Linux devices.",
+  "description": "Pocket SDR receiver for Cardputer Zero: spectrum, waterfall, FM/NFM/AM/USB/LSB audio and an ADSB aircraft page. Requires an RTL-SDR USB dongle and an antenna.",
   "store": {
-    "summary": "Real-time SDR spectrum, waterfall and audio for RTL-SDR",
-    "description": "zeroSDR is a lightweight Software Defined Radio receiver for small-screen Linux devices. It renders the spectrum and waterfall directly into the framebuffer and demodulates FM, NFM, AM, USB and LSB audio through ALSA, with squelch, audio AGC, FM de-emphasis and display zoom. An on-screen help/settings overlay is available with the H key. It also includes an ADSB aircraft page driven by readsb.",
+    "summary": "Pocket SDR receiver for RTL-SDR: spectrum, waterfall, audio and ADSB",
+    "description": "zeroSDR turns the Cardputer Zero into a pocket SDR receiver.\n\nFEATURES\n- Real-time spectrum and waterfall on the 320x170 display\n- FM / NFM / AM / USB / LSB demodulation with squelch, audio AGC and FM de-emphasis (50/75 us)\n- Adjustable tuning step, display zoom, FFT size and sample rate\n- On-screen key reference and settings panel (press H)\n- ADSB aircraft page: sortable list, detail view with a PFD, and a radar view with a fading sweep, range rings and a large callsign plate\n- Runs as the normal user through the librtlsdr udev rule - no root, no background service\n\nREQUIRED EXTRA HARDWARE\n- An RTL-SDR USB dongle (tested with RTL-SDR Blog V4 / RTL2832U). The app has no built-in radio, so a dongle is mandatory.\n- An antenna: any VHF/UHF antenna for the SDR page; a 1090 MHz antenna for the ADSB page.\n- The dongle plugs into the Cardputer Zero USB-A port and is powered by the device.\n\nNOTES\n- ADSB decoding is done by the external \"readsb\" program, which must be installed separately (a build with the RTL-SDR backend). Without it the ADSB list stays empty; the SDR page still works.\n- Audio plays through the built-in speaker or the 3.5 mm jack.",
     "locales": {
       "zh-CN": {
-        "summary": "RTL-SDR 实时频谱、瀑布与解调收听",
-        "description": "zeroSDR 是面向小屏幕 Linux 设备的轻量 SDR 接收程序：频谱和瀑布直接渲染到 framebuffer，FM/NFM/AM/USB/LSB 解调通过 ALSA 输出，支持静噪、音频 AGC、FM 去加重和显示缩放；按 H 打开屏幕帮助与设置；另含基于 readsb 的 ADSB 飞机页面。"
+        "summary": "RTL-SDR 口袋 SDR：频谱、瀑布、解调收听与 ADSB",
+        "description": "zeroSDR 把 Cardputer Zero 变成一台口袋 SDR 接收机。\n\n功能\n- 320×170 屏幕上的实时频谱与瀑布\n- FM / NFM / AM / USB / LSB 解调，带静噪、音频 AGC、FM 去加重（50/75 µs）\n- 可调调谐步进、显示缩放、FFT 大小、采样率\n- 屏幕按键列表与设置页（按 H）\n- ADSB 飞机页：可排序列表、带 PFD 的详情页，以及带渐变扫描扇区、距离环和大字呼号的雷达视图\n- 通过 librtlsdr 的 udev 规则以普通用户运行，不需要 root，也不安装后台服务\n\n需要的额外硬件\n- 一个 RTL-SDR USB 电视棒（已验证：RTL-SDR Blog V4 / RTL2832U）。程序本身不含射频前端，没有电视棒就没有信号。\n- 一根天线：SDR 页面用普通 VHF/UHF 天线即可；ADSB 页面建议用 1090 MHz 天线。\n- 电视棒插在 Cardputer Zero 的 USB-A 口上，由设备供电。\n\n说明\n- ADSB 解码依赖外部的 readsb 程序，需要单独安装（必须带 RTL-SDR 后端）。没有 readsb 时 ADSB 列表为空，但 SDR 页面不受影响。\n- 音频通过内置扬声器或 3.5 mm 耳机口输出。"
       },
       "ja": {
-        "summary": "RTL-SDR のリアルタイム・スペクトラム/ウォーターフォールと音声復調"
+        "summary": "RTL-SDR 用ポケット SDR：スペクトラム、ウォーターフォール、音声復調、ADSB"
       }
     },
     "icon": "store/icon.png",
