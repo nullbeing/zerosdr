@@ -24,6 +24,11 @@ public:
     double getObserverLon() const { return observer_lon_; }
     bool isObserverPositionSet() const { return observer_position_set_; }
 
+    // When true the user entered the position by hand; a GPS fix must not
+    // overwrite it until the override is cleared.
+    bool isManualOverride() const { return manual_override_; }
+    void setManualOverride(bool manual) { manual_override_ = manual; }
+
     // Setters
     void setObserverPosition(double lat, double lon);
     void clearObserverPosition();
@@ -32,6 +37,7 @@ private:
     double observer_lat_;
     double observer_lon_;
     bool observer_position_set_;
+    bool manual_override_;
 
     // Helper methods for simple JSON parsing/writing
     bool parseConfigFile(const std::string& content);

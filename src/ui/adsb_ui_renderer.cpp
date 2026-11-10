@@ -809,7 +809,8 @@ void ADSBUIRenderer::renderKeyHelp() {
 }
 
 void ADSBUIRenderer::renderSettingsOverview(double lat, double lon,
-                                            bool pos_set, int selected) {
+                                            bool pos_set, int selected,
+                                            const char* source) {
     fb_.fillRect(0, 0, 320, 170, COLOR_BG_DARK);
     renderText(6, 4, "SETTINGS", COLOR_TEXT_BRIGHT, true);
     drawSmallText(86, 10, "H close   <> keys", COLOR_TEXT_DIM);
@@ -838,6 +839,9 @@ void ADSBUIRenderer::renderSettingsOverview(double lat, double lon,
         drawSmallText(186, y + 2, values[i], COLOR_YELLOW);
     }
 
+    char src_line[32];
+    snprintf(src_line, sizeof(src_line), "SOURCE: %s", source ? source : "-");
+    drawSmallText(6, 132, src_line, COLOR_TEXT_DIM);
     drawSmallText(6, 150, "UP/DOWN select   ENTER edit/clear   H close",
                   COLOR_TEXT_DIM);
 }

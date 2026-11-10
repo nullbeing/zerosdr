@@ -51,6 +51,7 @@ public:
 
     bool init(const char* device_path = nullptr);
     void restore();
+    bool isReady() const { return initialized; }
     AppKeyCode pollKey();
 
     // Get hold duration in milliseconds for navigation keys (0 if not held)

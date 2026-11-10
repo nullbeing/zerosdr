@@ -227,6 +227,18 @@ package is generated.
 For a much more detailed Cardputer Zero walkthrough (audio, ADSB/readsb,
 package pitfalls, recovery steps) see [cardputerzero.md](cardputerzero.md).
 
+## First run
+
+On the first start zeroSDR shows a short guide (reopen it from
+`H` → settings → `SHOW GUIDE`):
+
+- `H` opens the key list and settings
+- `Tab` switches between the SDR and ADSB pages
+- `Enter` cycles the ADSB views (list → detail → radar)
+- Observer position: entered by hand, or read from a GPS when one is present
+  (gpsd or a serial NMEA device). A manual entry overrides GPS until the
+  position is cleared.
+
 ## Keyboard controls
 
 ### Press `H` first
@@ -356,6 +368,12 @@ The radar's left panel lists `ICAO` / altitude / distance, with the selected
 aircraft's callsign shown in large text on a dim strip that spans the full
 width of the panel. The callsign and the ADSB status/detail text are rendered
 with an anti-aliased TrueType font.
+
+The observer position can come from a GPS receiver (gpsd on port 2947 or an
+NMEA stream on `/dev/serial0`, `/dev/ttyAMA0`, `/dev/ttyS0`, `/dev/ttyUSB0`
+or `/dev/ttyACM0`). The last fix is remembered; a manually entered position
+takes precedence until it is cleared, and the ADSB settings overlay shows
+whether the current source is GPS, MANUAL, SAVED or NOT SET.
 
 ADSB decoding is done by a `readsb` build with the RTL-SDR backend that ships
 inside this package (`/usr/lib/zerosdr/readsb`); no separate decoder install is

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(zeroSDR VERSION 0.3.2 LANGUAGES C CXX)
+project(zeroSDR VERSION 0.3.3 LANGUAGES C CXX)
 
 # Default to an optimized build. Without this, a plain `cmake ..` produces
 # an unoptimized binary that cannot keep up with real-time audio on the
@@ -67,6 +67,8 @@ set(SOURCES
     # Core framework
     src/core/page_manager.cpp
     src/core/beep_player.cpp
+    src/core/gps_locator.cpp
+    src/core/first_run_guide.cpp
 
     # Pages
     src/pages/sdr_page.cpp

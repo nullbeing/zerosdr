@@ -222,6 +222,16 @@ sudo dpkg -i ../zerosdr_*.deb
 更详细的 Cardputer Zero 说明（音频、ADSB/readsb、依赖包风险、恢复步骤）见
 [cardputerzero.md](cardputerzero.md)。
 
+## 首次启动
+
+第一次运行会显示一个简短引导（之后可从 `H` → 设置 → `SHOW GUIDE` 重新打开）：
+
+- `H` 打开按键列表与设置
+- `Tab` 在 SDR 与 ADSB 页面之间切换
+- `Enter` 在 ADSB 的 列表 → 详情 → 雷达 之间循环
+- 观测点位置：可以手动输入，也可以在检测到 GPS 时自动读取（gpsd 或串口
+  NMEA）。手动输入会一直覆盖 GPS，直到在设置里清除位置。
+
 ## 按键
 
 ### 先按 `H`
@@ -348,6 +358,11 @@ TCA8418 键盘会自动识别（`tca8418c`）。`F`/`Z`/`X`/`C` 直接作为方�
 雷达左侧列表显示 `ICAO` / 高度 / 距离，选中飞机的呼号以大字显示在左侧栏底部的
 暗色通栏条带上（没有呼号时显示 ICAO）。呼号以及 ADSB 的状态栏/详情文字使用抗锯齿
 TrueType 字体渲染。
+
+观测点位置可以来自 GPS（gpsd 的 2947 端口，或 `/dev/serial0`、`/dev/ttyAMA0`、
+`/dev/ttyS0`、`/dev/ttyUSB0`、`/dev/ttyACM0` 上的 NMEA 数据）。会记住最后一次
+定位；手动输入的位置优先，直到清除为止；ADSB 设置页会显示当前来源是
+GPS / MANUAL / SAVED / NOT SET。
 
 ADSB 解码使用随包安装的 `readsb`（带 RTL-SDR 后端，位于
 `/usr/lib/zerosdr/readsb`），不需要另外安装解码器；如果系统里有

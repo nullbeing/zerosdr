@@ -1,3 +1,15 @@
+zerosdr (0.3.3) trixie; urgency=medium
+
+  * Add a dismissible first-run guide: H/Tab/Enter overview, observer
+    position with inline latitude/longitude entry, and a "show on next
+    start" checkbox; reopen it from H -> settings -> SHOW GUIDE
+  * Use a GPS position when available (gpsd on 127.0.0.1:2947 or NMEA on
+    /dev/serial0, ttyAMA0, ttyS0, ttyUSB0, ttyACM0) and remember it
+  * A manually entered position overrides GPS until it is cleared; the
+    ADSB settings overlay shows the active source
+
+ -- Weiming Feng <bestedwin@gmail.com>  Tue, 10 Nov 2026 21:20:00 +0800
+
 zerosdr (0.3.2) trixie; urgency=medium
 
   * Bundle a readsb build with the RTL-SDR backend at /usr/lib/zerosdr/readsb

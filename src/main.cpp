@@ -6,6 +6,7 @@
 #include "input_handler.h"
 #include "audio_output.h"
 #include "core/page_manager.h"
+#include "core/first_run_guide.h"
 #include "pages/sdr_page.h"
 #include "pages/adsb_page.h"
 #include "version.h"
@@ -224,6 +225,11 @@ int main(int argc, char* argv[]) {
     }
 
     // Note: SDR capture will be started by SDRPage::onEnter()
+
+    // First-run onboarding guide (keys + observer position).
+    if (fb.isInitialized() && input.isReady() && guideShouldShow()) {
+        runFirstRunGuide(fb, input);
+    }
 
     // Create PageManager
     PageManager page_manager(fb, input);

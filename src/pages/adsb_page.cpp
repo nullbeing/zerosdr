@@ -146,6 +146,25 @@ void ADSBPage::onExit() {
 void ADSBPage::update(float delta_time) {
     time_t now = time(nullptr);
 
+    // GPS is the position source unless the user entered one by hand.
+    gps_.poll();
+    if (gps_.hasFix() && !config_.isManualOverride()) {
+        const double lat = gps_.latitude();
+        const double lon = gps_.longitude();
+        const bool moved = !observer_position_set_ ||
+                           std::fabs(lat - observer_lat_) > 1e-5 ||
+                           std::fabs(lon - observer_lon_) > 1e-5;
+        if (moved) {
+            observer_lat_ = lat;
+            observer_lon_ = lon;
+            observer_position_set_ = true;
+        }
+        if (now != last_gps_save_ && now - last_gps_save_ >= 60) {
+            saveConfig();
+            last_gps_save_ = now;
+        }
+    }
+
     // Update radar sweep angle if in radar view
     if (view_mode_ == VIEW_RADAR) {
         sweep_angle_ += sweep_speed_ * delta_time;
@@ -561,9 +580,15 @@ void ADSBPage::renderCurrentView() {
         if (help_tab_ == 0) {
             ui_.renderKeyHelp();
         } else {
+            const char* source = config_.isManualOverride()
+                                     ? "MANUAL"
+                                     : (gps_.hasFix()
+                                            ? "GPS"
+                                            : (observer_position_set_ ? "SAVED"
+                                                                      : "NOT SET"));
             ui_.renderSettingsOverview(observer_lat_, observer_lon_,
                                        observer_position_set_,
-                                       help_setting_index_);
+                                       help_setting_index_, source);
         }
         return;
     }
@@ -877,6 +902,7 @@ void ADSBPage::handleSettingsInput(AppKeyCode key) {
                     observer_lat_ = std::stod(lat_input_);
                     observer_lon_ = std::stod(lon_input_);
                     observer_position_set_ = true;
+                    config_.setManualOverride(true);
                     saveConfig();
                     std::cout << "ADSBPage: Observer position set to "
                               << observer_lat_ << ", " << observer_lon_ << std::endl;
@@ -1061,6 +1087,7 @@ void ADSBPage::handleHelpInput(AppKeyCode key) {
             observer_lon_ = 0.0;
             observer_position_set_ = false;
             config_.clearObserverPosition();
+            config_.setManualOverride(false);
             config_.save(config_path_);
             beeps_.play(880.0f, 40, 0.12f);
             std::cout << "ADSBPage: Observer position cleared" << std::endl;

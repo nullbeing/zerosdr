@@ -8,7 +8,8 @@
 ADSBConfig::ADSBConfig()
     : observer_lat_(0.0),
       observer_lon_(0.0),
-      observer_position_set_(false) {
+      observer_position_set_(false),
+      manual_override_(false) {
 }
 
 ADSBConfig::~ADSBConfig() {
@@ -95,6 +96,13 @@ bool ADSBConfig::parseConfigFile(const std::string& content) {
         }
     }
 
+    // Manual override flag (older files do not have it).
+    const char* manual_field = strstr(json, "\"manual_override\"");
+    if (manual_field) {
+        const char* colon = strchr(manual_field, ':');
+        manual_override_ = colon && strstr(colon, "true") != nullptr;
+    }
+
     return observer_position_set_;
 }
 
@@ -102,7 +110,8 @@ std::string ADSBConfig::generateConfigFile() const {
     std::ostringstream oss;
     oss << "{\n";
     oss << "  \"observer_latitude\": " << observer_lat_ << ",\n";
-    oss << "  \"observer_longitude\": " << observer_lon_ << "\n";
+    oss << "  \"observer_longitude\": " << observer_lon_ << ",\n";
+    oss << "  \"manual_override\": " << (manual_override_ ? "true" : "false") << "\n";
     oss << "}\n";
     return oss.str();
 }

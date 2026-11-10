@@ -1,4 +1,5 @@
 #include "pages/sdr_page.h"
+#include "core/first_run_guide.h"
 #include <iostream>
 #include <algorithm>
 #include <chrono>
@@ -677,9 +678,9 @@ void SDRPage::handleOverlayInput(AppKeyCode key) {
         return;
     }
     if (key == APPKEY_UP) {
-        settings_index_ = (settings_index_ + 3) % 4;
+        settings_index_ = (settings_index_ + 4) % 5;
     } else if (key == APPKEY_DOWN) {
-        settings_index_ = (settings_index_ + 1) % 4;
+        settings_index_ = (settings_index_ + 1) % 5;
     } else if (key == APPKEY_ENTER) {
         cycleSetting(settings_index_);
     }
@@ -702,6 +703,10 @@ void SDRPage::cycleSetting(int index) {
             fft_index_ = (fft_index_ + 1) % num_fft_sizes_;
             fft_.setFFTSize(fft_sizes_[fft_index_]);
             std::cout << "FFT size: " << fft_sizes_[fft_index_] << std::endl;
+            break;
+        case 4:
+            setGuideShow(true);
+            std::cout << "Guide: will be shown on next start" << std::endl;
             break;
         case 3:
             rate_index_ = (rate_index_ + 1) % num_sample_rates_;

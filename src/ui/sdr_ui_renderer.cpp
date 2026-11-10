@@ -676,15 +676,16 @@ void SDRUIRenderer::renderKeyHelp() {
 
 // Settings tab: the knobs that do not deserve a dedicated hotkey.
 void SDRUIRenderer::renderSettings(const SdrSettingsView& view) {
-    static const char* labels[4] = {
-        "FM DEEMPH", "AUDIO AGC", "FFT SIZE", "SAMPLE RATE"
+    static const char* labels[5] = {
+        "FM DEEMPH", "AUDIO AGC", "FFT SIZE", "SAMPLE RATE", "SHOW GUIDE"
     };
-    char values[4][24] = {{0}};
+    char values[5][24] = {{0}};
     std::snprintf(values[0], sizeof(values[0]), "%d us (%s)",
                   view.deemphasis_us, view.deemphasis_us == 50 ? "CN/EU" : "US");
     std::snprintf(values[1], sizeof(values[1]), "%s", view.audio_agc ? "ON" : "OFF");
     std::snprintf(values[2], sizeof(values[2]), "%d", view.fft_size);
     std::snprintf(values[3], sizeof(values[3]), "%.3f MHz", view.sample_rate / 1e6);
+    std::snprintf(values[4], sizeof(values[4]), "PRESS ENTER");
 
     fb_.fillRect(0, 0, 320, 170, COLOR_BLACK);
     fb_.drawRect(1, 1, 318, 168, COLOR_TEXT_DIM);
@@ -692,8 +693,8 @@ void SDRUIRenderer::renderSettings(const SdrSettingsView& view) {
     drawText(6, 5, "SETTINGS", COLOR_YELLOW);
     drawText(76, 5, "H close   <> keys", COLOR_TEXT_DIM);
 
-    for (int i = 0; i < 4; ++i) {
-        const int y = 40 + i * 24;
+    for (int i = 0; i < 5; ++i) {
+        const int y = 40 + i * 22;
         if (i == view.selected) {
             fb_.fillRect(6, y - 6, 308, 18, COLOR_SELECTED);
             drawText(12, y, ">", COLOR_YELLOW);

@@ -3,6 +3,7 @@
 
 #include "core/ipage.h"
 #include "core/beep_player.h"
+#include "core/gps_locator.h"
 #include "framebuffer.h"
 #include "sdr_controller.h"
 #include "ui/adsb_ui_renderer.h"
@@ -82,6 +83,10 @@ private:
 
     // Enter-key view cycle helper
     void openRadarView();
+
+    // GPS position source
+    GpsLocator gps_;
+    time_t last_gps_save_ = 0;
 
     // H overlay (key list + position settings)
     bool help_visible_ = false;

@@ -55,7 +55,8 @@ public:
 
     // H overlay: key reference and settings summary
     void renderKeyHelp();
-    void renderSettingsOverview(double lat, double lon, bool pos_set, int selected);
+    void renderSettingsOverview(double lat, double lon, bool pos_set, int selected,
+                                const char* source);
 
     /**
      * Render detail view for selected aircraft
