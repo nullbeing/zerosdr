@@ -124,10 +124,11 @@ install(FILES share/APPLaunch/applications/zerosdr.desktop
 install(FILES share/images/zerosdr.png
         DESTINATION share/APPLaunch/share/images)
 
-# 2) Plain desktop install (CLI + system application menu)
+# 2) CLI install. The system-wide /usr/share/applications entry is NOT
+#    installed: the AppStore only allows usr/share/APPLaunch/**,
+#    usr/share/<package-name>/** and a fixed list of shared dirs, so an
+#    entry directly under /usr/share/applications would be rejected.
 install(TARGETS zerosdr DESTINATION bin)
-install(FILES share/applications/zerosdr.desktop DESTINATION share/applications)
-install(FILES share/images/zerosdr.png DESTINATION share/zerosdr/images)
 
 # CPack configuration for DEB packaging
 set(CPACK_GENERATOR "DEB")

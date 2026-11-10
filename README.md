@@ -218,9 +218,11 @@ dpkg-buildpackage -us -uc -b
 sudo dpkg -i ../zerosdr_*.deb
 ```
 
-The package installs the binary and a system desktop entry under
-`/usr/share/applications`; the APPLaunch entry above is still needed for the
-launcher tile.
+The package installs `usr/bin/zerosdr` plus the APPLaunch entry, binary and
+icon under `/usr/share/APPLaunch/`. It deliberately does **not** install a
+system `/usr/share/applications` entry (the AppStore path policy only allows
+`usr/share/<package>/**` and `usr/share/APPLaunch/**`), and no `-dbgsym`
+package is generated.
 
 For a much more detailed Cardputer Zero walkthrough (audio, ADSB/readsb,
 package pitfalls, recovery steps) see [cardputerzero.md](cardputerzero.md).

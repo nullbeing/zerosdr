@@ -215,8 +215,9 @@ dpkg-buildpackage -us -uc -b
 sudo dpkg -i ../zerosdr_*.deb
 ```
 
-包会安装到 `/usr/share/applications`（系统桌面入口）；APPLaunch 的磁贴仍然需要
-上面第 4 步的 desktop 文件。
+包内安装 `usr/bin/zerosdr` 和 `/usr/share/APPLaunch/` 下的入口、主程序与图标；
+**不会**安装系统级 `/usr/share/applications` 入口（AppStore 的路径规则只允许
+`usr/share/<包名>/**` 和 `usr/share/APPLaunch/**`），也不会生成 `-dbgsym` 包。
 
 更详细的 Cardputer Zero 说明（音频、ADSB/readsb、依赖包风险、恢复步骤）见
 [cardputerzero.md](cardputerzero.md)。

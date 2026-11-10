@@ -8,3 +8,8 @@ override_dh_auto_configure:
 
 override_dh_shlibdeps:
 	dh_shlibdeps
+
+# The AppStore rejects /usr/lib/debug/.build-id/** (it is not under a
+# package-named directory), so do not build the automatic dbgsym package.
+override_dh_strip:
+	dh_strip --no-automatic-dbgsym
