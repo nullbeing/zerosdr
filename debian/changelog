@@ -1,3 +1,15 @@
+zerosdr (0.3.6) trixie; urgency=medium
+
+  * ADSB: no position is ever invented. The legacy settings menu shows
+    NOT SET instead of 0.0 when nothing is configured, a config file only
+    counts as a position when both coordinates parse and are in range, and
+    the 0/0 pair written by CLEAR POSITION stays unset after a restart
+  * ADSB: saving a manual position validates the typed values instead of
+    calling std::stod on unchecked input
+  * The configuration path follows $HOME instead of /home/pi
+
+ -- Weiming Feng <bestedwin@gmail.com>  Tue, 10 Nov 2026 22:20:00 +0800
+
 zerosdr (0.3.5) trixie; urgency=medium
 
   * H -> settings -> SHOW GUIDE now opens the guide immediately instead of
