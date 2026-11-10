@@ -705,8 +705,10 @@ void SDRPage::cycleSetting(int index) {
             std::cout << "FFT size: " << fft_sizes_[fft_index_] << std::endl;
             break;
         case 4:
-            setGuideShow(true);
-            std::cout << "Guide: will be shown on next start" << std::endl;
+            // Open the guide right away instead of only arming it for the
+            // next start.
+            help_visible_ = false;
+            runFirstRunGuide(fb_, input_);
             break;
         case 3:
             rate_index_ = (rate_index_ + 1) % num_sample_rates_;

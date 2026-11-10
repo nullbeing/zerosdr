@@ -685,7 +685,7 @@ void SDRUIRenderer::renderSettings(const SdrSettingsView& view) {
     std::snprintf(values[1], sizeof(values[1]), "%s", view.audio_agc ? "ON" : "OFF");
     std::snprintf(values[2], sizeof(values[2]), "%d", view.fft_size);
     std::snprintf(values[3], sizeof(values[3]), "%.3f MHz", view.sample_rate / 1e6);
-    std::snprintf(values[4], sizeof(values[4]), "PRESS ENTER");
+    std::snprintf(values[4], sizeof(values[4]), "OPEN NOW");
 
     fb_.fillRect(0, 0, 320, 170, COLOR_BLACK);
     fb_.drawRect(1, 1, 318, 168, COLOR_TEXT_DIM);

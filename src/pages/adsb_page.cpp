@@ -120,6 +120,7 @@ void ADSBPage::onEnter() {
     last_json_read_ = 0;
     aircraft_db_.clear();
     known_icaos_.clear();
+    loadConfig();  // pick up position changes made from the guide
 
     // Reset view state
     view_mode_ = VIEW_LIST;
