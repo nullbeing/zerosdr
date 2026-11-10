@@ -6,6 +6,22 @@
 #include <cmath>
 #include <unistd.h>
 
+namespace {
+// Prefer the decoder bundled in the package (built with the RTL-SDR backend),
+// then fall back to a system-wide install.
+std::string findReadsbPath() {
+    static const char* kCandidates[] = {
+        "/usr/lib/zerosdr/readsb",
+        "/usr/bin/readsb",
+        "/usr/local/bin/readsb",
+    };
+    for (const char* path : kCandidates) {
+        if (access(path, X_OK) == 0) return path;
+    }
+    return kCandidates[1];
+}
+}  // namespace
+
 ADSBPage::ADSBPage(Framebuffer& fb, SDRController& sdr, ADSBUIRenderer& ui, RadarUIRenderer& radar_ui)
     : fb_(fb), sdr_(sdr), ui_(ui), radar_ui_(radar_ui),
       view_mode_(VIEW_LIST),
@@ -63,14 +79,18 @@ void ADSBPage::onEnter() {
 
     // Check if readsb is already running (e.g., from Radar page)
     // If so, reuse it instead of restarting
+    const std::string readsb_path = findReadsbPath();
     if (!readsb_) {
         readsb_ = std::make_unique<READSBController>(
-            "/usr/bin/readsb",
+            readsb_path,
             "/tmp/readsb/"
         );
     }
 
-    if (!readsb_->isRunning()) {
+    if (access(readsb_path.c_str(), X_OK) != 0) {
+        std::cerr << "ADSBPage: readsb binary not found at " << readsb_path
+                  << " - ADSB decoding disabled" << std::endl;
+    } else if (!readsb_->isRunning()) {
         std::cout << "ADSBPage: readsb not running, starting it..." << std::endl;
 
         // Stop zerosdr's SDR capture and close device to release RTL-SDR for readsb

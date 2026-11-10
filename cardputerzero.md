@@ -12,7 +12,7 @@
 
 > 测试环境：Cardputer Zero（CM0，AArch64，Debian 13，320×170 屏幕，ES8389，TCA8418 键盘）
 >
-> 项目：zeroSDR v0.3.1
+> 项目：zeroSDR v0.3.2
 
 ---
 

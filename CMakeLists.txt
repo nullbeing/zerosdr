@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(zeroSDR VERSION 0.3.1 LANGUAGES C CXX)
+project(zeroSDR VERSION 0.3.2 LANGUAGES C CXX)
 
 # Default to an optimized build. Without this, a plain `cmake ..` produces
 # an unoptimized binary that cannot keep up with real-time audio on the
@@ -123,6 +123,8 @@ install(FILES share/APPLaunch/applications/zerosdr.desktop
         DESTINATION share/APPLaunch/applications)
 install(FILES share/images/zerosdr.png
         DESTINATION share/APPLaunch/share/images)
+# ADSB decoder bundled with the RTL-SDR backend (Debian's readsb lacks it).
+install(PROGRAMS vendor/readsb/readsb DESTINATION lib/zerosdr)
 
 # 2) CLI install. The system-wide /usr/share/applications entry is NOT
 #    installed: the AppStore only allows usr/share/APPLaunch/**,

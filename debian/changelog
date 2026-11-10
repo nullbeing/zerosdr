@@ -1,3 +1,13 @@
+zerosdr (0.3.2) trixie; urgency=medium
+
+  * Bundle a readsb build with the RTL-SDR backend at /usr/lib/zerosdr/readsb
+    (the Debian readsb package is built without it), prefer it over
+    /usr/bin/readsb, and log clearly when no decoder is available
+  * Let dh_shlibdeps compute Depends so the bundled decoder's libraries
+    (libusb, librtlsdr, ncurses, zstd, zlib) are pulled in automatically
+
+ -- Weiming Feng <bestedwin@gmail.com>  Tue, 10 Nov 2026 20:40:00 +0800
+
 zerosdr (0.3.1) trixie; urgency=medium
 
   * ADSB: translucent radar sweep with a gradient tail, per-revolution
