@@ -40,3 +40,7 @@ debian/debhelper-build-stamp
 debian/files
 debian/.debhelper/
 debian/zerosdr/
+
+# Agent instructions (kept local only)
+AGENTS.md
+CLAUDE.md
