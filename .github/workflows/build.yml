@@ -8,15 +8,17 @@ on:
 
 jobs:
   build-ubuntu:
-    runs-on: ubuntu-latest
+    # Pinned instead of ubuntu-latest so a runner image bump cannot silently
+    # change the compiler/CMake version underneath us.
+    runs-on: ubuntu-24.04
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev
+        sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libfreetype-dev
 
     - name: Configure CMake
       run: |
@@ -35,13 +37,13 @@ jobs:
         file build/zerosdr
 
   build-arm64:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up QEMU
-      uses: docker/setup-qemu-action@v2
+      uses: docker/setup-qemu-action@v3
       with:
         platforms: arm64
 
@@ -53,7 +55,7 @@ jobs:
           arm64v8/ubuntu:22.04 \
           bash -c "
             apt-get update && \
-            apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev && \
+            apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libfreetype-dev && \
             mkdir -p build && \
             cd build && \
             cmake .. && \
