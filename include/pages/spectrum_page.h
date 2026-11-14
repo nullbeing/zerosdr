@@ -96,7 +96,7 @@ private:
     std::vector<float> disp_db_;
     std::vector<float> max_hold_db_;
     std::vector<float> hold_row_db_;
-    std::atomic<bool> max_hold_active_{false};
+    std::atomic<bool> max_hold_active_{true};
     mutable std::mutex data_mutex_;
     std::vector<uint16_t> wf_pixels_;
     std::vector<float> row_db_;

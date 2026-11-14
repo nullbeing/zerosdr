@@ -422,7 +422,8 @@ Notes:
   15 ms retune settling time; one step takes roughly 20 ms.
   A 20 MHz range sweeps in well under a second, 100 MHz in a few seconds.
 - Wide bins are about 2 kHz; zooming in shows them one bin per pixel.
-- `M` adds a red max-hold envelope; toggling it clears the stored peaks.
+- Max hold is on by default (red envelope); `M` toggles it and clears the
+  stored peaks.
 - The waterfall window is cleared when you pan or zoom so stale history from
   another part of the band is not shown.
 - The page stops the SDR capture when you leave it, releasing the dongle for
