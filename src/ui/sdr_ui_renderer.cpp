@@ -669,40 +669,6 @@ void SDRUIRenderer::drawLogo(int x, int y) {
 
 // Full-screen key reference. Uses the 6x8 base font so all bindings fit on
 // the 320x170 panel: two columns of 12 rows plus a one-line title.
-void SDRUIRenderer::drawHelpTabs(bool settings_active) {
-    struct TabDraw {
-        const char* label;
-        bool active;
-    };
-    const char* keys_label = settings_active ? "< KEYS" : "KEYS";
-    const char* settings_label = settings_active ? "SETTINGS" : "SETTINGS >";
-
-    constexpr int y = 3;
-    constexpr int h = 13;
-
-    auto draw_tab = [&](int x, const char* label, bool active) {
-        const int w =
-            static_cast<int>(std::strlen(label)) * FONT_6X8_WIDTH + 10;
-        if (active) {
-            fb_.fillRect(x, y, w, h, COLOR_YELLOW);
-            drawText(x + 5, y + 3, label, COLOR_BLACK);
-        } else {
-            fb_.drawRect(x, y, w, h, COLOR_TEXT_DIM);
-            drawText(x + 5, y + 3, label, COLOR_TEXT_BRIGHT);
-        }
-        return w;
-    };
-
-    int x = 6;
-    x += draw_tab(x, keys_label, !settings_active) + 4;
-    draw_tab(x, settings_label, settings_active);
-
-    drawText(178, y + 3, "L/R SWITCH", COLOR_TEXT_DIM);
-    const char* close = "H CLOSE";
-    drawText(314 - static_cast<int>(std::strlen(close)) * FONT_6X8_WIDTH,
-             y + 3, close, COLOR_TEXT_DIM);
-}
-
 void SDRUIRenderer::renderKeyHelp() {
     struct Entry {
         const char* key;  // nullptr = section header, action holds the title
@@ -743,12 +709,13 @@ void SDRUIRenderer::renderKeyHelp() {
 
     fb_.fillRect(0, 0, 320, 170, COLOR_BLACK);
     fb_.drawRect(1, 1, 318, 168, COLOR_TEXT_DIM);
-    drawHelpTabs(false);
+    drawText(6, 5, "KEY HELP", COLOR_YELLOW);
+    drawText(68, 5, "H close   > settings", COLOR_TEXT_DIM);
 
     constexpr int left_x = 6;
     constexpr int right_x = 168;
     constexpr int action_dx = 64;
-    constexpr int row_y = 22;
+    constexpr int row_y = 20;
     constexpr int row_step = 11;
 
     auto draw_column = [&](const Entry* entries, int rows, int x) {
@@ -781,10 +748,11 @@ void SDRUIRenderer::renderSettings(const SdrSettingsView& view) {
 
     fb_.fillRect(0, 0, 320, 170, COLOR_BLACK);
     fb_.drawRect(1, 1, 318, 168, COLOR_TEXT_DIM);
-    drawHelpTabs(true);
+    drawText(6, 5, "SETTINGS", COLOR_YELLOW);
+    drawText(76, 5, "H close   <> keys", COLOR_TEXT_DIM);
 
     for (int i = 0; i < 5; ++i) {
-        const int y = 34 + i * 22;
+        const int y = 40 + i * 22;
         if (i == view.selected) {
             fb_.fillRect(6, y - 6, 308, 18, COLOR_SELECTED);
             drawText(12, y, ">", COLOR_YELLOW);
