@@ -9,6 +9,7 @@
 #include "ui/base_ui_renderer.h"
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <mutex>
 #include <string>
@@ -119,6 +120,8 @@ private:
     std::string edit_stop_;
     std::string edit_error_;
     std::string status_error_;
+    std::string toast_;
+    std::chrono::steady_clock::time_point toast_until_{};
 };
 
 #endif  // SPECTRUM_PAGE_H

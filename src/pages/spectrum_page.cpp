@@ -1,4 +1,5 @@
 #include "pages/spectrum_page.h"
+#include "screenshot.h"
 
 #include <algorithm>
 #include <cmath>
@@ -279,6 +280,19 @@ bool SpectrumPage::handleInput(AppKeyCode key) {
         help_visible_ = true;
         return true;
     }
+    if (key == APPKEY_SCREENSHOT) {
+        const std::string path = makeScreenshotPath();
+        if (fb_.saveScreenshot(path.c_str())) {
+            toast_ = "SAVED";
+            std::cout << "Screenshot saved: " << path << std::endl;
+        } else {
+            toast_ = "FAILED";
+            std::cerr << "Screenshot failed" << std::endl;
+        }
+        toast_until_ = std::chrono::steady_clock::now() +
+                       std::chrono::milliseconds(1500);
+        return true;
+    }
 
     const size_t min_bins = std::min<size_t>(32, total_bins_);
     switch (key) {
@@ -534,11 +548,11 @@ void SpectrumPage::drawHelpOverlay() {
 
     static const char* const keys[] = {
         "LEFT/RIGHT", "UP/DOWN", "ENTER",  "M",
-        "R",          "TAB",     "H",      "HOLD ESC",
+        "R",          "TAB",     "H",      "FN+P",     "HOLD ESC",
     };
     static const char* const actions[] = {
         "PAN",       "ZOOM",   "FULL SPAN", "MAX HOLD",
-        "SET RANGE", "PAGE",   "CLOSE",     "EXIT",
+        "SET RANGE", "PAGE",   "CLOSE",     "SCREENSHOT", "EXIT",
     };
 
     const int row_y = py + 26;
@@ -740,9 +754,15 @@ void SpectrumPage::drawStatusBar() {
                              formatMhz(visible_end, decimals);
     ui_.drawText(2, kStatusY + 3, left.c_str(), COLOR_TEXT_BRIGHT);
 
-    char span_buf[24];
-    std::snprintf(span_buf, sizeof(span_buf), "SPAN %.2fM", view_span / 1e6);
-    ui_.drawText(178, kStatusY + 3, span_buf, COLOR_TEXT_DIM);
+    if (!toast_.empty() &&
+        std::chrono::steady_clock::now() < toast_until_) {
+        ui_.drawText(178, kStatusY + 3, toast_.c_str(), COLOR_YELLOW);
+    } else {
+        char span_buf[24];
+        std::snprintf(span_buf, sizeof(span_buf), "SPAN %.2fM",
+                      view_span / 1e6);
+        ui_.drawText(178, kStatusY + 3, span_buf, COLOR_TEXT_DIM);
+    }
 
     if (max_hold_active_) {
         ui_.drawText(150, kStatusY + 3, "MAX", COLOR_RED);
