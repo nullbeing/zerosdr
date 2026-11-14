@@ -23,6 +23,7 @@ and demodulates FM / NFM / AM / USB / LSB audio through ALSA.
 - Hardware AGC and manual gain, display zoom, FFT size and sample-rate presets
 - On-screen key reference and settings panel (`H`)
 - ADSB aircraft page (readsb) with radar/PFD view
+- Wideband swept spectrum page with a custom start/stop range, pan and zoom
 - Runs as the normal desktop user (no root) thanks to the librtlsdr udev rule
 - Optimized for Raspberry Pi Zero 2W / Pi 5 and the M5Stack Cardputer Zero
 
@@ -244,6 +245,8 @@ On the first start zeroSDR shows a short guide (reopen it from
 
 ### Press `H` first
 
+`Tab` cycles the three pages: SDR → Spectrum → ADSB.
+
 The SDR page has a built-in reference:
 
 ```text
@@ -390,6 +393,37 @@ Audio feedback:
 - one sonar ping per radar revolution (6 s at 60°/s),
 - a quiet tick every 90° of the sweep,
 - a two-tone chime when a new aircraft appears (at most once every 3 s).
+
+## Wideband spectrum page
+
+`Tab` cycles SDR → Spectrum → ADSB. The spectrum page is a swept analyzer in
+the style of qspectrumanalyzer: it retunes the RTL-SDR across a user supplied
+range, stitches the slices into one wide spectrum and draws a yellow trace
+with a waterfall below it. The RTL-SDR V4 range is 24–1766 MHz.
+
+On first use it asks for START and STOP in MHz. Use the digits and `.`,
+`Up`/`Down` to switch fields and `Enter` to accept each field; the range is
+saved to `~/.config/zerosdr/spectrum_range.txt` and reused afterwards.
+
+| Key | Action |
+|-----|--------|
+| `←` / `→` | Pan the visible window |
+| `↑` / `↓` | Zoom in / out |
+| `Enter` | Reset to the full configured range |
+| `R` | Edit the start/stop range |
+| `Tab` | Switch page (SDR → Spectrum → ADSB) |
+| `Esc` (hold 2 s) | Quit, with the centered progress prompt |
+
+Notes:
+
+- Each slice uses a 1.024 MHz sample rate and the middle ~0.78 MHz, with a
+  15 ms retune settling time; one step takes roughly 20 ms.
+  A 20 MHz range sweeps in well under a second, 100 MHz in a few seconds.
+- Wide bins are about 2 kHz; zooming in shows them one bin per pixel.
+- The waterfall window is cleared when you pan or zoom so stale history from
+  another part of the band is not shown.
+- The page stops the SDR capture when you leave it, releasing the dongle for
+  the SDR and ADSB pages.
 
 ## Command line options
 

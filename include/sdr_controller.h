@@ -38,6 +38,9 @@ public:
     // Copy the most recent IQ samples without consuming them (for FFT/UI)
     bool getLatestSamplesSnapshot(std::vector<uint8_t>& samples, size_t count);
 
+    // Drop everything currently buffered (used after retuning for a sweep).
+    void flushBuffer();
+
     // Number of IQ bytes dropped because the ring buffer was full
     uint64_t getDroppedBytes() const { return dropped_bytes.load(); }
 

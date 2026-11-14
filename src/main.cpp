@@ -9,6 +9,7 @@
 #include "core/first_run_guide.h"
 #include "pages/sdr_page.h"
 #include "pages/adsb_page.h"
+#include "pages/spectrum_page.h"
 #include "version.h"
 #include <iostream>
 #include <signal.h>
@@ -240,6 +241,11 @@ int main(int argc, char* argv[]) {
     page_manager.registerPage(std::move(sdr_page));
 
     // Create and register ADSB page (with radar view integrated)
+    // Wideband swept spectrum analyzer (second page, after the SDR view).
+    auto spectrum_page =
+        std::make_unique<SpectrumPage>(fb, sdr, input);
+    page_manager.registerPage(std::move(spectrum_page));
+
     auto adsb_page = std::make_unique<ADSBPage>(fb, sdr, adsb_ui, radar_ui);
     page_manager.registerPage(std::move(adsb_page));
 

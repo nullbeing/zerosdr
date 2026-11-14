@@ -88,6 +88,7 @@ set(SOURCES
     # Pages
     src/pages/sdr_page.cpp
     src/pages/adsb_page.cpp
+    src/pages/spectrum_page.cpp
     # ADSB integration
     src/adsb/readsb_controller.cpp
     src/adsb/readsb_json_parser.cpp

@@ -17,6 +17,10 @@ SDRController::~SDRController() {
 }
 
 bool SDRController::init(uint32_t device_index) {
+    // Re-initialising after another page left the device open would leak the
+    // old handle and fail with EBUSY.
+    if (device != nullptr) close();
+
     int device_count = rtlsdr_get_device_count();
     if (device_count == 0) {
         std::cerr << "No RTL-SDR devices found" << std::endl;
@@ -140,6 +144,11 @@ bool SDRController::startCapture() {
     capture_thread = std::thread(&SDRController::captureLoop, this);
 
     return true;
+}
+
+void SDRController::flushBuffer() {
+    std::lock_guard<std::mutex> lock(buffer_mutex);
+    read_pos = write_pos.load();
 }
 
 void SDRController::stopCapture() {
