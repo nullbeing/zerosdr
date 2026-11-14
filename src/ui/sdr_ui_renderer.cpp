@@ -171,7 +171,7 @@ void SDRUIRenderer::renderStatusBar(uint32_t freq, uint32_t span, int gain, cons
 
     // 2. Demod mode
     if (audio_enabled) {
-        drawText(58, STATUSBAR_Y + 3, demod_mode, COLOR_TEXT_BRIGHT);
+        drawText(58, STATUSBAR_Y + 3, demod_mode, COLOR_RED);
     } else {
         drawText(58, STATUSBAR_Y + 3, "--", COLOR_TEXT_DIM);
     }
