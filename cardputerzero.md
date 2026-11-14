@@ -603,7 +603,7 @@ sudo apt-mark hold readsb
 
 > 如果你使用的是旧版源码，需要先把 `src/pages/adsb_page.cpp` 里的
 > `/home/edwin/readsb/readsb` 改成 `/usr/bin/readsb`，并把配置路径改成
-> `/home/pi/.config/zerosdr/adsb_config.json`。
+> `/home/pi/.config/zerosdr/config.json` 的 `adsb` 段。
 
 以及默认：
 
@@ -614,10 +614,10 @@ sudo apt-mark hold readsb
 --quiet
 ```
 
-观察者位置配置保存在：
+观察者位置保存统一配置文件的 `adsb` 段：
 
 ```text
-/home/pi/.config/zerosdr/adsb_config.json
+/home/pi/.config/zerosdr/config.json
 ```
 
 启动 ADSB 页面后：

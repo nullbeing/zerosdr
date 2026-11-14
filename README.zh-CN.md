@@ -313,20 +313,26 @@ TCA8418 键盘会自动识别（`tca8418c`）。`F`/`Z`/`X`/`C` 直接作为方�
 修改采样率时，显示跨度会自动切到"新带宽能填满的最大档"（1.2 M → 1.0 M，
 2.048 M → 2.0 M），避免出现"跨度大于采样率、按 `Y` 看起来没反应"的情况。
 
-配置保存在：
+所有设置统一保存在：
 
 ```text
-~/.config/zerosdr/sdr_settings.json
+~/.config/zerosdr/config.json
 ```
 
 ```json
 {
-  "deemphasis_us": 50,
-  "audio_agc": true,
-  "fft_size": 512,
-  "sample_rate": 1024000
+  "system":   { "guide_show": false },
+  "sdr":      { "deemphasis_us": 50, "audio_agc": true,
+                "fft_size": 512, "sample_rate": 1024000, "theme": 0 },
+  "spectrum": { "configured": true,
+                "start_hz": 88000000, "stop_hz": 108000000 },
+  "adsb":     { "observer_latitude": 23.1211,
+                "observer_longitude": 113.236, "manual_override": true }
 }
 ```
+
+旧的 `sdr_settings.json`、`spectrum_range.txt`、`adsb_config.json` 和
+`guide.json` 会在首次启动时自动导入一次，之后不再更新。
 
 ## 解调带宽预设
 

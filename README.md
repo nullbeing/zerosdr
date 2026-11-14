@@ -38,7 +38,7 @@ and demodulates FM / NFM / AM / USB / LSB audio through ALSA.
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libpulse-dev libfreetype-dev
+sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libpulse-dev libfreetype-dev nlohmann-json3-dev
 
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
@@ -67,7 +67,7 @@ relative to `/usr/share/APPLaunch`. The final layout is:
 ### 1. Build (on the device, recommended)
 
 ```bash
-sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libpulse-dev libfreetype-dev
+sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libpulse-dev libfreetype-dev nlohmann-json3-dev
 cd ~/zerosdr
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
@@ -325,20 +325,39 @@ Changing the sample rate resets the display span to the widest level that fits
 the new band (1.2 M → 1.0 M, 2.048 M → 2.0 M), so `Y` never appears to do
 nothing because the stored span was wider than the captured bandwidth.
 
-Settings are stored in:
+All settings live in one file:
 
 ```text
-~/.config/zerosdr/sdr_settings.json
+~/.config/zerosdr/config.json
 ```
 
 ```json
 {
-  "deemphasis_us": 50,
-  "audio_agc": true,
-  "fft_size": 512,
-  "sample_rate": 1024000
+  "system": {
+    "guide_show": false
+  },
+  "sdr": {
+    "deemphasis_us": 50,
+    "audio_agc": true,
+    "fft_size": 512,
+    "sample_rate": 1024000,
+    "theme": 0
+  },
+  "spectrum": {
+    "configured": true,
+    "start_hz": 88000000,
+    "stop_hz": 108000000
+  },
+  "adsb": {
+    "observer_latitude": 23.1211,
+    "observer_longitude": 113.236,
+    "manual_override": true
+  }
 }
 ```
+
+The older `sdr_settings.json`, `spectrum_range.txt`, `adsb_config.json` and
+`guide.json` are imported once on first start and are no longer updated.
 
 ## Demodulation bandwidth presets
 
@@ -403,7 +422,8 @@ with a waterfall below it. The RTL-SDR V4 range is 24–1766 MHz.
 
 On first use it asks for START and STOP in MHz. Use the digits and `.`,
 `Up`/`Down` to switch fields and `Enter` to accept each field; the range is
-saved to `~/.config/zerosdr/spectrum_range.txt` and reused afterwards.
+saved to the `spectrum` section of `~/.config/zerosdr/config.json` and
+reused afterwards.
 
 | Key | Action |
 |-----|--------|

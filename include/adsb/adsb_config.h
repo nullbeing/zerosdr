@@ -39,9 +39,6 @@ private:
     bool observer_position_set_;
     bool manual_override_;
 
-    // Helper methods for simple JSON parsing/writing
-    bool parseConfigFile(const std::string& content);
-    std::string generateConfigFile() const;
 };
 
 #endif // ADSB_CONFIG_H

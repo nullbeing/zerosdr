@@ -1,5 +1,6 @@
 # Build directories
 build/
+build-*/
 cmake-build-*/
 
 # Compiled files
@@ -31,6 +32,7 @@ Makefile
 install_manifest.txt
 
 # Other
+.pi/
 *.bak
 .DS_Store
 

@@ -1,4 +1,5 @@
 #include "pages/spectrum_page.h"
+#include "app_config.h"
 #include "screenshot.h"
 
 #include <algorithm>
@@ -15,22 +16,6 @@ namespace {
 
 constexpr float kRenderInterval = 1.0f / 15.0f;
 constexpr int kSettleUs = 15000;
-
-std::string rangePath() {
-    const char* home = std::getenv("HOME");
-    return std::string(home ? home : "/home/pi") +
-           "/.config/zerosdr/spectrum_range.txt";
-}
-
-void ensureParentDirs(const std::string& path) {
-    std::string dir;
-    for (size_t i = 0; i < path.size(); ++i) {
-        dir += path[i];
-        if (path[i] == '/' && i + 1 < path.size()) {
-            mkdir(dir.c_str(), 0755);
-        }
-    }
-}
 
 uint16_t lerpRgb565(uint16_t a, uint16_t b, float t) {
     const int ar = (a >> 11) & 0x1F;
@@ -67,10 +52,14 @@ bool SpectrumPage::init() {
 void SpectrumPage::cleanup() { stopSweep(); }
 
 void SpectrumPage::loadRange() {
-    std::ifstream in(rangePath());
-    uint32_t start = 0;
-    uint32_t stop = 0;
-    if (in >> start >> stop && start >= 24000000 && stop <= 1766000000 &&
+    const auto& data = AppConfig::instance().data();
+    if (!data.contains("spectrum") || !data["spectrum"].is_object()) return;
+    const auto& spectrum = data["spectrum"];
+    if (!spectrum.value("configured", false)) return;
+
+    const uint32_t start = spectrum.value("start_hz", 88000000u);
+    const uint32_t stop = spectrum.value("stop_hz", 108000000u);
+    if (start >= 24000000 && stop <= 1766000000 &&
         stop > start + 100000) {
         start_hz_ = start;
         stop_hz_ = stop;
@@ -79,12 +68,15 @@ void SpectrumPage::loadRange() {
 }
 
 void SpectrumPage::saveRange() const {
-    const std::string path = rangePath();
-    ensureParentDirs(path);
-    std::ofstream out(path, std::ios::trunc);
-    if (out.is_open()) {
-        out << start_hz_ << " " << stop_hz_ << "\n";
+    auto& data = AppConfig::instance().data();
+    if (!data.contains("spectrum") || !data["spectrum"].is_object()) {
+        data["spectrum"] = nlohmann::json::object();
     }
+    auto& spectrum = data["spectrum"];
+    spectrum["configured"] = true;
+    spectrum["start_hz"] = start_hz_;
+    spectrum["stop_hz"] = stop_hz_;
+    AppConfig::instance().save();
 }
 
 void SpectrumPage::rebuildGeometry() {

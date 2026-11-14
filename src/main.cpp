@@ -10,6 +10,7 @@
 #include "pages/sdr_page.h"
 #include "pages/adsb_page.h"
 #include "pages/spectrum_page.h"
+#include "app_config.h"
 #include "screenshot.h"
 #include "version.h"
 #include <iostream>
@@ -48,6 +49,8 @@ int main(int argc, char* argv[]) {
     int gain = -1;                     // Auto gain
     const char* fb_device = "/dev/fb0";
     const char* kbd_device = nullptr;  // Auto-detect
+
+    AppConfig::instance().load();
 
     // Parse command line arguments
     int opt;

@@ -116,6 +116,7 @@ set(SOURCES
     src/font8x16.cpp
     src/input_handler.cpp
     src/screenshot.cpp
+    src/app_config.cpp
 )
 
 # Executable

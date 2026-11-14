@@ -1,4 +1,5 @@
 #include "core/first_run_guide.h"
+#include "app_config.h"
 
 #include "core/gps_locator.h"
 #include "framebuffer.h"
@@ -27,18 +28,7 @@ std::string configDir() {
     return std::string(home ? home : "/home/pi") + "/.config/zerosdr";
 }
 
-std::string guidePath() { return configDir() + "/guide.json"; }
 std::string adsbConfigPath() { return configDir() + "/adsb_config.json"; }
-
-void ensureDir() {
-    const std::string dir = configDir();
-    std::string cur;
-    for (char c : dir) {
-        cur += c;
-        if (c == '/') mkdir(cur.c_str(), 0755);
-    }
-    mkdir(dir.c_str(), 0755);
-}
 
 class UiText {
 public:
@@ -93,23 +83,21 @@ private:
 }  // namespace
 
 bool guideShouldShow() {
-    std::ifstream file(guidePath());
-    if (!file.is_open()) return true;
-    std::string text((std::istreambuf_iterator<char>(file)),
-                     std::istreambuf_iterator<char>());
-    if (text.find("\"show\"") == std::string::npos) return true;
-    return text.find("false") == std::string::npos;
+    const auto& data = AppConfig::instance().data();
+    if (!data.contains("system") || !data["system"].is_object()) return true;
+    return data["system"].value("guide_show", true);
 }
 
 void setGuideShow(bool show) {
-    ensureDir();
-    std::ofstream file(guidePath());
-    if (!file.is_open()) return;
-    file << "{\n  \"show\": " << (show ? "true" : "false") << "\n}\n";
+    auto& data = AppConfig::instance().data();
+    if (!data.contains("system") || !data["system"].is_object()) {
+        data["system"] = nlohmann::json::object();
+    }
+    data["system"]["guide_show"] = show;
+    AppConfig::instance().save();
 }
 
 void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
-    ensureDir();
 
     ADSBConfig config;
     config.load(adsbConfigPath());

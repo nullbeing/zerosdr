@@ -1,4 +1,5 @@
 #include "pages/sdr_page.h"
+#include "app_config.h"
 #include "screenshot.h"
 #include "core/first_run_guide.h"
 #include <iostream>
@@ -599,6 +600,7 @@ void SDRPage::handleModeControls(AppKeyCode key) {
             ui_.setTheme(theme_index_);
             fb_.clear(COLOR_BG_DARK);
             std::cout << "Theme: " << ui_.themeName() << std::endl;
+            saveSettings();
             break;
         case APPKEY_G:
             if (sdr_.getAGCEnabled()) {
@@ -680,21 +682,6 @@ void SDRPage::handleModeControls(AppKeyCode key) {
 // Help / settings overlay
 // ---------------------------------------------------------------------------
 
-static std::string sdrSettingsPath() {
-    const char* home = getenv("HOME");
-    return std::string(home ? home : "/home/pi") + "/.config/zerosdr/sdr_settings.json";
-}
-
-static void ensureParentDirs(const std::string& path) {
-    std::string dir;
-    for (size_t i = 0; i < path.size(); ++i) {
-        dir += path[i];
-        if (path[i] == '/' && i + 1 < path.size()) {
-            mkdir(dir.c_str(), 0755);
-        }
-    }
-}
-
 void SDRPage::handleOverlayInput(AppKeyCode key) {
     // Left/Right switches between the key list and the settings tab.
     if (key == APPKEY_LEFT || key == APPKEY_RIGHT) {
@@ -758,70 +745,44 @@ void SDRPage::cycleSetting(int index) {
 }
 
 void SDRPage::loadSettings() {
-    const std::string path = sdrSettingsPath();
-    std::ifstream file(path);
-    if (!file.is_open()) {
-        return;
-    }
-    std::string text((std::istreambuf_iterator<char>(file)),
-                     std::istreambuf_iterator<char>());
-    file.close();
+    const auto& data = AppConfig::instance().data();
+    const nlohmann::json sdr = data.value("sdr", nlohmann::json::object());
 
-    auto int_value = [&](const char* key, long fallback) -> long {
-        const std::string quoted = std::string("\"") + key + "\"";
-        size_t pos = text.find(quoted);
-        if (pos == std::string::npos) return fallback;
-        pos = text.find(':', pos);
-        if (pos == std::string::npos) return fallback;
-        return strtol(text.c_str() + pos + 1, nullptr, 10);
-    };
-    auto bool_value = [&](const char* key, bool fallback) -> bool {
-        const std::string quoted = std::string("\"") + key + "\"";
-        size_t pos = text.find(quoted);
-        if (pos == std::string::npos) return fallback;
-        pos = text.find(':', pos);
-        if (pos == std::string::npos) return fallback;
-        const size_t t = text.find("true", pos);
-        const size_t f = text.find("false", pos);
-        if (t != std::string::npos && (f == std::string::npos || t < f)) return true;
-        if (f != std::string::npos) return false;
-        return fallback;
-    };
-
-    deemphasis_tau_us_ = (int_value("deemphasis_us", 50) == 75) ? 75.0f : 50.0f;
-    audio_agc_ = bool_value("audio_agc", true);
-    theme_index_ = static_cast<int>(int_value("theme", 0));
+    deemphasis_tau_us_ =
+        (sdr.value("deemphasis_us", 50) == 75) ? 75.0f : 50.0f;
+    audio_agc_ = sdr.value("audio_agc", true);
+    theme_index_ = sdr.value("theme", 0);
     if (theme_index_ < 0 || theme_index_ >= ui_.themeCount()) theme_index_ = 0;
 
-    const long fft = int_value("fft_size", 1024);
+    const long long fft = sdr.value("fft_size", 1024);
     for (int i = 0; i < num_fft_sizes_; ++i) {
-        if (static_cast<long>(fft_sizes_[i]) == fft) { fft_index_ = i; break; }
+        if (static_cast<long long>(fft_sizes_[i]) == fft) {
+            fft_index_ = i;
+            break;
+        }
     }
-    const long rate = int_value("sample_rate", 0);
+    const long long rate = sdr.value("sample_rate", 0);
     for (int i = 0; i < num_sample_rates_; ++i) {
-        if (static_cast<long>(sample_rates_[i]) == rate) {
+        if (static_cast<long long>(sample_rates_[i]) == rate) {
             rate_index_ = i;
             saved_sample_rate_ = sample_rates_[i];
             break;
         }
     }
-    std::cout << "SDR settings: loaded " << path << std::endl;
+    std::cout << "SDR settings: loaded " << AppConfig::instance().path()
+              << std::endl;
 }
 
 void SDRPage::saveSettings() const {
-    const std::string path = sdrSettingsPath();
-    ensureParentDirs(path);
-    std::ofstream file(path);
-    if (!file.is_open()) {
-        std::cerr << "SDR settings: cannot write " << path << std::endl;
-        return;
+    auto& data = AppConfig::instance().data();
+    if (!data.contains("sdr") || !data["sdr"].is_object()) {
+        data["sdr"] = nlohmann::json::object();
     }
-    file << "{\n"
-         << "  \"deemphasis_us\": " << (int)deemphasis_tau_us_ << ",\n"
-         << "  \"audio_agc\": " << (audio_agc_ ? "true" : "false") << ",\n"
-         << "  \"fft_size\": " << fft_sizes_[fft_index_] << ",\n"
-         << "  \"sample_rate\": " << sample_rates_[rate_index_] << ",\n"
-         << "  \"theme\": " << theme_index_ << "\n"
-         << "}\n";
-    file.close();
+    auto& sdr = data["sdr"];
+    sdr["deemphasis_us"] = static_cast<int>(deemphasis_tau_us_);
+    sdr["audio_agc"] = audio_agc_;
+    sdr["fft_size"] = fft_sizes_[fft_index_];
+    sdr["sample_rate"] = sample_rates_[rate_index_];
+    sdr["theme"] = theme_index_;
+    AppConfig::instance().save();
 }
