@@ -85,6 +85,12 @@ private:
     // Timing
     struct timeval last_update_time_;
 
+    // Hold-to-exit: ESC must be held for three seconds, with an on-screen
+    // semi-transparent prompt.
+    bool exit_hold_active_ = false;
+    struct timeval exit_hold_start_ {};
+    std::vector<uint16_t> exit_snapshot_;
+
     /**
      * Perform page transition
      * @param new_index Index of the page to switch to
@@ -96,6 +102,10 @@ private:
      * @return Delta time in seconds
      */
     float calculateDeltaTime();
+
+    // Centered translucent exit prompt with a progress bar.
+    void drawExitPrompt(float progress);
+    void drawText6x8(int x, int y, const char* text, uint16_t color);
 };
 
 #endif // PAGE_MANAGER_H

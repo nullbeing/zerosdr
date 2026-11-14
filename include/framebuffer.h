@@ -24,6 +24,12 @@ public:
 
     int getWidth() const { return width; }
     int getHeight() const { return height; }
+
+    // Direct access to the software back buffer (used to freeze a frame while
+    // the exit prompt is shown).
+    uint16_t* pixels() { return back_buffer_.data(); }
+    const uint16_t* pixels() const { return back_buffer_.data(); }
+    size_t pixelCount() const { return back_buffer_.size(); }
     bool isInitialized() const { return initialized; }
 
 private:

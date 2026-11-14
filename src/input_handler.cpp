@@ -172,6 +172,9 @@ AppKeyCode InputHandler::pollKey() {
         }
 
         AppKeyCode code = translateKeyCode(ev.code, shift_pressed);
+        if (code == APPKEY_ESC) {
+            esc_held_ = (ev.value != 0);
+        }
 
         static const bool debug_keys = (getenv("ZEROSDR_DEBUG_KEYS") != nullptr);
         if (debug_keys) {

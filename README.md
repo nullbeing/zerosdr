@@ -184,7 +184,8 @@ Open **zeroSDR** from the launcher, then check:
 1. the spectrum/waterfall is moving,
 2. **press `H` — the key list appears; press `→` for settings**,
 3. audio is audible (tune to a known station),
-4. `Tab` switches to the ADSB page, `Q`/`Esc` returns to the launcher.
+4. `Tab` switches to the ADSB page; hold `Esc` for 2 s (or press `Q`) to return
+   to the launcher.
 
 Logs:
 
@@ -284,7 +285,8 @@ codes, and plain letters are used for the SDR controls.
 | `Fn`+`J` (PrintScreen) | Screenshot (`/tmp/zerosdr_*.png`) |
 | `H` | Key list, then `→` for settings |
 | `Tab` | Switch page (SDR ↔ ADSB) |
-| `Q` / `Esc` | Quit |
+| `Q` | Quit immediately |
+| `Esc` (hold 2 s) | Quit, with a centered progress prompt |
 
 ### PC keyboard
 
@@ -304,7 +306,8 @@ codes, and plain letters are used for the SDR controls.
 | `Shift+S` | Screenshot |
 | `H` | Key list / settings |
 | `Tab` | Switch page |
-| `Q` / `Esc` | Quit |
+| `Q` | Quit immediately |
+| `Esc` (hold 2 s) | Quit, with a centered progress prompt |
 
 ## Settings (`H` → `→`)
 

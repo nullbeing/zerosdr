@@ -60,10 +60,14 @@ public:
     // Get the hold duration of the last released key
     int getLastReleasedHoldDuration(AppKeyCode key);
 
+    // True while the ESC key is physically down (used for hold-to-exit).
+    bool escHeld() const { return esc_held_; }
+
 private:
     int kbd_fd;
     bool initialized;
     bool cardputer_zero_;
+    bool esc_held_ = false;
 
     AppKeyCode translateKeyCode(int linux_keycode, bool shift_pressed);
     AppKeyCode translateCardputerZero(int linux_keycode, bool shift_pressed);
