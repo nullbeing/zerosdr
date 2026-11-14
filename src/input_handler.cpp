@@ -306,7 +306,7 @@ AppKeyCode InputHandler::translateCardputerZero(int linux_keycode,
         case KEY_MUTE:       return APPKEY_SPACE;       // fn+A
         case KEY_PLAYPAUSE:  return APPKEY_SPACE;       // fn+Q
         case KEY_INSERT:     return APPKEY_BW;          // fn+B
-        case KEY_SYSRQ:      return APPKEY_SCREENSHOT;  // fn+J (PrintScreen)
+        case KEY_F12:        return APPKEY_SCREENSHOT;  // fn+P (F12)
         case KEY_HELP:       return APPKEY_H;           // fn+H
 
         // Letter alias kept from the previous map (no fn needed).

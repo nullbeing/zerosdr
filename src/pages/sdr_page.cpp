@@ -1,4 +1,5 @@
 #include "pages/sdr_page.h"
+#include "screenshot.h"
 #include "core/first_run_guide.h"
 #include <iostream>
 #include <algorithm>
@@ -337,15 +338,9 @@ bool SDRPage::handleInput(AppKeyCode key) {
         return true;
     }
     if (key == APPKEY_SCREENSHOT) {
-        char filename[64];
-        time_t now = time(nullptr);
-        struct tm* t = localtime(&now);
-        snprintf(filename, sizeof(filename),
-                 "/tmp/zerosdr_%04d%02d%02d_%02d%02d%02d.png",
-                 t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-                 t->tm_hour, t->tm_min, t->tm_sec);
-        if (fb_.saveScreenshot(filename)) {
-            std::cout << "Screenshot saved: " << filename << std::endl;
+        const std::string path = makeScreenshotPath();
+        if (fb_.saveScreenshot(path.c_str())) {
+            std::cout << "Screenshot saved: " << path << std::endl;
         } else {
             std::cerr << "Screenshot failed" << std::endl;
         }

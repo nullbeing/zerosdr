@@ -1,4 +1,5 @@
 #include "pages/adsb_page.h"
+#include "screenshot.h"
 #include <iostream>
 #include <algorithm>
 #include <cstring>
@@ -348,15 +349,9 @@ void ADSBPage::handleListInput(AppKeyCode key) {
             break;
 
         case APPKEY_SCREENSHOT: {
-            char filename[64];
-            time_t now = time(nullptr);
-            struct tm* t = localtime(&now);
-            snprintf(filename, sizeof(filename),
-                     "/tmp/adsb_%04d%02d%02d_%02d%02d%02d.png",
-                     t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-                     t->tm_hour, t->tm_min, t->tm_sec);
-            if (fb_.saveScreenshot(filename)) {
-                std::cout << "Screenshot saved: " << filename << std::endl;
+            const std::string path = makeScreenshotPath();
+            if (fb_.saveScreenshot(path.c_str())) {
+                std::cout << "Screenshot saved: " << path << std::endl;
             } else {
                 std::cerr << "Screenshot failed" << std::endl;
             }
@@ -477,15 +472,9 @@ void ADSBPage::handleDetailInput(AppKeyCode key) {
 
 
         case APPKEY_SCREENSHOT: {
-            char filename[64];
-            time_t now = time(nullptr);
-            struct tm* t = localtime(&now);
-            snprintf(filename, sizeof(filename),
-                     "/tmp/adsb_%04d%02d%02d_%02d%02d%02d.png",
-                     t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-                     t->tm_hour, t->tm_min, t->tm_sec);
-            if (fb_.saveScreenshot(filename)) {
-                std::cout << "Screenshot saved: " << filename << std::endl;
+            const std::string path = makeScreenshotPath();
+            if (fb_.saveScreenshot(path.c_str())) {
+                std::cout << "Screenshot saved: " << path << std::endl;
             } else {
                 std::cerr << "Screenshot failed" << std::endl;
             }
@@ -1007,15 +996,9 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
             break;
 
         case APPKEY_SCREENSHOT: {
-            char filename[64];
-            time_t now = time(nullptr);
-            struct tm* t = localtime(&now);
-            snprintf(filename, sizeof(filename),
-                     "/tmp/radar_%04d%02d%02d_%02d%02d%02d.png",
-                     t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-                     t->tm_hour, t->tm_min, t->tm_sec);
-            if (fb_.saveScreenshot(filename)) {
-                std::cout << "Screenshot saved: " << filename << std::endl;
+            const std::string path = makeScreenshotPath();
+            if (fb_.saveScreenshot(path.c_str())) {
+                std::cout << "Screenshot saved: " << path << std::endl;
             } else {
                 std::cerr << "Screenshot failed" << std::endl;
             }

@@ -283,7 +283,7 @@ codes, and plain letters are used for the SDR controls.
 | `G` | Hardware AGC on/off |
 | `M` | Color theme for spectrum and waterfall |
 | `Y` | Display zoom (only spans the sample rate can fill) |
-| `Fn`+`J` (PrintScreen) | Screenshot (`/tmp/zerosdr_*.png`) |
+| `Fn`+`P` (F12) | Screenshot (`~/zerosdr_screenshot_*.png`) |
 | `H` | Key list, then `→` for settings |
 | `Tab` | Switch page (SDR ↔ ADSB) |
 | `Q` | Quit immediately |

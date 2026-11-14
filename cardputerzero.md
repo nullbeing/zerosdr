@@ -465,7 +465,7 @@ zeroSDR 会自动识别设备名中的 `tca8418`，并使用 Cardputer Zero 专�
 | `G` | 硬件 AGC 开关 |
 | `M` | 显示模式 |
 | `Y` | 显示缩放 |
-| `Fn` + `J`（PrintScreen） | 截图（`/tmp/zerosdr_*.png`） |
+| `Fn` + `P`（F12） | 截图（`~/zerosdr_screenshot_*.png`） |
 | `H` | 按键列表（`→` 切设置页） |
 | `Tab` | SDR / ADSB 页面切换 |
 | `Q` / `Esc` | 退出 |

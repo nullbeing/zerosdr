@@ -698,7 +698,7 @@ void SDRUIRenderer::renderKeyHelp() {
         {nullptr,  "DISPLAY"},
         {"Y",      "ZOOM"},
         {nullptr,  "SYSTEM"},
-        {"FN+J",   "SCREENSHOT"},
+        {"FN+P",   "SCREENSHOT"},
         {"TAB",    "SWITCH PAGE"},
         {"Q",      "QUIT"},
         {"HOLD ESC","QUIT"},
