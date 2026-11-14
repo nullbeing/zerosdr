@@ -118,7 +118,7 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
     gps.poll();
 
     UiText text;
-    int page = 0;  // 0 = keys, 1 = position, 2 = finish
+    int page = 0;  // 0 = keys, 1 = spectrum, 2 = position, 3 = finish
     bool editing = false;
     int field = 0;  // 0 = lat, 1 = lon
     bool show_again = false;
@@ -142,7 +142,7 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
             int y = 40;
             const char* rows[][2] = {
                 {"H", "key list + settings"},
-                {"TAB", "SDR <-> ADSB"},
+                {"TAB", "SDR > SPECTRUM > ADSB"},
                 {"ENTER", "ADSB: list > detail > radar"},
                 {"< >", "change guide page"},
             };
@@ -153,6 +153,26 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
             }
             text.draw(fb, 12, 140, "ENTER: next page    ESC: skip", COLOR_TEXT_DIM, 12);
         } else if (page == 1) {
+            text.draw(fb, 12, 10, "WIDEBAND SPECTRUM", COLOR_YELLOW, 16);
+            int y = 42;
+            const char* rows[][2] = {
+                {"TAB", "SDR > SPECTRUM > ADSB"},
+                {"R", "set START / STOP range"},
+                {"< >", "pan the visible window"},
+                {"UP/DOWN", "zoom in / out"},
+                {"M / H", "max hold / help"},
+            };
+            for (auto& r : rows) {
+                text.draw(fb, 16, y, r[0], COLOR_YELLOW, 12);
+                text.draw(fb, 100, y, r[1], COLOR_TEXT_BRIGHT, 12);
+                y += 20;
+            }
+            text.draw(fb, 12, 138,
+                      "First start asks for START/STOP in MHz",
+                      COLOR_TEXT_DIM, 12);
+            text.draw(fb, 12, 154, "ENTER: next page    ESC: skip",
+                      COLOR_TEXT_DIM, 12);
+        } else if (page == 2) {
             text.draw(fb, 12, 10, "POSITION", COLOR_YELLOW, 16);
 
             char gps_line[64];
@@ -230,7 +250,7 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
     while (running) {
         usleep(30000);
 
-        if (page == 1) gps.poll();
+        if (page == 2) gps.poll();
 
         const AppKeyCode key = input.pollKey();
         if (key == APPKEY_NONE) continue;
@@ -250,9 +270,9 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
                 editing = false;
                 edit_invalid = false;
                 if (key == APPKEY_LEFT) {
-                    page = (page + 2) % 3;
+                    page = (page + 3) % 4;
                 } else if (key == APPKEY_RIGHT) {
-                    page = (page + 1) % 3;
+                    page = (page + 1) % 4;
                 } else if (key == APPKEY_UP) {
                     field = 0;
                 } else {
@@ -317,21 +337,23 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
         if (key == APPKEY_ESC) {
             running = false;
         } else if (key == APPKEY_LEFT) {
-            page = (page + 2) % 3;
+            page = (page + 3) % 4;
             editing = false;
         } else if (key == APPKEY_RIGHT) {
-            page = (page + 1) % 3;
+            page = (page + 1) % 4;
             editing = false;
         } else if (key == APPKEY_UP) {
-            if (page == 1) field = 0;
+            if (page == 2) field = 0;
         } else if (key == APPKEY_DOWN) {
-            if (page == 1) field = 1;
+            if (page == 2) field = 1;
         } else if (key == APPKEY_SPACE) {
-            if (page == 2) show_again = !show_again;
+            if (page == 3) show_again = !show_again;
         } else if (key == APPKEY_ENTER) {
             if (page == 0) {
                 page = 1;
             } else if (page == 1) {
+                page = 2;
+            } else if (page == 2) {
                 editing = true;
                 edit_fresh = true;
                 edit_invalid = false;
