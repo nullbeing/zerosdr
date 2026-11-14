@@ -1,4 +1,5 @@
 #include "ui/sdr_ui_renderer.h"
+#include "font.h"
 #include <algorithm>
 #include <cstdio>
 #include <cmath>
@@ -668,64 +669,104 @@ void SDRUIRenderer::drawLogo(int x, int y) {
 
 // Full-screen key reference. Uses the 6x8 base font so all bindings fit on
 // the 320x170 panel: two columns of 12 rows plus a one-line title.
+void SDRUIRenderer::drawHelpTabs(bool settings_active) {
+    struct TabDraw {
+        const char* label;
+        bool active;
+    };
+    const char* keys_label = settings_active ? "< KEYS" : "KEYS";
+    const char* settings_label = settings_active ? "SETTINGS" : "SETTINGS >";
+
+    constexpr int y = 3;
+    constexpr int h = 13;
+
+    auto draw_tab = [&](int x, const char* label, bool active) {
+        const int w =
+            static_cast<int>(std::strlen(label)) * FONT_6X8_WIDTH + 10;
+        if (active) {
+            fb_.fillRect(x, y, w, h, COLOR_YELLOW);
+            drawText(x + 5, y + 3, label, COLOR_BLACK);
+        } else {
+            fb_.drawRect(x, y, w, h, COLOR_TEXT_DIM);
+            drawText(x + 5, y + 3, label, COLOR_TEXT_BRIGHT);
+        }
+        return w;
+    };
+
+    int x = 6;
+    x += draw_tab(x, keys_label, !settings_active) + 4;
+    draw_tab(x, settings_label, settings_active);
+
+    drawText(178, y + 3, "L/R SWITCH", COLOR_TEXT_DIM);
+    const char* close = "H CLOSE";
+    drawText(314 - static_cast<int>(std::strlen(close)) * FONT_6X8_WIDTH,
+             y + 3, close, COLOR_TEXT_DIM);
+}
+
 void SDRUIRenderer::renderKeyHelp() {
     struct Entry {
-        const char* key;
+        const char* key;  // nullptr = section header, action holds the title
         const char* action;
     };
 
     static const Entry left[] = {
-        {"Z/LEFT",  "TUNE DOWN"},
-        {"C/RIGHT", "TUNE UP"},
-        {"ALT+Z/C", "COARSE x10"},
-        {"F/UP",    "GAIN UP"},
-        {"X/DOWN",  "GAIN DOWN"},
-        {"0-9 .",   "FREQ INPUT"},
-        {"ENTER",   "APPLY"},
-        {"ESC",     "CANCEL/QUIT"},
-        {"B",       "BANDWIDTH"},
-        {"D",       "DEMOD MODE"},
+        {nullptr,  "TUNE"},
+        {"Z / C",  "TUNE - / +"},
+        {"ALT+Z/C","COARSE x10"},
+        {"0-9 .",  "FREQ INPUT"},
+        {"ENTER",  "APPLY"},
+        {"ESC",    "CANCEL"},
+        {nullptr,  "VIEW"},
+        {"F / X",  "GAIN - / +"},
+        {"D",      "DEMOD MODE"},
+        {"B",      "BANDWIDTH"},
+        {"T",      "TUNE STEP"},
+        {"M",      "COLOR THEME"},
     };
     static const Entry right[] = {
-        {"FN+D/S",  "VOLUME +/-"},
-        {"S",       "SQUELCH"},
-        {"T",       "TUNE STEP"},
-        {"SPACE",   "AUDIO ON/OFF"},
-        {"G",       "HW AGC"},
-        {"M",       "COLOR THEME"},
-        {"Y",       "ZOOM"},
-        {"FN+J",    "SCREENSHOT"},
-        {"H",       "THIS HELP"},
-        {"RIGHT",   "SETTINGS TAB"},
-        {"TAB",     "SWITCH PAGE"},
-        {"Q",       "QUIT"},
+        {nullptr,  "AUDIO"},
+        {"FN+D / S","VOLUME"},
+        {"S",      "SQUELCH"},
+        {"SPACE",  "AUDIO ON/OFF"},
+        {"G",      "HW AGC"},
+        {nullptr,  "DISPLAY"},
+        {"Y",      "ZOOM"},
+        {nullptr,  "SYSTEM"},
+        {"FN+J",   "SCREENSHOT"},
+        {"TAB",    "SWITCH PAGE"},
+        {"Q",      "QUIT"},
+        {"HOLD ESC","QUIT"},
     };
+
     constexpr int left_rows = sizeof(left) / sizeof(left[0]);
     constexpr int right_rows = sizeof(right) / sizeof(right[0]);
 
     fb_.fillRect(0, 0, 320, 170, COLOR_BLACK);
     fb_.drawRect(1, 1, 318, 168, COLOR_TEXT_DIM);
-
-    drawText(6, 5, "KEY HELP", COLOR_YELLOW);
-    drawText(68, 5, "H close   > settings", COLOR_TEXT_DIM);
+    drawHelpTabs(false);
 
     constexpr int left_x = 6;
     constexpr int right_x = 168;
-    constexpr int action_dx = 56;
+    constexpr int action_dx = 64;
+    constexpr int row_y = 22;
+    constexpr int row_step = 11;
 
-    for (int i = 0; i < left_rows; ++i) {
-        const int y = 20 + i * 12;
-        drawText(left_x, y, left[i].key, COLOR_YELLOW);
-        drawText(left_x + action_dx, y, left[i].action, COLOR_WHITE);
-    }
-    for (int i = 0; i < right_rows; ++i) {
-        const int y = 20 + i * 12;
-        drawText(right_x, y, right[i].key, COLOR_YELLOW);
-        drawText(right_x + action_dx, y, right[i].action, COLOR_WHITE);
-    }
+    auto draw_column = [&](const Entry* entries, int rows, int x) {
+        for (int i = 0; i < rows; ++i) {
+            const int y = row_y + i * row_step;
+            if (entries[i].key == nullptr) {
+                drawText(x, y, entries[i].action, COLOR_SPECTRUM);
+            } else {
+                drawText(x, y, entries[i].key, COLOR_YELLOW);
+                drawText(x + action_dx, y, entries[i].action, COLOR_WHITE);
+            }
+        }
+    };
+
+    draw_column(left, left_rows, left_x);
+    draw_column(right, right_rows, right_x);
 }
 
-// Settings tab: the knobs that do not deserve a dedicated hotkey.
 void SDRUIRenderer::renderSettings(const SdrSettingsView& view) {
     static const char* labels[5] = {
         "FM DEEMPH", "AUDIO AGC", "FFT SIZE", "SAMPLE RATE", "SHOW GUIDE"
@@ -740,12 +781,10 @@ void SDRUIRenderer::renderSettings(const SdrSettingsView& view) {
 
     fb_.fillRect(0, 0, 320, 170, COLOR_BLACK);
     fb_.drawRect(1, 1, 318, 168, COLOR_TEXT_DIM);
-
-    drawText(6, 5, "SETTINGS", COLOR_YELLOW);
-    drawText(76, 5, "H close   <> keys", COLOR_TEXT_DIM);
+    drawHelpTabs(true);
 
     for (int i = 0; i < 5; ++i) {
-        const int y = 40 + i * 22;
+        const int y = 34 + i * 22;
         if (i == view.selected) {
             fb_.fillRect(6, y - 6, 308, 18, COLOR_SELECTED);
             drawText(12, y, ">", COLOR_YELLOW);
@@ -755,5 +794,5 @@ void SDRUIRenderer::renderSettings(const SdrSettingsView& view) {
         drawText(196, y, values[i], COLOR_YELLOW);
     }
 
-    drawText(6, 150, "^v select   ENTER change", COLOR_TEXT_DIM);
+    drawText(6, 150, "UP/DOWN SELECT   ENTER CHANGE", COLOR_TEXT_DIM);
 }

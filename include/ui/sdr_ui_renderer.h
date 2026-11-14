@@ -82,6 +82,7 @@ private:
     float wf_ceiling_; // dB ceiling (smoothed)
 
     // Helper methods
+    void drawHelpTabs(bool settings_active);
     void drawSpectrumGraph(const std::vector<float>& mag, int x, int y, int w, int h,
                           uint32_t center_freq, uint32_t span, uint32_t demod_bandwidth);
     void drawDbScale(int x, int y, int h, float db_min, float db_max);
