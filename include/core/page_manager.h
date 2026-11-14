@@ -105,6 +105,8 @@ private:
 
     // Centered translucent exit prompt with a progress bar.
     void drawExitPrompt(float progress);
+    void drawRoundedPanel(int x, int y, int w, int h, int radius,
+                          uint16_t color, float alpha);
     void drawText6x8(int x, int y, const char* text, uint16_t color);
 };
 

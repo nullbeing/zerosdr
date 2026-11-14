@@ -3,6 +3,8 @@
 #include <iostream>
 #include <sys/time.h>
 #include <unistd.h>
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 
 PageManager::PageManager(Framebuffer& fb, InputHandler& input)
@@ -239,6 +241,27 @@ void PageManager::drawText6x8(int x, int y, const char* text,
     }
 }
 
+void PageManager::drawRoundedPanel(int x, int y, int w, int h, int radius,
+                                   uint16_t color, float alpha) {
+    if (w <= 0 || h <= 0) return;
+    radius = std::max(0, std::min(radius, std::min(w / 2, h / 2)));
+    for (int row = 0; row < h; ++row) {
+        int inset = 0;
+        if (row < radius) {
+            const float dy = radius - (row + 0.5f);
+            inset = radius - static_cast<int>(std::lround(
+                                 std::sqrt(radius * radius - dy * dy)));
+        } else if (row >= h - radius) {
+            const float dy = (row + 0.5f) - (h - radius);
+            inset = radius - static_cast<int>(std::lround(
+                                 std::sqrt(radius * radius - dy * dy)));
+        }
+        for (int col = 0; col < w - 2 * inset; ++col) {
+            fb_.blendPixel(x + inset + col, y + row, color, alpha);
+        }
+    }
+}
+
 void PageManager::drawExitPrompt(float progress) {
     const int w = fb_.getWidth();
     const int h = fb_.getHeight();
@@ -257,12 +280,7 @@ void PageManager::drawExitPrompt(float progress) {
     const int panel_h = 46;
     const int px = (w - panel_w) / 2;
     const int py = (h - panel_h) / 2;
-    for (int y = 0; y < panel_h; ++y) {
-        for (int x = 0; x < panel_w; ++x) {
-            fb_.blendPixel(px + x, py + y, COLOR_DIALOG_BG, 0.82f);
-        }
-    }
-    fb_.drawRect(px, py, panel_w, panel_h, COLOR_TEXT_BRIGHT);
+    drawRoundedPanel(px, py, panel_w, panel_h, 9, COLOR_DIALOG_BG, 0.82f);
 
     const char* title = "HOLD ESC 2S TO EXIT";
     const int title_w = static_cast<int>(std::strlen(title)) * FONT_6X8_WIDTH;
