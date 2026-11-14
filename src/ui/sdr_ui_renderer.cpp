@@ -710,7 +710,8 @@ void SDRUIRenderer::renderKeyHelp() {
     fb_.fillRect(0, 0, 320, 170, COLOR_BLACK);
     fb_.drawRect(1, 1, 318, 168, COLOR_TEXT_DIM);
     drawText(6, 5, "KEY HELP", COLOR_YELLOW);
-    drawText(68, 5, "H close   > settings", COLOR_TEXT_DIM);
+    drawText(68, 5, "H close   ", COLOR_TEXT_DIM);
+    drawText(128, 5, "> settings", COLOR_YELLOW);
 
     constexpr int left_x = 6;
     constexpr int right_x = 168;
