@@ -319,7 +319,9 @@ bool SDRPage::handleInput(AppKeyCode key) {
         handleFrequencyInput(key);
         return true;
     }
-    if (key == APPKEY_LEFT || key == APPKEY_RIGHT || key == APPKEY_PAGEUP || key == APPKEY_PAGEDOWN ||
+    if (key == APPKEY_LEFT || key == APPKEY_RIGHT ||
+        key == APPKEY_LEFT_COARSE || key == APPKEY_RIGHT_COARSE ||
+        key == APPKEY_PAGEUP || key == APPKEY_PAGEDOWN ||
         key == APPKEY_UP || key == APPKEY_DOWN) {
         handleNavigationKeys(key);
         return true;
