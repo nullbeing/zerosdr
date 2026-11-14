@@ -89,8 +89,8 @@ private:
     static const int RADAR_W = 194;  // Right 194 pixels for radar
     static const int RADAR_H = 154;
     static const int RADAR_CENTER_X = 223;  // 126 + 194/2 = 223
-    static const int RADAR_CENTER_Y = 93;   // 16 + 154/2 = 93
-    static const int RADAR_RADIUS = 66;
+    static const int RADAR_CENTER_Y = 85;   // fills the screen height
+    static const int RADAR_RADIUS = 75;     // N/S sit outside the ring
     static const int NUM_RANGE_RINGS = 3;
     static const int CALLSIGN_BOX_Y = 144;
     static const int NUM_TRAIL_LINES = 4;

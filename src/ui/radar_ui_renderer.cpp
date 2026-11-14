@@ -286,9 +286,10 @@ void RadarUIRenderer::drawRingLabels(int cx, int cy, int radius, int num_rings,
 }
 
 void RadarUIRenderer::drawCompassMarkings(int cx, int cy, int radius) {
-    // N/S sit inside the ring (no room outside), E/W stay outside as before.
-    drawText(cx - 3, cy - radius + 4, "N", COLOR_RADAR_TEXT);
-    drawText(cx - 3, cy + radius - FONT_6X8_HEIGHT - 2, "S", COLOR_RADAR_TEXT);
+    // Cardinal labels sit outside the ring. The circle is allowed to reach
+    // into the otherwise empty right side of the top status bar.
+    drawText(cx - 3, cy - radius - 10, "N", COLOR_RADAR_TEXT);
+    drawText(cx - 3, cy + radius + 2, "S", COLOR_RADAR_TEXT);
     drawText(cx + radius + 4, cy - 4, "E", COLOR_RADAR_TEXT);
     drawText(cx - radius - 12, cy - 4, "W", COLOR_RADAR_TEXT);
 
