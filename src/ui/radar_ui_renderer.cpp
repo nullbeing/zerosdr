@@ -179,9 +179,9 @@ void RadarUIRenderer::renderAircraftList(const std::vector<AircraftState>& aircr
         // Distance from the observer in km (right-aligned, ends at x=114)
         if (ac.distance > 0) {
             if (ac.distance < 10.0f) {
-                snprintf(buffer, sizeof(buffer), "%.1f", ac.distance);
+                snprintf(buffer, sizeof(buffer), "%.1fk", ac.distance);
             } else {
-                snprintf(buffer, sizeof(buffer), "%.0f", ac.distance);
+                snprintf(buffer, sizeof(buffer), "%.0fk", ac.distance);
             }
         } else {
             snprintf(buffer, sizeof(buffer), "-");
