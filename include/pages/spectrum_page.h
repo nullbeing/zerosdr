@@ -64,6 +64,9 @@ private:
     void handleEditorKey(AppKeyCode key);
     void drawEditor();
     void drawDisplay();
+    void drawHelpOverlay();
+    void drawRoundedPanel(int x, int y, int w, int h, int radius,
+                          uint16_t color, float alpha);
     void drawSpectrum();
     void drawAxis();
     void drawWaterfall();
@@ -109,6 +112,7 @@ private:
     std::atomic<uint32_t> sweep_freq_{0};
 
     bool editing_ = false;
+    bool help_visible_ = false;
     bool edit_stop_field_ = false;
     bool edit_fresh_ = true;
     std::string edit_start_;

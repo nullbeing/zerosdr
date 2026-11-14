@@ -412,6 +412,7 @@ saved to `~/.config/zerosdr/spectrum_range.txt` and reused afterwards.
 | `Enter` | Reset to the full configured range |
 | `M` | Toggle max hold (red peak trace) |
 | `R` | Edit the start/stop range |
+| `H` | Toggle the translucent help overlay |
 | `Tab` | Switch page (SDR → Spectrum → ADSB) |
 | `Esc` (hold 2 s) | Quit, with the centered progress prompt |
 

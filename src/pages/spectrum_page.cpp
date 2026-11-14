@@ -269,6 +269,16 @@ bool SpectrumPage::handleInput(AppKeyCode key) {
         handleEditorKey(key);
         return true;
     }
+    if (help_visible_) {
+        if (key == APPKEY_H || key == APPKEY_ESC) {
+            help_visible_ = false;
+        }
+        return true;
+    }
+    if (key == APPKEY_H) {
+        help_visible_ = true;
+        return true;
+    }
 
     const size_t min_bins = std::min<size_t>(32, total_bins_);
     switch (key) {
@@ -478,7 +488,66 @@ void SpectrumPage::drawDisplay() {
     drawAxis();
     drawWaterfall();
     drawStatusBar();
+    if (help_visible_) drawHelpOverlay();
     fb_.update();
+}
+
+void SpectrumPage::drawRoundedPanel(int x, int y, int w, int h, int radius,
+                                    uint16_t color, float alpha) {
+    if (w <= 0 || h <= 0) return;
+    radius = std::max(0, std::min(radius, std::min(w / 2, h / 2)));
+    for (int row = 0; row < h; ++row) {
+        int inset = 0;
+        if (row < radius) {
+            const float dy = radius - (row + 0.5f);
+            inset = radius - static_cast<int>(std::lround(
+                                 std::sqrt(radius * radius - dy * dy)));
+        } else if (row >= h - radius) {
+            const float dy = (row + 0.5f) - (h - radius);
+            inset = radius - static_cast<int>(std::lround(
+                                 std::sqrt(radius * radius - dy * dy)));
+        }
+        for (int col = 0; col < w - 2 * inset; ++col) {
+            fb_.blendPixel(x + inset + col, y + row, color, alpha);
+        }
+    }
+}
+
+void SpectrumPage::drawHelpOverlay() {
+    // Dim the page, then lay a translucent rounded panel on top.
+    for (int y = 0; y < 170; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            fb_.blendPixel(x, y, COLOR_BLACK, 0.45f);
+        }
+    }
+
+    const int panel_w = 252;
+    const int panel_h = 126;
+    const int radius = 9;
+    const int px = (kWidth - panel_w) / 2;
+    const int py = (170 - panel_h) / 2;
+    drawRoundedPanel(px, py, panel_w, panel_h, radius, COLOR_DIALOG_BG, 0.85f);
+
+    const char* title = "SPECTRUM HELP";
+    const int title_w = static_cast<int>(std::strlen(title)) * 7;
+    ui_.drawText(px + (panel_w - title_w) / 2, py + 8, title, COLOR_YELLOW);
+
+    static const char* const keys[] = {
+        "LEFT/RIGHT", "UP/DOWN", "ENTER",  "M",
+        "R",          "TAB",     "H",      "HOLD ESC",
+    };
+    static const char* const actions[] = {
+        "PAN",       "ZOOM",   "FULL SPAN", "MAX HOLD",
+        "SET RANGE", "PAGE",   "CLOSE",     "EXIT",
+    };
+
+    const int row_y = py + 26;
+    const int row_step = 11;
+    for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
+        const int y = row_y + static_cast<int>(i) * row_step;
+        ui_.drawText(px + 16, y, keys[i], COLOR_YELLOW);
+        ui_.drawText(px + 100, y, actions[i], COLOR_TEXT_BRIGHT);
+    }
 }
 
 void SpectrumPage::drawSpectrum() {
