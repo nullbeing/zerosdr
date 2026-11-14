@@ -51,6 +51,7 @@ SpectrumPage::SpectrumPage(Framebuffer& fb, SDRController& sdr,
     : fb_(fb), sdr_(sdr), input_(input), ui_(fb), fft_(kFftSize) {
     wf_pixels_.assign(kWaterfallH * kWidth, COLOR_BG_DARK);
     row_db_.assign(kWidth, -120.0f);
+    disp_db_.assign(kWidth, -120.0f);
 }
 
 SpectrumPage::~SpectrumPage() { cleanup(); }
@@ -205,7 +206,7 @@ void SpectrumPage::sweepLoop() {
 
             acc.assign(sbins, 0.0f);
             int frames = 0;
-            for (int f = 0; f < 3 && sweep_run_; ++f) {
+            for (int f = 0; f < 5 && sweep_run_; ++f) {
                 if (!waitSamples(iq, kFftSize * 2)) break;
                 fft_.process(iq, mag);
                 for (size_t j = 0; j < sbins; ++j) {
@@ -423,6 +424,7 @@ void SpectrumPage::handleEditorKey(AppKeyCode key) {
 
 void SpectrumPage::clearWaterfall() {
     std::fill(wf_pixels_.begin(), wf_pixels_.end(), COLOR_BG_DARK);
+    std::fill(disp_db_.begin(), disp_db_.end(), -120.0f);
 }
 
 std::string SpectrumPage::formatMhz(uint32_t hz, int decimals) const {
@@ -484,6 +486,27 @@ void SpectrumPage::drawSpectrum() {
                 min_db = std::min(min_db, value);
                 max_db = std::max(max_db, value);
             }
+        }
+    }
+
+    // Spatial [1 2 1] smoothing plus a light temporal blend removes the
+    // pixel-to-pixel FFT noise that makes the trace look jagged.
+    std::vector<float> smoothed(kWidth);
+    for (int x = 0; x < kWidth; ++x) {
+        const float left = row_db_[x > 0 ? x - 1 : 0];
+        const float right = row_db_[x + 1 < kWidth ? x + 1 : kWidth - 1];
+        smoothed[x] = (left + 2.0f * row_db_[x] + right) * 0.25f;
+    }
+    for (int x = 0; x < kWidth; ++x) {
+        if (disp_db_[x] <= -119.0f) {
+            disp_db_[x] = smoothed[x];
+        } else {
+            disp_db_[x] = disp_db_[x] * 0.55f + smoothed[x] * 0.45f;
+        }
+        row_db_[x] = disp_db_[x];
+        if (row_db_[x] > -119.0f) {
+            min_db = std::min(min_db, row_db_[x]);
+            max_db = std::max(max_db, row_db_[x]);
         }
     }
 

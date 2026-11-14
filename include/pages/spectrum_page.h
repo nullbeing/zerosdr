@@ -39,11 +39,11 @@ private:
     static constexpr int kWidth = 320;
     // Spectrum section (graph + axis) is 3/5 of the 156 px content area,
     // the waterfall is the remaining 2/5.
-    static constexpr int kSpectrumH = 82;
-    static constexpr int kAxisY = 82;
+    static constexpr int kSpectrumH = 92;
+    static constexpr int kAxisY = 92;
     static constexpr int kAxisH = 12;
-    static constexpr int kWaterfallY = 94;
-    static constexpr int kWaterfallH = 62;
+    static constexpr int kWaterfallY = 104;
+    static constexpr int kWaterfallH = 52;
     static constexpr int kStatusY = 156;
     static constexpr size_t kFftSize = 512;
     static constexpr uint32_t kSampleRate = 1024000;
@@ -89,6 +89,7 @@ private:
     size_t total_bins_ = 1;
 
     std::vector<float> bins_db_;
+    std::vector<float> disp_db_;
     mutable std::mutex data_mutex_;
     std::vector<uint16_t> wf_pixels_;
     std::vector<float> row_db_;
