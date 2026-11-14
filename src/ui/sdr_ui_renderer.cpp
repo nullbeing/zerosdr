@@ -631,8 +631,6 @@ void SDRUIRenderer::renderKeyHelp() {
         {"ALT+Z/C", "COARSE x10"},
         {"F/UP",    "GAIN UP"},
         {"X/DOWN",  "GAIN DOWN"},
-        {"PGUP",    "+1 MHz"},
-        {"PGDN",    "-1 MHz"},
         {"0-9 .",   "FREQ INPUT"},
         {"ENTER",   "APPLY"},
         {"ESC",     "CANCEL/QUIT"},
@@ -653,7 +651,8 @@ void SDRUIRenderer::renderKeyHelp() {
         {"TAB",     "SWITCH PAGE"},
         {"Q",       "QUIT"},
     };
-    constexpr int rows = sizeof(left) / sizeof(left[0]);
+    constexpr int left_rows = sizeof(left) / sizeof(left[0]);
+    constexpr int right_rows = sizeof(right) / sizeof(right[0]);
 
     fb_.fillRect(0, 0, 320, 170, COLOR_BLACK);
     fb_.drawRect(1, 1, 318, 168, COLOR_TEXT_DIM);
@@ -665,10 +664,13 @@ void SDRUIRenderer::renderKeyHelp() {
     constexpr int right_x = 168;
     constexpr int action_dx = 56;
 
-    for (int i = 0; i < rows; ++i) {
+    for (int i = 0; i < left_rows; ++i) {
         const int y = 20 + i * 12;
         drawText(left_x, y, left[i].key, COLOR_YELLOW);
         drawText(left_x + action_dx, y, left[i].action, COLOR_WHITE);
+    }
+    for (int i = 0; i < right_rows; ++i) {
+        const int y = 20 + i * 12;
         drawText(right_x, y, right[i].key, COLOR_YELLOW);
         drawText(right_x + action_dx, y, right[i].action, COLOR_WHITE);
     }

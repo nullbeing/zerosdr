@@ -195,8 +195,8 @@ AppKeyCode InputHandler::pollKey() {
             // Fresh key press — start hold timer for nav keys
             bool is_nav = (code == APPKEY_UP || code == APPKEY_DOWN ||
                            code == APPKEY_LEFT || code == APPKEY_RIGHT ||
-                           code == APPKEY_LEFT_COARSE || code == APPKEY_RIGHT_COARSE ||
-                           code == APPKEY_PAGEUP || code == APPKEY_PAGEDOWN);
+                           code == APPKEY_LEFT_COARSE ||
+                           code == APPKEY_RIGHT_COARSE);
             bool is_squelch = (code == APPKEY_S);
 
             if (is_nav || is_squelch) {
@@ -220,8 +220,8 @@ AppKeyCode InputHandler::pollKey() {
             // Kernel auto-repeat — fire nav keys only
             bool is_nav = (code == APPKEY_UP || code == APPKEY_DOWN ||
                            code == APPKEY_LEFT || code == APPKEY_RIGHT ||
-                           code == APPKEY_LEFT_COARSE || code == APPKEY_RIGHT_COARSE ||
-                           code == APPKEY_PAGEUP || code == APPKEY_PAGEDOWN);
+                           code == APPKEY_LEFT_COARSE ||
+                           code == APPKEY_RIGHT_COARSE);
             if (is_nav) {
                 last_nav_key = code;
                 key_is_held = true;
@@ -301,8 +301,6 @@ AppKeyCode InputHandler::translateCardputerZero(int linux_keycode,
             return alt_pressed ? APPKEY_RIGHT_COARSE : APPKEY_RIGHT;
 
         // fn layer codes (official combos).
-        case KEY_PAGEUP:     return APPKEY_PAGEUP;      // fn+L
-        case KEY_PAGEDOWN:   return APPKEY_PAGEDOWN;    // fn+M
         case KEY_VOLUMEUP:   return APPKEY_V;           // fn+D
         case KEY_VOLUMEDOWN: return APPKEY_C;           // fn+S
         case KEY_MUTE:       return APPKEY_SPACE;       // fn+A
@@ -352,10 +350,6 @@ AppKeyCode InputHandler::translateKeyCode(int linux_keycode,
         // Left/Right: Alt+Left/Right = coarse tune (step × 10) in SDRPage
         case KEY_LEFT:     return alt_pressed ? APPKEY_LEFT_COARSE  : APPKEY_LEFT;
         case KEY_RIGHT:    return alt_pressed ? APPKEY_RIGHT_COARSE : APPKEY_RIGHT;
-
-        // Page Up/Down: 1 MHz jump (or whatever the binding consumer uses)
-        case KEY_PAGEUP:   return APPKEY_PAGEUP;
-        case KEY_PAGEDOWN: return APPKEY_PAGEDOWN;
 
         case KEY_EQUAL:    return shift_pressed ? APPKEY_PLUS : APPKEY_NONE;
         case KEY_KPPLUS:   return APPKEY_PLUS;

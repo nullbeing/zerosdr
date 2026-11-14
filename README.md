@@ -266,8 +266,6 @@ codes, and plain letters are used for the SDR controls.
 | `F` / `↑` | Gain up |
 | `X` / `↓` | Gain down |
 | `Alt`+`Z`/`C` | Coarse tune (step × 10) |
-| `Fn`+`L` (PgUp) | Tune +1 MHz |
-| `Fn`+`M` (PgDn) | Tune -1 MHz |
 | `0-9` `.` | Direct frequency input (MHz) |
 | `Enter` | Apply frequency |
 | `Backspace` | Delete last digit |
@@ -295,7 +293,6 @@ codes, and plain letters are used for the SDR controls.
 | `←` `→` | Tune (Alt = coarse) |
 | `Alt`+`Z`/`C` | Coarse tune (step × 10) |
 | `↑` `↓` | Gain |
-| `PgUp` `PgDn` | ±1 MHz |
 | `D` | Demodulation mode |
 | `B` / `Shift+B` | Demodulation bandwidth |
 | `Space` | Audio on/off |
@@ -359,7 +356,7 @@ the current sample rate can fill.
 | Key | Action |
 |-----|--------|
 | `↑` / `↓` | Select aircraft |
-| `←` / `→` | Move 5 rows (`PgUp`/`PgDn` also work) |
+| `←` / `→` | Move 5 rows |
 | `Enter` | Cycle views: list → detail → radar → list |
 | `R` | Jump straight to the radar view (needs an observer position) |
 | `H` | Key list + settings (latitude, longitude, clear position) |

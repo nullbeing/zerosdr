@@ -321,7 +321,6 @@ bool SDRPage::handleInput(AppKeyCode key) {
     }
     if (key == APPKEY_LEFT || key == APPKEY_RIGHT ||
         key == APPKEY_LEFT_COARSE || key == APPKEY_RIGHT_COARSE ||
-        key == APPKEY_PAGEUP || key == APPKEY_PAGEDOWN ||
         key == APPKEY_UP || key == APPKEY_DOWN) {
         handleNavigationKeys(key);
         return true;
@@ -482,10 +481,9 @@ void SDRPage::handleFrequencyInput(AppKeyCode key) {
 }
 
 void SDRPage::handleNavigationKeys(AppKeyCode key) {
-    // Tuning: arrow = current step, shift+arrow = step * 10, PgUp/PgDn = 1 MHz
+    // Tuning: arrow = current step, alt+arrow = step * 10.
     uint32_t step = getCurrentStep();
     uint32_t coarse = step * 10;
-    const uint32_t big_step = 1000000;  // PageUp/PageDown
 
     switch (key) {
         case APPKEY_RIGHT:
@@ -504,15 +502,6 @@ void SDRPage::handleNavigationKeys(AppKeyCode key) {
                 else center_freq_ = 0;
                 sdr_.setFrequency(center_freq_);
             }
-            break;
-        case APPKEY_PAGEUP:
-            center_freq_ += big_step;
-            sdr_.setFrequency(center_freq_);
-            break;
-        case APPKEY_PAGEDOWN:
-            if (center_freq_ > big_step) center_freq_ -= big_step;
-            else center_freq_ = 0;
-            sdr_.setFrequency(center_freq_);
             break;
         case APPKEY_UP:
             if (gain_ < 0) {
