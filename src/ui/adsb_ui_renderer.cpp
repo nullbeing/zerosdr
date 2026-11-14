@@ -817,8 +817,8 @@ void ADSBUIRenderer::renderKeyHelp() {
     const int py = (170 - panel_h) / 2;
     drawRoundedPanel(px, py, panel_w, panel_h, radius, COLOR_DIALOG_BG, 0.85f);
 
-    drawText(px + 12, py + 8, "KEYS", COLOR_YELLOW);
-    drawSmallText(px + 88, py + 12, "H close   <> settings",
+    drawSmallText(px + 12, py + 9, "KEYS", COLOR_YELLOW);
+    drawSmallText(px + 60, py + 9, "H close   <> settings",
                   COLOR_TEXT_DIM);
 
     struct Row { const char* key; const char* action; };
@@ -859,8 +859,8 @@ void ADSBUIRenderer::renderSettingsOverview(double lat, double lon,
     const int py = (170 - panel_h) / 2;
     drawRoundedPanel(px, py, panel_w, panel_h, radius, COLOR_DIALOG_BG, 0.85f);
 
-    drawText(px + 12, py + 8, "SETTINGS", COLOR_YELLOW);
-    drawSmallText(px + 104, py + 12, "H close   <> keys", COLOR_TEXT_DIM);
+    drawSmallText(px + 12, py + 9, "SETTINGS", COLOR_YELLOW);
+    drawSmallText(px + 80, py + 9, "H close   <> keys", COLOR_TEXT_DIM);
 
     char lat_s[32];
     char lon_s[32];
