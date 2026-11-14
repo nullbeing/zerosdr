@@ -628,7 +628,7 @@ void SDRUIRenderer::renderKeyHelp() {
     static const Entry left[] = {
         {"Z/LEFT",  "TUNE DOWN"},
         {"C/RIGHT", "TUNE UP"},
-        {"SH+Z/C",  "COARSE x10"},
+        {"ALT+Z/C", "COARSE x10"},
         {"F/UP",    "GAIN UP"},
         {"X/DOWN",  "GAIN DOWN"},
         {"PGUP",    "+1 MHz"},

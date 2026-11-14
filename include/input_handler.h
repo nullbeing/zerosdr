@@ -24,8 +24,8 @@ enum AppKeyCode {
     APPKEY_E,      // Cycle FM deemphasis (50/75us)
     APPKEY_T,      // Cycle tuning step (Auto / 100Hz / 1k / 5k / 10k / 100k / 1M)
     APPKEY_SPACE,  // Toggle audio
-    APPKEY_LEFT_COARSE,   // Shift+Left  = current step × 10 (coarse tune)
-    APPKEY_RIGHT_COARSE,  // Shift+Right = current step × 10 (coarse tune)
+    APPKEY_LEFT_COARSE,   // Alt+Left  = current step × 10 (coarse tune)
+    APPKEY_RIGHT_COARSE,  // Alt+Right = current step × 10 (coarse tune)
     APPKEY_Q,
     APPKEY_ESC,
     APPKEY_H,
@@ -69,8 +69,10 @@ private:
     bool cardputer_zero_;
     bool esc_held_ = false;
 
-    AppKeyCode translateKeyCode(int linux_keycode, bool shift_pressed);
-    AppKeyCode translateCardputerZero(int linux_keycode, bool shift_pressed);
+    AppKeyCode translateKeyCode(int linux_keycode, bool shift_pressed,
+                                bool alt_pressed);
+    AppKeyCode translateCardputerZero(int linux_keycode, bool shift_pressed,
+                                      bool alt_pressed);
 
     // Track key hold state
     AppKeyCode last_nav_key;

@@ -150,6 +150,7 @@ AppKeyCode InputHandler::pollKey() {
 
     struct input_event ev;
     static bool shift_pressed = false;
+    static bool alt_pressed = false;
     AppKeyCode result = APPKEY_NONE;
     bool found_event = false;
 
@@ -170,8 +171,13 @@ AppKeyCode InputHandler::pollKey() {
             shift_pressed = (ev.value == 1 || ev.value == 2);
             continue;
         }
+        // Track alt state; alt is the coarse-tuning modifier.
+        if (ev.code == KEY_LEFTALT || ev.code == KEY_RIGHTALT) {
+            alt_pressed = (ev.value == 1 || ev.value == 2);
+            continue;
+        }
 
-        AppKeyCode code = translateKeyCode(ev.code, shift_pressed);
+        AppKeyCode code = translateKeyCode(ev.code, shift_pressed, alt_pressed);
         if (code == APPKEY_ESC) {
             esc_held_ = (ev.value != 0);
         }
@@ -181,6 +187,7 @@ AppKeyCode InputHandler::pollKey() {
             std::cout << "Key event: code=" << ev.code
                       << " value=" << ev.value
                       << " shift=" << shift_pressed
+                      << " alt=" << alt_pressed
                       << " -> " << static_cast<int>(code) << std::endl;
         }
 
@@ -275,7 +282,9 @@ int InputHandler::getLastReleasedHoldDuration(AppKeyCode key) {
 //     VolumeUp/Down, Mute, SysRq, Help, ...)
 //   * plain letters/digits/Space/Tab/Esc fall through to the regular PC map
 //     in translateKeyCode()
-AppKeyCode InputHandler::translateCardputerZero(int linux_keycode, bool shift_pressed) {
+AppKeyCode InputHandler::translateCardputerZero(int linux_keycode,
+                                                 bool shift_pressed,
+                                                 bool alt_pressed) {
     switch (linux_keycode) {
         // Arrows: official F/Z/X/C plus the real arrow codes from the fn layer.
         case KEY_UP:
@@ -286,10 +295,10 @@ AppKeyCode InputHandler::translateCardputerZero(int linux_keycode, bool shift_pr
             return APPKEY_DOWN;
         case KEY_LEFT:
         case KEY_Z:
-            return shift_pressed ? APPKEY_LEFT_COARSE : APPKEY_LEFT;
+            return alt_pressed ? APPKEY_LEFT_COARSE : APPKEY_LEFT;
         case KEY_RIGHT:
         case KEY_C:
-            return shift_pressed ? APPKEY_RIGHT_COARSE : APPKEY_RIGHT;
+            return alt_pressed ? APPKEY_RIGHT_COARSE : APPKEY_RIGHT;
 
         // fn layer codes (official combos).
         case KEY_PAGEUP:     return APPKEY_PAGEUP;      // fn+L
@@ -325,9 +334,12 @@ AppKeyCode InputHandler::translateCardputerZero(int linux_keycode, bool shift_pr
     }
 }
 
-AppKeyCode InputHandler::translateKeyCode(int linux_keycode, bool shift_pressed) {
+AppKeyCode InputHandler::translateKeyCode(int linux_keycode,
+                                          bool shift_pressed,
+                                          bool alt_pressed) {
     if (cardputer_zero_) {
-        AppKeyCode cardputer_key = translateCardputerZero(linux_keycode, shift_pressed);
+        AppKeyCode cardputer_key =
+            translateCardputerZero(linux_keycode, shift_pressed, alt_pressed);
         if (cardputer_key != APPKEY_NONE) {
             return cardputer_key;
         }
@@ -337,9 +349,9 @@ AppKeyCode InputHandler::translateKeyCode(int linux_keycode, bool shift_pressed)
         case KEY_UP:       return APPKEY_UP;
         case KEY_DOWN:     return APPKEY_DOWN;
 
-        // Left/Right: Shift+Left/Right = coarse tune (step × 10) in SDRPage
-        case KEY_LEFT:     return shift_pressed ? APPKEY_LEFT_COARSE  : APPKEY_LEFT;
-        case KEY_RIGHT:    return shift_pressed ? APPKEY_RIGHT_COARSE : APPKEY_RIGHT;
+        // Left/Right: Alt+Left/Right = coarse tune (step × 10) in SDRPage
+        case KEY_LEFT:     return alt_pressed ? APPKEY_LEFT_COARSE  : APPKEY_LEFT;
+        case KEY_RIGHT:    return alt_pressed ? APPKEY_RIGHT_COARSE : APPKEY_RIGHT;
 
         // Page Up/Down: 1 MHz jump (or whatever the binding consumer uses)
         case KEY_PAGEUP:   return APPKEY_PAGEUP;
@@ -364,7 +376,11 @@ AppKeyCode InputHandler::translateKeyCode(int linux_keycode, bool shift_pressed)
         case KEY_L:        return APPKEY_L;
         case KEY_R:        return shift_pressed ? APPKEY_RES : APPKEY_R;
         case KEY_B:        return APPKEY_BW;
-        case KEY_Z:        return shift_pressed ? APPKEY_ZOOM : APPKEY_NONE;
+        case KEY_Z:
+            if (alt_pressed) return APPKEY_LEFT_COARSE;
+            return shift_pressed ? APPKEY_ZOOM : APPKEY_NONE;
+        case KEY_C:
+            return alt_pressed ? APPKEY_RIGHT_COARSE : APPKEY_NONE;
 
         // Number keys (top row, not numpad)
         case KEY_0:        return APPKEY_0;

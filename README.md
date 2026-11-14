@@ -265,7 +265,7 @@ codes, and plain letters are used for the SDR controls.
 | `C` / `→` | Tune up |
 | `F` / `↑` | Gain up |
 | `X` / `↓` | Gain down |
-| `Shift`+`Z`/`C` | Coarse tune (step × 10) |
+| `Alt`+`Z`/`C` | Coarse tune (step × 10) |
 | `Fn`+`L` (PgUp) | Tune +1 MHz |
 | `Fn`+`M` (PgDn) | Tune -1 MHz |
 | `0-9` `.` | Direct frequency input (MHz) |
@@ -292,7 +292,8 @@ codes, and plain letters are used for the SDR controls.
 
 | Key | Action |
 |-----|--------|
-| `←` `→` | Tune (Shift = coarse) |
+| `←` `→` | Tune (Alt = coarse) |
+| `Alt`+`Z`/`C` | Coarse tune (step × 10) |
 | `↑` `↓` | Gain |
 | `PgUp` `PgDn` | ±1 MHz |
 | `D` | Demodulation mode |
