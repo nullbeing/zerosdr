@@ -278,7 +278,7 @@ codes, and plain letters are used for the SDR controls.
 | `T` | Cycle tuning step (Auto/100/1k/5k/10k/100k/1M) |
 | `Space` / `Fn`+`A` | Audio on/off |
 | `G` | Hardware AGC on/off |
-| `M` | Display mode (both/spectrum/waterfall) |
+| `M` | Color theme for spectrum and waterfall |
 | `Y` | Display zoom (only spans the sample rate can fill) |
 | `Fn`+`J` (PrintScreen) | Screenshot (`/tmp/zerosdr_*.png`) |
 | `H` | Key list, then `→` for settings |
@@ -298,7 +298,7 @@ codes, and plain letters are used for the SDR controls.
 | `Space` | Audio on/off |
 | `S` | Squelch |
 | `T` | Tuning step |
-| `M` | Display mode |
+| `M` | Color theme |
 | `Shift+Z` | Display zoom |
 | `Shift+R` | FFT size |
 | `Shift+S` | Screenshot |

@@ -49,8 +49,12 @@ public:
                          float squelch, bool audio_enabled, bool agc_enabled,
                          const char* step_label);
 
-    void setMode(int mode) { display_mode_ = mode; }
-    int  getMode() const   { return display_mode_; }
+    // Colour themes for the spectrum and waterfall (M key).
+    void cycleTheme();
+    void setTheme(int index);
+    int getTheme() const { return theme_index_; }
+    int themeCount() const;
+    const char* themeName() const;
 
     // Public helper for rendering frequency axis (used in device detection)
     void drawFreqAxis(uint32_t center_freq, uint32_t span, int y, int h);
@@ -68,7 +72,7 @@ public:
     void renderSettings(const SdrSettingsView& view);
 
 private:
-    int display_mode_; // 0=both, 1=spectrum only, 2=waterfall only
+    int theme_index_ = 0;  // index into the spectrum/waterfall palettes
 
     // Waterfall: direct pixel buffer for the waterfall region
     std::vector<uint16_t> wf_pixels_; // WATERFALL_H * 320 pixels

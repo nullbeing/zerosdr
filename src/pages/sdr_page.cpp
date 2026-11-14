@@ -71,6 +71,7 @@ SDRPage::~SDRPage() {
 bool SDRPage::init() {
     std::cout << "SDRPage: Initializing..." << std::endl;
     loadSettings();
+    ui_.setTheme(theme_index_);
     system_volume_ok_ = system_volume_.init();
     int system_percent = 0;
     if (system_volume_ok_ && !system_volume_.read(system_percent)) {
@@ -599,11 +600,10 @@ void SDRPage::refreshSystemVolume() {
 void SDRPage::handleModeControls(AppKeyCode key) {
     switch (key) {
         case APPKEY_M:
-            {
-                int mode = (ui_.getMode() + 1) % 3;
-                ui_.setMode(mode);
-                fb_.clear(COLOR_BG_DARK);
-            }
+            theme_index_ = (theme_index_ + 1) % ui_.themeCount();
+            ui_.setTheme(theme_index_);
+            fb_.clear(COLOR_BG_DARK);
+            std::cout << "Theme: " << ui_.themeName() << std::endl;
             break;
         case APPKEY_G:
             if (sdr_.getAGCEnabled()) {
@@ -795,6 +795,8 @@ void SDRPage::loadSettings() {
 
     deemphasis_tau_us_ = (int_value("deemphasis_us", 50) == 75) ? 75.0f : 50.0f;
     audio_agc_ = bool_value("audio_agc", true);
+    theme_index_ = static_cast<int>(int_value("theme", 0));
+    if (theme_index_ < 0 || theme_index_ >= ui_.themeCount()) theme_index_ = 0;
 
     const long fft = int_value("fft_size", 1024);
     for (int i = 0; i < num_fft_sizes_; ++i) {
@@ -823,7 +825,8 @@ void SDRPage::saveSettings() const {
          << "  \"deemphasis_us\": " << (int)deemphasis_tau_us_ << ",\n"
          << "  \"audio_agc\": " << (audio_agc_ ? "true" : "false") << ",\n"
          << "  \"fft_size\": " << fft_sizes_[fft_index_] << ",\n"
-         << "  \"sample_rate\": " << sample_rates_[rate_index_] << "\n"
+         << "  \"sample_rate\": " << sample_rates_[rate_index_] << ",\n"
+         << "  \"theme\": " << theme_index_ << "\n"
          << "}\n";
     file.close();
 }

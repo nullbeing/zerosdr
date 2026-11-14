@@ -4,8 +4,50 @@
 #include <cmath>
 #include <cstring>
 
+namespace {
+
+// Spectrum fill gradient plus a five-stop waterfall ramp (0, 0.25, 0.5,
+// 0.75, 1.0).
+struct Theme {
+    const char* name;
+    uint16_t spectrum_dark;
+    uint16_t spectrum_mid;
+    uint16_t spectrum_light;
+    uint16_t waterfall[5];
+};
+
+const Theme kThemes[] = {
+    {"GREEN",   0x0320, 0x07E0, 0x9FE7,
+     {0x0862, 0x1847, 0x19DF, 0x4E1E, 0xFFFF}},
+    {"INFERNO", 0x3000, 0xF860, 0xFE6C,
+     {0x0000, 0x4000, 0xC000, 0xFC00, 0xFFE0}},
+    {"MATRIX",  0x0180, 0x0660, 0x9FE7,
+     {0x0000, 0x0220, 0x0540, 0x07E0, 0xDFDB}},
+    {"ICE",     0x0108, 0x045F, 0xCFFF,
+     {0x0000, 0x0045, 0x033F, 0x7FFF, 0xFFFF}},
+    {"VIOLET",  0x2808, 0xA81F, 0xFCDF,
+     {0x0000, 0x3008, 0x8018, 0xE01F, 0xFCFF}},
+};
+
+constexpr int kThemeCount = sizeof(kThemes) / sizeof(kThemes[0]);
+
+uint16_t lerp565(uint16_t a, uint16_t b, float t) {
+    const int ar = (a >> 11) & 0x1F;
+    const int ag = (a >> 5) & 0x3F;
+    const int ab = a & 0x1F;
+    const int br = (b >> 11) & 0x1F;
+    const int bg = (b >> 5) & 0x3F;
+    const int bb = b & 0x1F;
+    const int r = ar + static_cast<int>((br - ar) * t + 0.5f);
+    const int g = ag + static_cast<int>((bg - ag) * t + 0.5f);
+    const int bl = ab + static_cast<int>((bb - ab) * t + 0.5f);
+    return static_cast<uint16_t>((r << 11) | (g << 5) | bl);
+}
+
+}  // namespace
+
 SDRUIRenderer::SDRUIRenderer(Framebuffer& fb)
-    : BaseUIRenderer(fb), display_mode_(0), wf_floor_(-80.0f), wf_ceiling_(-20.0f) {
+    : BaseUIRenderer(fb), theme_index_(0), wf_floor_(-80.0f), wf_ceiling_(-20.0f) {
     // Allocate waterfall pixel buffer (80 rows × 320 pixels)
     wf_pixels_.resize(WATERFALL_H * 320, COLOR_BG_DARK);
 }
@@ -14,7 +56,6 @@ SDRUIRenderer::~SDRUIRenderer() {
 }
 
 void SDRUIRenderer::renderSpectrum(const std::vector<float>& magnitude, uint32_t center_freq, uint32_t span, uint32_t sample_rate, int demod_mode, uint32_t demod_bandwidth) {
-    if (display_mode_ == 2) return;  // 仅瀑布模式，跳过频谱
     if (magnitude.empty()) return;
 
     // Calculate zoom: extract center portion of magnitude based on span/sample_rate ratio
@@ -50,7 +91,6 @@ void SDRUIRenderer::renderSpectrum(const std::vector<float>& magnitude, uint32_t
 }
 
 void SDRUIRenderer::renderWaterfall(const std::vector<float>& magnitude, uint32_t span, uint32_t sample_rate) {
-    if (display_mode_ == 1) return;  // 仅频谱模式，跳过瀑布
     if (magnitude.empty() || sample_rate == 0) return;
 
     int width = 320;
@@ -236,11 +276,8 @@ void SDRUIRenderer::drawSpectrumGraph(const std::vector<float>& mag, int x, int 
         }
     }
 
-    // Draw spectrum with gradient fill (green shading like SDR++)
-    // Define green gradient colors (RGB565)
-    const uint16_t COLOR_GREEN_DARK  = 0x0320;  // 深绿 #006600
-    const uint16_t COLOR_GREEN_MID   = 0x07E0;  // 中绿 #00FF00
-    const uint16_t COLOR_GREEN_LIGHT = 0x9FE7;  // 亮绿 #99FF99
+    // Draw spectrum with the active theme's gradient fill.
+    const Theme& theme = kThemes[theme_index_];
 
     // Sample by output pixel rather than by FFT bin. This guarantees that
     // pixel 160 maps to the FFT DC bin (and therefore to the red center
@@ -259,17 +296,12 @@ void SDRUIRenderer::drawSpectrumGraph(const std::vector<float>& mag, int x, int 
             float fill_ratio = (float)(y + h - 1 - fy) / (float)(y + h - 1 - py + 1);
             uint16_t color;
 
-            if (fill_ratio < 0.5f) {
-                // Dark to mid green
-                color = COLOR_GREEN_DARK;  // Simplified, use dark green
-            } else {
-                // Mid to light green
-                color = COLOR_GREEN_MID;
-            }
+            color = (fill_ratio < 0.5f) ? theme.spectrum_dark
+                                        : theme.spectrum_mid;
 
-            // Top edge uses bright green
+            // Top edge uses the brightest tone of the theme.
             if (fy == py) {
-                color = COLOR_GREEN_LIGHT;
+                color = theme.spectrum_light;
             }
 
             fb_.drawPixel(px, fy, color);
@@ -366,36 +398,28 @@ void SDRUIRenderer::drawDbScale(int x, int y, int h, float db_min, float db_max)
 }
 
 uint16_t SDRUIRenderer::magnitudeToColor(float norm) const {
-    // Professional theme: deep purple -> blue -> cyan -> white
-    // 0.00-0.25: #0D0D14 (bg) -> #1A0A3A (deep purple)
-    // 0.25-0.50: #1A0A3A (deep purple) -> #1A3AFF (blue)
-    // 0.50-0.75: #1A3AFF (blue) -> #4FC3F7 (cyan)
-    // 0.75-1.00: #4FC3F7 (cyan) -> #FFFFFF (white)
-    uint8_t r, g, b;
+    norm = std::clamp(norm, 0.0f, 1.0f);
+    const float scaled = norm * 4.0f;
+    int stop = static_cast<int>(scaled);
+    if (stop > 3) stop = 3;
+    const float t = scaled - static_cast<float>(stop);
+    const Theme& theme = kThemes[theme_index_];
+    return lerp565(theme.waterfall[stop], theme.waterfall[stop + 1], t);
+}
 
-    if (norm < 0.25f) {
-        float t = norm / 0.25f;
-        r = (uint8_t)(0x0D + t * (0x1A - 0x0D));
-        g = (uint8_t)(0x0D + t * (0x0A - 0x0D));
-        b = (uint8_t)(0x14 + t * (0x3A - 0x14));
-    } else if (norm < 0.5f) {
-        float t = (norm - 0.25f) / 0.25f;
-        r = (uint8_t)(0x1A + t * (0x1A - 0x1A));
-        g = (uint8_t)(0x0A + t * (0x3A - 0x0A));
-        b = (uint8_t)(0x3A + t * (0xFF - 0x3A));
-    } else if (norm < 0.75f) {
-        float t = (norm - 0.5f) / 0.25f;
-        r = (uint8_t)(0x1A + t * (0x4F - 0x1A));
-        g = (uint8_t)(0x3A + t * (0xC3 - 0x3A));
-        b = (uint8_t)(0xFF);
-    } else {
-        float t = (norm - 0.75f) / 0.25f;
-        r = (uint8_t)(0x4F + t * (0xFF - 0x4F));
-        g = (uint8_t)(0xC3 + t * (0xFF - 0xC3));
-        b = 0xFF;
-    }
+void SDRUIRenderer::setTheme(int index) {
+    if (kThemeCount <= 0) return;
+    theme_index_ = ((index % kThemeCount) + kThemeCount) % kThemeCount;
+    std::fill(wf_pixels_.begin(), wf_pixels_.end(),
+              kThemes[theme_index_].waterfall[0]);
+}
 
-    return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+void SDRUIRenderer::cycleTheme() { setTheme(theme_index_ + 1); }
+
+int SDRUIRenderer::themeCount() const { return kThemeCount; }
+
+const char* SDRUIRenderer::themeName() const {
+    return kThemes[theme_index_].name;
 }
 
 void SDRUIRenderer::formatFrequency(uint32_t freq, char* buf, size_t size) const {
@@ -643,7 +667,7 @@ void SDRUIRenderer::renderKeyHelp() {
         {"T",       "TUNE STEP"},
         {"SPACE",   "AUDIO ON/OFF"},
         {"G",       "HW AGC"},
-        {"M",       "DISPLAY MODE"},
+        {"M",       "COLOR THEME"},
         {"Y",       "ZOOM"},
         {"FN+J",    "SCREENSHOT"},
         {"H",       "THIS HELP"},

@@ -115,6 +115,9 @@ private:
     // Deemphasis time constant (50 or 75 us)
     float deemphasis_tau_us_;
 
+    // Spectrum/waterfall colour theme (M key).
+    int theme_index_ = 0;
+
     // The launcher handles the volume keys; the viewer only mirrors the
     // resulting PipeWire/PulseAudio sink volume in its status bar.
     SystemVolume system_volume_;
