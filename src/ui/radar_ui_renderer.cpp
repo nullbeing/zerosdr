@@ -107,9 +107,9 @@ void RadarUIRenderer::renderStatusBar(int aircraft_count, float max_range) {
     // Clear status bar with dark background
     fb_.fillRect(0, STATUS_BAR_Y, 320, STATUS_BAR_H, COLOR_BG_DARK);
 
-    // Format status "Aircraft: 5  Range: 50km"
+    // Format status "Traffic: 5  Range: 50km"
     char status[64];
-    snprintf(status, sizeof(status), "Aircraft:%d Range:%.0fkm",
+    snprintf(status, sizeof(status), "Traffic:%d Range:%.0fkm",
              aircraft_count, max_range);
 
     // Draw status text (left-aligned)
