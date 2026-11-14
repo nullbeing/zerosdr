@@ -37,11 +37,13 @@ public:
 
 private:
     static constexpr int kWidth = 320;
-    static constexpr int kSpectrumH = 65;
-    static constexpr int kAxisY = 65;
+    // Spectrum section (graph + axis) is 3/5 of the 156 px content area,
+    // the waterfall is the remaining 2/5.
+    static constexpr int kSpectrumH = 82;
+    static constexpr int kAxisY = 82;
     static constexpr int kAxisH = 12;
-    static constexpr int kWaterfallY = 77;
-    static constexpr int kWaterfallH = 79;
+    static constexpr int kWaterfallY = 94;
+    static constexpr int kWaterfallH = 62;
     static constexpr int kStatusY = 156;
     static constexpr size_t kFftSize = 512;
     static constexpr uint32_t kSampleRate = 1024000;
