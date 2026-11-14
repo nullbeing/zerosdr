@@ -8,25 +8,37 @@ namespace {
 
 // Spectrum fill gradient plus a five-stop waterfall ramp (0, 0.25, 0.5,
 // 0.75, 1.0).
+struct ThemeStop {
+    float pos;
+    uint16_t color;
+};
+
+// Spectrum fill gradient plus an eight-stop waterfall ramp. The ramps are
+// classic SDR heat, Google Turbo and the matplotlib scientific colormaps.
 struct Theme {
     const char* name;
     uint16_t spectrum_dark;
     uint16_t spectrum_mid;
     uint16_t spectrum_light;
-    uint16_t waterfall[5];
+    ThemeStop waterfall[8];
 };
 
 const Theme kThemes[] = {
-    {"GREEN",   0x0320, 0x07E0, 0x9FE7,
-     {0x0862, 0x1847, 0x19DF, 0x4E1E, 0xFFFF}},
-    {"INFERNO", 0x3000, 0xF860, 0xFE6C,
-     {0x0000, 0x4000, 0xC000, 0xFC00, 0xFFE0}},
-    {"MATRIX",  0x0180, 0x0660, 0x9FE7,
-     {0x0000, 0x0220, 0x0540, 0x07E0, 0xDFDB}},
-    {"ICE",     0x0108, 0x045F, 0xCFFF,
-     {0x0000, 0x0045, 0x033F, 0x7FFF, 0xFFFF}},
-    {"VIOLET",  0x2808, 0xA81F, 0xFCDF,
-     {0x0000, 0x3008, 0x8018, 0xE01F, 0xFCFF}},
+    {"CLASSIC", 0x0010, 0xF810, 0xFFEC,
+     {{0.00f, 0x0000}, {0.14f, 0x0015}, {0.28f, 0x001F}, {0.42f, 0x801F},
+      {0.56f, 0xF810}, {0.70f, 0xF800}, {0.85f, 0xFC00}, {1.00f, 0xFFEC}}},
+    {"TURBO", 0x3087, 0x3D1F, 0xF627,
+     {{0.00f, 0x3087}, {0.14f, 0x4235}, {0.28f, 0x3D1F}, {0.42f, 0x1E7A},
+      {0.56f, 0x67ED}, {0.70f, 0xD746}, {0.85f, 0xFCC5}, {1.00f, 0xB0C0}}},
+    {"INFERNO", 0x486D, 0xEB44, 0xFFF4,
+     {{0.00f, 0x0000}, {0.14f, 0x1868}, {0.28f, 0x486D}, {0.42f, 0x78ED},
+      {0.56f, 0xA16C}, {0.70f, 0xEB44}, {0.85f, 0xF687}, {1.00f, 0xFFF4}}},
+    {"VIRIDIS", 0x3A51, 0x35AF, 0xFF24,
+     {{0.00f, 0x400A}, {0.14f, 0x3A51}, {0.28f, 0x3351}, {0.42f, 0x1CF1},
+      {0.56f, 0x35AF}, {0.70f, 0x6E6B}, {0.85f, 0xB6E5}, {1.00f, 0xFF24}}},
+    {"PLASMA", 0x7015, 0xDAAD, 0xF7C4,
+     {{0.00f, 0x0850}, {0.14f, 0x4013}, {0.28f, 0x7015}, {0.42f, 0x98B3},
+      {0.56f, 0xB9B0}, {0.70f, 0xDAAD}, {0.85f, 0xEBCA}, {1.00f, 0xF7C4}}},
 };
 
 constexpr int kThemeCount = sizeof(kThemes) / sizeof(kThemes[0]);
@@ -399,19 +411,29 @@ void SDRUIRenderer::drawDbScale(int x, int y, int h, float db_min, float db_max)
 
 uint16_t SDRUIRenderer::magnitudeToColor(float norm) const {
     norm = std::clamp(norm, 0.0f, 1.0f);
-    const float scaled = norm * 4.0f;
-    int stop = static_cast<int>(scaled);
-    if (stop > 3) stop = 3;
-    const float t = scaled - static_cast<float>(stop);
     const Theme& theme = kThemes[theme_index_];
-    return lerp565(theme.waterfall[stop], theme.waterfall[stop + 1], t);
+    constexpr int kStops = 8;
+
+    if (norm <= theme.waterfall[0].pos) return theme.waterfall[0].color;
+    for (int i = 1; i < kStops; ++i) {
+        if (norm <= theme.waterfall[i].pos) {
+            const float span =
+                theme.waterfall[i].pos - theme.waterfall[i - 1].pos;
+            const float t = span > 0.0f
+                                ? (norm - theme.waterfall[i - 1].pos) / span
+                                : 0.0f;
+            return lerp565(theme.waterfall[i - 1].color,
+                           theme.waterfall[i].color, t);
+        }
+    }
+    return theme.waterfall[kStops - 1].color;
 }
 
 void SDRUIRenderer::setTheme(int index) {
     if (kThemeCount <= 0) return;
     theme_index_ = ((index % kThemeCount) + kThemeCount) % kThemeCount;
     std::fill(wf_pixels_.begin(), wf_pixels_.end(),
-              kThemes[theme_index_].waterfall[0]);
+              kThemes[theme_index_].waterfall[0].color);
 }
 
 void SDRUIRenderer::cycleTheme() { setTheme(theme_index_ + 1); }
