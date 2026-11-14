@@ -9,6 +9,7 @@
 #include "ui/sdr_ui_renderer.h"
 #include "audio_demodulator.h"
 #include "audio_output.h"
+#include "system_volume.h"
 #include <vector>
 #include <cstdint>
 #include <atomic>
@@ -114,6 +115,12 @@ private:
     // Deemphasis time constant (50 or 75 us)
     float deemphasis_tau_us_;
 
+    // The launcher handles the volume keys; the viewer only mirrors the
+    // resulting PipeWire/PulseAudio sink volume in its status bar.
+    SystemVolume system_volume_;
+    bool system_volume_ok_ = false;
+    float volume_poll_accum_ = 0.0f;
+
     // Tuning step (0 = Auto, then explicit steps)
     // Auto picks a sensible default per demod mode (see getAutoStep).
     int step_index_;
@@ -145,6 +152,8 @@ private:
     void handleFrequencyInput(AppKeyCode key);
     void handleNavigationKeys(AppKeyCode key);
     void handleAudioControls(AppKeyCode key);
+    void refreshSystemVolume();
+    void applyVolumeStep(int delta_percent);
     void handleModeControls(AppKeyCode key);
 
     void startAudioThread();

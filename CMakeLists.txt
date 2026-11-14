@@ -30,6 +30,21 @@ endif()
 find_package(Threads REQUIRED)
 find_package(ALSA REQUIRED)
 
+# PulseAudio client library: used to read and write the default sink volume,
+# which is the system volume on the Cardputer Zero (PipeWire's pulse server).
+if(CMAKE_CROSSCOMPILING)
+    find_library(PULSE_LIB NAMES pulse
+                 PATHS /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}
+                 NO_DEFAULT_PATH)
+else()
+    find_library(PULSE_LIB NAMES pulse
+                 PATHS /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE})
+endif()
+
+if(NOT PULSE_LIB)
+    message(FATAL_ERROR "libpulse not found. Please install libpulse-dev")
+endif()
+
 # Try to find rtlsdr library
 if(CMAKE_CROSSCOMPILING)
     # Cross-compiling: search in cross-compile sysroot
@@ -89,6 +104,7 @@ set(SOURCES
     src/framebuffer.cpp
     src/sdr_controller.cpp
     src/audio_output.cpp
+    src/system_volume.cpp
 
     # Processing
     src/fft_processor.cpp
@@ -114,6 +130,7 @@ target_link_libraries(zerosdr PRIVATE
     ${M_LIB}
     Threads::Threads
     ALSA::ALSA
+    ${PULSE_LIB}
     Freetype::Freetype
 )
 
@@ -141,7 +158,7 @@ set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_PACKAGE_CONTACT "Weiming Feng <bestedwin@gmail.com>")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Lightweight SDR interface for Raspberry Pi")
 set(CPACK_PACKAGE_DESCRIPTION "A graphical SDR application optimized for small SPI displays on Raspberry Pi with audio demodulation")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "librtlsdr0, libasound2, libfreetype6, libc6")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "librtlsdr0, libasound2, libpulse0, libfreetype6, libc6")
 set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "arm64")
 set(CPACK_DEBIAN_PACKAGE_SECTION "hamradio")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")

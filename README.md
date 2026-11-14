@@ -37,7 +37,7 @@ and demodulates FM / NFM / AM / USB / LSB audio through ALSA.
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libfreetype-dev
+sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libpulse-dev libfreetype-dev
 
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
@@ -66,7 +66,7 @@ relative to `/usr/share/APPLaunch`. The final layout is:
 ### 1. Build (on the device, recommended)
 
 ```bash
-sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libfreetype-dev
+sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libpulse-dev libfreetype-dev
 cd ~/zerosdr
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
@@ -273,8 +273,8 @@ codes, and plain letters are used for the SDR controls.
 | `Esc` | Cancel input |
 | `D` | Cycle demodulation mode (FM/NFM/AM/USB/LSB) |
 | `B` / `Fn`+`B` | Cycle demodulation bandwidth |
-| `Fn`+`D` | Volume up |
-| `Fn`+`S` | Volume down |
+| `Fn`+`D` | System volume up |
+| `Fn`+`S` | System volume down |
 | `S` | Squelch (+5%; hold >0.5 s = 10%, >1.5 s = 25%) |
 | `T` | Cycle tuning step (Auto/100/1k/5k/10k/100k/1M) |
 | `Space` / `Fn`+`A` | Audio on/off |
@@ -296,7 +296,6 @@ codes, and plain letters are used for the SDR controls.
 | `D` | Demodulation mode |
 | `B` / `Shift+B` | Demodulation bandwidth |
 | `Space` | Audio on/off |
-| `V` / `C` | Volume up / down |
 | `S` | Squelch |
 | `T` | Tuning step |
 | `M` | Display mode |
@@ -456,6 +455,16 @@ sudo apt-get install -y libasound2-plugins
 
 The wrapper sets `DACL/DACR Playback Volume` to 179 (-6 dB); 0 dB causes the
 ES8389 amplifier to drop out.
+
+`Fn`+`D` / `Fn`+`S` adjust the **system** sink volume in 10% steps from
+inside zeroSDR, and the status bar follows the sink. Bare `V` / `C` are not
+volume keys. If the launcher was left at a low volume, check it before
+suspecting the SDR chain:
+
+```bash
+wpctl get-volume @DEFAULT_AUDIO_SINK@
+pactl list sinks | grep Volume
+```
 
 ### Frequency offset
 

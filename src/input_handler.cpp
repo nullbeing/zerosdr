@@ -324,10 +324,6 @@ AppKeyCode InputHandler::translateCardputerZero(int linux_keycode, bool shift_pr
 
 AppKeyCode InputHandler::translateKeyCode(int linux_keycode, bool shift_pressed) {
     if (cardputer_zero_) {
-        // Volume is fn+D / fn+S only; a bare V or W must not change it.
-        if (linux_keycode == KEY_V || linux_keycode == KEY_W) {
-            return APPKEY_NONE;
-        }
         AppKeyCode cardputer_key = translateCardputerZero(linux_keycode, shift_pressed);
         if (cardputer_key != APPKEY_NONE) {
             return cardputer_key;
@@ -354,8 +350,8 @@ AppKeyCode InputHandler::translateKeyCode(int linux_keycode, bool shift_pressed)
         case KEY_M:        return APPKEY_M;
         case KEY_G:        return APPKEY_G;
         case KEY_D:        return APPKEY_D;
-        case KEY_V:        return APPKEY_V;
-        case KEY_C:        return APPKEY_C;
+        case KEY_VOLUMEUP:   return APPKEY_V;
+        case KEY_VOLUMEDOWN: return APPKEY_C;
         case KEY_S:        return shift_pressed ? APPKEY_SCREENSHOT : APPKEY_S;
         case KEY_T:        return APPKEY_T;
         case KEY_SPACE:    return APPKEY_SPACE;

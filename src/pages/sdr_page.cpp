@@ -3,6 +3,7 @@
 #include <iostream>
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <ctime>
 #include <unistd.h>
@@ -70,7 +71,22 @@ SDRPage::~SDRPage() {
 bool SDRPage::init() {
     std::cout << "SDRPage: Initializing..." << std::endl;
     loadSettings();
-    demod_.setVolume(volume_);
+    system_volume_ok_ = system_volume_.init();
+    int system_percent = 0;
+    if (system_volume_ok_ && !system_volume_.read(system_percent)) {
+        system_volume_ok_ = false;
+    }
+    // The sink already applies the volume, so the demod path stays at unity
+    // gain instead of attenuating twice.
+    demod_.setVolume(1.0f);
+    if (system_volume_ok_) {
+        volume_ = static_cast<float>(system_percent) / 100.0f;
+        std::cout << "System volume: " << system_percent << "%"
+                  << std::endl;
+    } else {
+        std::cout << "System volume unavailable (" << system_volume_.error()
+                  << ")" << std::endl;
+    }
     demod_.setSquelch(squelch_);
     demod_.setMode(AudioDemodulator::MODE_FM);
     demod_.setDeemphasisTau(deemphasis_tau_us_);
@@ -94,6 +110,9 @@ void SDRPage::cleanup() {
 
 void SDRPage::onEnter() {
     std::cout << "SDRPage: Entering SDR mode" << std::endl;
+    // The launcher may have changed the system volume while another page was
+    // active, so pick it up again here.
+    refreshSystemVolume();
 
     // Check if SDR is already initialized and capturing
     // If so, we're coming from startup or another SDR-using page
@@ -180,6 +199,14 @@ void SDRPage::onExit() {
 }
 
 void SDRPage::update(float delta_time) {
+    // The launcher owns the volume keys; keep the displayed value in step
+    // with the system sink.
+    volume_poll_accum_ += delta_time;
+    if (system_volume_ok_ && volume_poll_accum_ >= 0.5f) {
+        volume_poll_accum_ = 0.0f;
+        refreshSystemVolume();
+    }
+
     // Audio is handled continuously by audioLoop(). The UI only needs a
     // non-consuming snapshot of the newest samples for the FFT.
     frame_accumulator_ += delta_time;
@@ -297,8 +324,8 @@ bool SDRPage::handleInput(AppKeyCode key) {
         handleNavigationKeys(key);
         return true;
     }
-    if (key == APPKEY_V || key == APPKEY_C || key == APPKEY_S || key == APPKEY_SPACE ||
-        key == APPKEY_D) {
+    if (key == APPKEY_V || key == APPKEY_C || key == APPKEY_S ||
+        key == APPKEY_SPACE || key == APPKEY_D) {
         handleAudioControls(key);
         return true;
     }
@@ -509,18 +536,13 @@ void SDRPage::handleNavigationKeys(AppKeyCode key) {
 }
 
 void SDRPage::handleAudioControls(AppKeyCode key) {
-    std::lock_guard<std::mutex> lock(demod_mutex_);
     switch (key) {
         case APPKEY_V:
             audio_enabled_ = true;  // volume-up also unmutes
-            volume_ = std::min(1.0f, volume_ + 0.1f);
-            demod_.setVolume(volume_);
-            std::cout << "Volume: " << (int)(volume_ * 100) << "%" << std::endl;
+            applyVolumeStep(10);
             break;
         case APPKEY_C:
-            volume_ = std::max(0.0f, volume_ - 0.1f);
-            demod_.setVolume(volume_);
-            std::cout << "Volume: " << (int)(volume_ * 100) << "%" << std::endl;
+            applyVolumeStep(-10);
             break;
         case APPKEY_S: {
             // Hold-to-accelerate: short tap = fine (5%), medium hold = 10%, long hold = 25%
@@ -529,6 +551,7 @@ void SDRPage::handleAudioControls(AppKeyCode key) {
             if (hold_ms > 1500)      step = 0.25f;
             else if (hold_ms > 500)  step = 0.1f;
 
+            std::lock_guard<std::mutex> lock(demod_mutex_);
             squelch_ += step;
             if (squelch_ > 1.0f) squelch_ = 0.0f;
             squelch_values_[demod_mode_] = squelch_;
@@ -543,24 +566,43 @@ void SDRPage::handleAudioControls(AppKeyCode key) {
             std::cout << "Audio: " << (audio_enabled_ ? "ON" : "OFF") << std::endl;
             break;
         case APPKEY_D: {
+            std::lock_guard<std::mutex> lock(demod_mutex_);
             int old_mode = demod_mode_;
             demod_mode_ = (demod_mode_ + 1) % 5;
             demod_.setMode((AudioDemodulator::DemodMode)demod_mode_);
-            {
-                // Save old mode's squelch, load new mode's squelch
-                squelch_values_[old_mode] = squelch_;
-                squelch_ = squelch_values_[demod_mode_];
-                demod_.setSquelch(squelch_);
+            // Save old mode's squelch, load new mode's squelch
+            squelch_values_[old_mode] = squelch_;
+            squelch_ = squelch_values_[demod_mode_];
+            demod_.setSquelch(squelch_);
 
-                uint32_t new_bw = getCurrentDemodBandwidth();
-                demod_.setDemodBandwidth(new_bw);
-                std::cout << "Demod mode: " << demod_names_[demod_mode_]
-                          << ", bandwidth: " << new_bw / 1000 << " kHz"
-                          << ", squelch: " << (int)(squelch_ * 100) << "%" << std::endl;
-            }
+            uint32_t new_bw = getCurrentDemodBandwidth();
+            demod_.setDemodBandwidth(new_bw);
+            std::cout << "Demod mode: " << demod_names_[demod_mode_]
+                      << ", bandwidth: " << new_bw / 1000 << " kHz"
+                      << ", squelch: " << (int)(squelch_ * 100) << "%" << std::endl;
             break;
         }
     }
+}
+
+void SDRPage::applyVolumeStep(int delta_percent) {
+    if (system_volume_ok_) {
+        const int current =
+            static_cast<int>(std::lround(volume_ * 100.0f));
+        const int next = std::clamp(current + delta_percent, 0, 100);
+        if (system_volume_.write(next)) {
+            volume_ = static_cast<float>(next) / 100.0f;
+        }
+    }
+    std::cout << "Volume: " << static_cast<int>(std::lround(volume_ * 100.0f))
+              << "%" << (system_volume_ok_ ? " (system)" : "") << std::endl;
+}
+
+void SDRPage::refreshSystemVolume() {
+    if (!system_volume_ok_) return;
+    int percent = 0;
+    if (!system_volume_.read(percent)) return;
+    volume_ = static_cast<float>(percent) / 100.0f;
 }
 
 void SDRPage::handleModeControls(AppKeyCode key) {
