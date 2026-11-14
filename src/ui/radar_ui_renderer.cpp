@@ -155,7 +155,7 @@ void RadarUIRenderer::renderAircraftList(const std::vector<AircraftState>& aircr
             fb_.fillRect(LIST_X, row_y, LIST_W, ROW_HEIGHT, COLOR_SELECTED);
         }
 
-        uint16_t text_color = is_selected ? COLOR_TEXT_BRIGHT : COLOR_TEXT_DIM;
+        uint16_t text_color = is_selected ? COLOR_WHITE : COLOR_TEXT_BRIGHT;
 
         // Format and draw aircraft info
         char buffer[32];
