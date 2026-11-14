@@ -573,23 +573,6 @@ void ADSBPage::calculateDistance(AircraftState& aircraft) {
 }
 
 void ADSBPage::renderCurrentView() {
-    if (help_visible_) {
-        if (help_tab_ == 0) {
-            ui_.renderKeyHelp();
-        } else {
-            const char* source = config_.isManualOverride()
-                                     ? "MANUAL"
-                                     : (gps_.hasFix()
-                                            ? "GPS"
-                                            : (observer_position_set_ ? "SAVED"
-                                                                      : "NOT SET"));
-            ui_.renderSettingsOverview(observer_lat_, observer_lon_,
-                                       observer_position_set_,
-                                       help_setting_index_, source);
-        }
-        return;
-    }
-
     if (view_mode_ == VIEW_LIST) {
         // Render status bar
         ui_.renderStatusBar(aircraft_list_.size(), total_messages_,
@@ -642,6 +625,23 @@ void ADSBPage::renderCurrentView() {
     } else if (view_mode_ == VIEW_SETTINGS) {
         // Render settings menu
         renderSettingsMenu();
+    }
+
+    // Draw the translucent help overlay on top of the live view.
+    if (help_visible_) {
+        if (help_tab_ == 0) {
+            ui_.renderKeyHelp();
+        } else {
+            const char* source = config_.isManualOverride()
+                                     ? "MANUAL"
+                                     : (gps_.hasFix()
+                                            ? "GPS"
+                                            : (observer_position_set_ ? "SAVED"
+                                                                      : "NOT SET"));
+            ui_.renderSettingsOverview(observer_lat_, observer_lon_,
+                                       observer_position_set_,
+                                       help_setting_index_, source);
+        }
     }
 }
 

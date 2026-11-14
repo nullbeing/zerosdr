@@ -382,7 +382,7 @@ ADSB decoding is done by a `readsb` build with the RTL-SDR backend that ships
 inside this package (`/usr/lib/zerosdr/readsb`); no separate decoder install is
 needed. A system `/usr/bin/readsb` is used as a fallback if present.
 
-`H` opens a full-screen overlay with two tabs: the key list and a settings tab
+`H` opens a translucent rounded popup with two tabs: the key list and a settings tab
 where you can view/edit the observer latitude and longitude (opening the usual
 position editor) or clear the stored position. `←`/`→` switch tabs, `↑`/`↓`
 select, `Enter` edits, `H` closes.

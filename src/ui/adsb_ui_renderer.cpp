@@ -781,10 +781,45 @@ void ADSBUIRenderer::renderText(int x, int y, const char* text, uint16_t color, 
     drawText(x, y, text, color);
 }
 
+void ADSBUIRenderer::drawRoundedPanel(int x, int y, int w, int h, int radius,
+                                      uint16_t color, float alpha) {
+    if (w <= 0 || h <= 0) return;
+    radius = std::max(0, std::min(radius, std::min(w / 2, h / 2)));
+    for (int row = 0; row < h; ++row) {
+        int inset = 0;
+        if (row < radius) {
+            const float dy = radius - (row + 0.5f);
+            inset = radius - static_cast<int>(std::lround(
+                                 std::sqrt(radius * radius - dy * dy)));
+        } else if (row >= h - radius) {
+            const float dy = (row + 0.5f) - (h - radius);
+            inset = radius - static_cast<int>(std::lround(
+                                 std::sqrt(radius * radius - dy * dy)));
+        }
+        for (int col = 0; col < w - 2 * inset; ++col) {
+            fb_.blendPixel(x + inset + col, y + row, color, alpha);
+        }
+    }
+}
+
 void ADSBUIRenderer::renderKeyHelp() {
-    fb_.fillRect(0, 0, 320, 170, COLOR_BG_DARK);
-    renderText(6, 4, "KEYS", COLOR_TEXT_BRIGHT, true);
-    drawSmallText(60, 10, "H close   <> settings", COLOR_TEXT_DIM);
+    // Dim the page behind the translucent help panel.
+    for (int y = 0; y < 170; ++y) {
+        for (int x = 0; x < 320; ++x) {
+            fb_.blendPixel(x, y, COLOR_BLACK, 0.45f);
+        }
+    }
+
+    const int panel_w = 252;
+    const int panel_h = 152;
+    const int radius = 9;
+    const int px = (320 - panel_w) / 2;
+    const int py = (170 - panel_h) / 2;
+    drawRoundedPanel(px, py, panel_w, panel_h, radius, COLOR_DIALOG_BG, 0.85f);
+
+    drawText(px + 12, py + 8, "KEYS", COLOR_YELLOW);
+    drawSmallText(px + 88, py + 12, "H close   <> settings",
+                  COLOR_TEXT_DIM);
 
     struct Row { const char* key; const char* action; };
     static const Row rows[] = {
@@ -800,20 +835,32 @@ void ADSBUIRenderer::renderKeyHelp() {
         {"Q / ESC",    "QUIT"},
     };
 
-    int y = 30;
+    int y = py + 32;
     for (const auto& r : rows) {
-        drawSmallText(6, y, r.key, COLOR_YELLOW);
-        drawSmallText(96, y, r.action, COLOR_WHITE);
-        y += 13;
+        drawSmallText(px + 14, y, r.key, COLOR_YELLOW);
+        drawSmallText(px + 92, y, r.action, COLOR_WHITE);
+        y += 12;
     }
 }
 
 void ADSBUIRenderer::renderSettingsOverview(double lat, double lon,
                                             bool pos_set, int selected,
                                             const char* source) {
-    fb_.fillRect(0, 0, 320, 170, COLOR_BG_DARK);
-    renderText(6, 4, "SETTINGS", COLOR_TEXT_BRIGHT, true);
-    drawSmallText(86, 10, "H close   <> keys", COLOR_TEXT_DIM);
+    for (int y = 0; y < 170; ++y) {
+        for (int x = 0; x < 320; ++x) {
+            fb_.blendPixel(x, y, COLOR_BLACK, 0.45f);
+        }
+    }
+
+    const int panel_w = 260;
+    const int panel_h = 146;
+    const int radius = 9;
+    const int px = (320 - panel_w) / 2;
+    const int py = (170 - panel_h) / 2;
+    drawRoundedPanel(px, py, panel_w, panel_h, radius, COLOR_DIALOG_BG, 0.85f);
+
+    drawText(px + 12, py + 8, "SETTINGS", COLOR_YELLOW);
+    drawSmallText(px + 104, py + 12, "H close   <> keys", COLOR_TEXT_DIM);
 
     char lat_s[32];
     char lon_s[32];
@@ -829,19 +876,19 @@ void ADSBUIRenderer::renderSettingsOverview(double lat, double lon,
     const char* values[3] = {lat_s, lon_s, pos_set ? "ENTER to clear" : "-"};
 
     for (int i = 0; i < 3; ++i) {
-        const int y = 44 + i * 30;
+        const int y = py + 40 + i * 26;
         if (i == selected) {
-            fb_.fillRect(4, y - 6, 312, 22, COLOR_SELECTED);
-            drawSmallText(10, y + 2, ">", COLOR_YELLOW);
+            fb_.fillRect(px + 6, y - 6, panel_w - 12, 16, COLOR_SELECTED);
+            drawSmallText(px + 10, y, ">", COLOR_YELLOW);
         }
-        renderText(24, y, labels[i],
-                   i == selected ? COLOR_WHITE : COLOR_TEXT_BRIGHT, false);
-        drawSmallText(186, y + 2, values[i], COLOR_YELLOW);
+        drawSmallText(px + 18, y, labels[i],
+                      i == selected ? COLOR_WHITE : COLOR_TEXT_BRIGHT);
+        drawSmallText(px + 150, y, values[i], COLOR_YELLOW);
     }
 
     char src_line[32];
     snprintf(src_line, sizeof(src_line), "SOURCE: %s", source ? source : "-");
-    drawSmallText(6, 132, src_line, COLOR_TEXT_DIM);
-    drawSmallText(6, 150, "UP/DOWN select   ENTER edit/clear   H close",
+    drawSmallText(px + 18, py + 112, src_line, COLOR_TEXT_DIM);
+    drawSmallText(px + 18, py + 128, "UP/DOWN SELECT  ENTER  H CLOSE",
                   COLOR_TEXT_DIM);
 }

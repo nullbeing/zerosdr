@@ -84,6 +84,10 @@ public:
      */
     void renderText(int x, int y, const char* text, uint16_t color, bool bold = false);
 
+    // Rounded translucent panel used by the H overlay.
+    void drawRoundedPanel(int x, int y, int w, int h, int radius,
+                          uint16_t color, float alpha);
+
     // Use 8x16 font for the ADSB page (override BaseUIRenderer defaults)
     void drawChar(int x, int y, char c, uint16_t color) override;
     void drawText(int x, int y, const char* text, uint16_t color) override;
