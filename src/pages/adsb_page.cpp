@@ -475,11 +475,6 @@ void ADSBPage::handleDetailInput(AppKeyCode key) {
             openRadarView();
             break;
 
-        case APPKEY_ESC:
-            view_mode_ = VIEW_LIST;
-            detail_scroll_offset_ = 0;  // Reset scroll when returning to list
-            std::cout << "ADSBPage: Returning to list view" << std::endl;
-            break;
 
         case APPKEY_SCREENSHOT: {
             char filename[64];
@@ -995,7 +990,6 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
             break;
 
         case APPKEY_ENTER:
-        case APPKEY_ESC:
         case APPKEY_R:
             // Enter continues the cycle: radar -> list.
             view_mode_ = VIEW_LIST;
