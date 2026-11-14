@@ -52,6 +52,7 @@ SpectrumPage::SpectrumPage(Framebuffer& fb, SDRController& sdr,
     wf_pixels_.assign(kWaterfallH * kWidth, COLOR_BG_DARK);
     row_db_.assign(kWidth, -120.0f);
     disp_db_.assign(kWidth, -120.0f);
+    hold_row_db_.assign(kWidth, -120.0f);
 }
 
 SpectrumPage::~SpectrumPage() { cleanup(); }
@@ -103,7 +104,9 @@ void SpectrumPage::rebuildGeometry() {
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
         bins_db_.assign(total_bins_, -120.0f);
+        max_hold_db_.assign(total_bins_, -120.0f);
     }
+    std::fill(hold_row_db_.begin(), hold_row_db_.end(), -120.0f);
     view_start_ = 0;
     view_bins_ = total_bins_;
     floor_db_ = -100.0f;
@@ -222,8 +225,15 @@ void SpectrumPage::sweepLoop() {
                 std::lock_guard<std::mutex> lock(data_mutex_);
                 const size_t off = s * sbins;
                 if (off + sbins <= bins_db_.size()) {
+                    const bool hold = max_hold_active_.load();
+                    const bool have_hold = hold && off + sbins <= max_hold_db_.size();
                     for (size_t j = 0; j < sbins; ++j) {
-                        bins_db_[off + j] = acc[j] / static_cast<float>(frames);
+                        const float value =
+                            acc[j] / static_cast<float>(frames);
+                        bins_db_[off + j] = value;
+                        if (have_hold && value > max_hold_db_[off + j]) {
+                            max_hold_db_[off + j] = value;
+                        }
                     }
                 }
             }
@@ -300,6 +310,14 @@ bool SpectrumPage::handleInput(AppKeyCode key) {
                                                        : 0;
             }
             clearWaterfall();
+            return true;
+        }
+        case APPKEY_M: {
+            const bool next = !max_hold_active_.load();
+            max_hold_active_ = next;
+            std::lock_guard<std::mutex> lock(data_mutex_);
+            std::fill(max_hold_db_.begin(), max_hold_db_.end(), -120.0f);
+            std::fill(hold_row_db_.begin(), hold_row_db_.end(), -120.0f);
             return true;
         }
         case APPKEY_R:
@@ -464,12 +482,13 @@ void SpectrumPage::drawDisplay() {
 }
 
 void SpectrumPage::drawSpectrum() {
-    float min_db = 1e9f;
-    float max_db = -1e9f;
+    const bool hold_active = max_hold_active_.load();
 
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
         const size_t bins = std::max<size_t>(1, view_bins_);
+        const bool have_hold =
+            hold_active && max_hold_db_.size() == bins_db_.size();
         for (int x = 0; x < kWidth; ++x) {
             const size_t start = view_start_ + (static_cast<size_t>(x) * bins) /
                                                    static_cast<size_t>(kWidth);
@@ -477,15 +496,20 @@ void SpectrumPage::drawSpectrum() {
                                            static_cast<size_t>(kWidth);
             if (end <= start) end = start + 1;
             if (end > bins_db_.size()) end = bins_db_.size();
+
             float value = -120.0f;
             for (size_t i = start; i < end; ++i) {
                 if (bins_db_[i] > value) value = bins_db_[i];
             }
             row_db_[x] = value;
-            if (value > -119.0f) {
-                min_db = std::min(min_db, value);
-                max_db = std::max(max_db, value);
+
+            float held = -120.0f;
+            if (have_hold) {
+                for (size_t i = start; i < end; ++i) {
+                    if (max_hold_db_[i] > held) held = max_hold_db_[i];
+                }
             }
+            hold_row_db_[x] = held;
         }
     }
 
@@ -504,9 +528,29 @@ void SpectrumPage::drawSpectrum() {
             disp_db_[x] = disp_db_[x] * 0.55f + smoothed[x] * 0.45f;
         }
         row_db_[x] = disp_db_[x];
+    }
+
+    // The max-hold trace is an envelope, so it only gets the spatial pass.
+    std::vector<float> hold_smoothed(kWidth, -120.0f);
+    if (hold_active) {
+        for (int x = 0; x < kWidth; ++x) {
+            const float left = hold_row_db_[x > 0 ? x - 1 : 0];
+            const float right =
+                hold_row_db_[x + 1 < kWidth ? x + 1 : kWidth - 1];
+            hold_smoothed[x] = (left + 2.0f * hold_row_db_[x] + right) * 0.25f;
+        }
+    }
+
+    float min_db = 1e9f;
+    float max_db = -1e9f;
+    for (int x = 0; x < kWidth; ++x) {
         if (row_db_[x] > -119.0f) {
             min_db = std::min(min_db, row_db_[x]);
             max_db = std::max(max_db, row_db_[x]);
+        }
+        if (hold_active && hold_smoothed[x] > -119.0f) {
+            min_db = std::min(min_db, hold_smoothed[x]);
+            max_db = std::max(max_db, hold_smoothed[x]);
         }
     }
 
@@ -532,23 +576,26 @@ void SpectrumPage::drawSpectrum() {
         }
     }
 
-    const float span = ceil_db_ - floor_db_;
-    int prev_x = 0;
-    int prev_y = kSpectrumH - 1;
-    for (int x = 0; x < kWidth; ++x) {
-        float norm = (row_db_[x] - floor_db_) / span;
+    auto y_for = [&](float value) {
+        const float span = ceil_db_ - floor_db_;
+        float norm = (value - floor_db_) / span;
         norm = std::clamp(norm, 0.0f, 1.0f);
-        const int y = kSpectrumH - 1 -
-                      static_cast<int>(norm * static_cast<float>(kSpectrumH - 3));
-        if (x == 0) {
-            prev_x = x;
-            prev_y = y;
-        } else {
-            fb_.drawLine(prev_x, prev_y, x, y, 0xFFE0);
+        return kSpectrumH - 1 -
+               static_cast<int>(norm * static_cast<float>(kSpectrumH - 3));
+    };
+    auto draw_curve = [&](const std::vector<float>& values, uint16_t color) {
+        int prev_x = 0;
+        int prev_y = y_for(values[0]);
+        for (int x = 1; x < kWidth; ++x) {
+            const int y = y_for(values[x]);
+            fb_.drawLine(prev_x, prev_y, x, y, color);
             prev_x = x;
             prev_y = y;
         }
-    }
+    };
+
+    if (hold_active) draw_curve(hold_smoothed, COLOR_RED);
+    draw_curve(row_db_, 0xFFE0);
 }
 
 void SpectrumPage::drawAxis() {
@@ -627,6 +674,10 @@ void SpectrumPage::drawStatusBar() {
     char span_buf[24];
     std::snprintf(span_buf, sizeof(span_buf), "SPAN %.2fM", view_span / 1e6);
     ui_.drawText(178, kStatusY + 3, span_buf, COLOR_TEXT_DIM);
+
+    if (max_hold_active_) {
+        ui_.drawText(150, kStatusY + 3, "MAX", COLOR_RED);
+    }
 
     char progress[16];
     std::snprintf(progress, sizeof(progress), "%3d%%", sweep_progress_.load());
