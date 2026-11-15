@@ -14,6 +14,16 @@ framebuffer，音频解调（FM / NFM / AM / USB / LSB）通过 ALSA 输出。
 > 在列表页按 `→` 切到设置页（FM 去加重、音频 AGC、FFT 大小、采样率），
 > 再按 `H` 关闭。
 
+| | |
+|:---:|:---:|
+| ![频谱页](images/spectrum.png) | ![ADSB 雷达](images/radar.png) |
+| 宽带频谱页：460–490 MHz 扫描 + 峰值保持 | ADSB 雷达视图：距离环与呼号大字 |
+
+| | |
+|:---:|:---:|
+| ![ADSB 详情](images/detail.png) | ![按键说明](images/sdr.png) |
+| 飞机详情页（PFD） | 实时频谱、瀑布与状态栏 |
+
 ## 功能
 
 - 320×170 framebuffer 上的实时频谱与瀑布
@@ -21,6 +31,9 @@ framebuffer，音频解调（FM / NFM / AM / USB / LSB）通过 ALSA 输出。
 - 硬件 AGC / 手动增益、显示缩放、FFT 大小、采样率预设
 - 屏幕按键列表 + 设置页（`H`）
 - ADSB 飞机页面（readsb），含雷达/PFD 视图
+- 宽带扫描频谱页：自定义起止频率、平移缩放、峰值保持
+- 频谱与瀑布六种配色主题（`M`）
+- 任意页面都能用键盘调节系统音量（`Fn`+`D` / `Fn`+`S`）
 - 借助 librtlsdr 的 udev 规则，以普通用户运行，**不需要 root**
 - 针对 Raspberry Pi Zero 2W / Pi 5 与 M5Stack Cardputer Zero 优化
 
@@ -35,7 +48,7 @@ framebuffer，音频解调（FM / NFM / AM / USB / LSB）通过 ALSA 输出。
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libfreetype-dev
+sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libpulse-dev libfreetype-dev nlohmann-json3-dev
 
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
@@ -46,6 +59,18 @@ cmake --build build -j"$(nproc)"
 ```
 
 在 CM0 上**必须用 Release 构建**：FFT、解调、重采样要在四个小核上实时跑。
+
+## 在 Cardputer Zero 上安装
+
+zeroSDR 已在 Cardputer Zero 应用商店（AppStore）上架：打开商店搜 **zeroSDR**
+安装即可。在设备终端等价于：
+
+```bash
+sudo apt update && sudo apt install zerosdr
+```
+
+包里已经带好程序本体、APPLaunch 入口与图标，以及带 RTL-SDR 后端的
+`readsb` 解码器，不需要再装别的东西。
 
 ## Cardputer Zero 手动部署
 
@@ -63,7 +88,7 @@ APPLaunch 以桌面用户 `pi` 启动应用，`Exec` / `Icon` 按 `/usr/share/AP
 ### 1. 在设备上构建（推荐）
 
 ```bash
-sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libfreetype-dev
+sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libpulse-dev libfreetype-dev nlohmann-json3-dev
 cd ~/zerosdr
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
@@ -181,7 +206,7 @@ systemctl --user restart APPLaunch.service
 1. 频谱 / 瀑布在动
 2. **按 `H` 出现按键列表，按 `→` 进入设置页**
 3. 有声音（调到已知电台）
-4. `Tab` 切到 ADSB 页面，`Q` / `Esc` 回到启动器
+4. `Tab` 循环 SDR → 频谱 → ADSB，`Q` / 长按 `Esc` 回到启动器
 
 日志：
 
@@ -227,7 +252,7 @@ sudo dpkg -i ../zerosdr_*.deb
 第一次运行会显示一个简短引导（之后可从 `H` → 设置 → `SHOW GUIDE` 重新打开）：
 
 - `H` 打开按键列表与设置
-- `Tab` 在 SDR 与 ADSB 页面之间切换
+- `Tab` 在 SDR、频谱、ADSB 三个页面之间循环
 - `Enter` 在 ADSB 的 列表 → 详情 → 雷达 之间循环
 - 观测点位置：可以手动输入，也可以在检测到 GPS 时自动读取（gpsd 或串口
   NMEA）。手动输入会一直覆盖 GPS，直到在设置里清除位置。
@@ -256,9 +281,7 @@ TCA8418 键盘会自动识别（`tca8418c`）。`F`/`Z`/`X`/`C` 直接作为方�
 | `C` / `→` | 频率 +step |
 | `F` / `↑` | 增益 + |
 | `X` / `↓` | 增益 - |
-| `Shift` + `Z`/`C` | 粗调（step × 10） |
-| `Fn`+`L`（PgUp） | 频率 +1 MHz |
-| `Fn`+`M`（PgDn） | 频率 -1 MHz |
+| `Alt`+`Z`/`C` | 粗调（step × 10） |
 | `0-9` `.` | 直接输入频率（MHz） |
 | `Enter` | 应用频率 |
 | `Backspace` | 删除一位 |
@@ -271,12 +294,13 @@ TCA8418 键盘会自动识别（`tca8418c`）。`F`/`Z`/`X`/`C` 直接作为方�
 | `T` | 切换调谐步进（Auto/100/1k/5k/10k/100k/1M） |
 | `Space` / `Fn`+`A` | 音频开关 |
 | `G` | 硬件 AGC 开关 |
-| `M` | 显示模式（频谱+瀑布 / 频谱 / 瀑布） |
+| `M` | 频谱与瀑布配色主题（DEFAULT/CLASSIC/TURBO/INFERNO/VIRIDIS/PLASMA） |
 | `Y` | 显示缩放（只在采样率允许的档位内循环） |
 | `Fn`+`P`（F12） | 截图（`~/zerosdr_screenshot_*.png`） |
 | `H` | 按键列表，`→` 进设置页 |
 | `Tab` | 切换页面（SDR ↔ ADSB） |
-| `Q` / `Esc` | 退出 |
+| `Q` | 立即退出 |
+| `Esc`（长按 2 秒） | 退出，屏幕中央有进度提示 |
 
 `Fn`+`D` / `Fn`+`S` 在任何页面都能调节系统音量。launcher 的 labwc 绑定通常
 是 5% 一档；如果 300 ms 内系统音量没有变化，zeroSDR 会自己按 10% 调整，
@@ -287,16 +311,15 @@ TCA8418 键盘会自动识别（`tca8418c`）。`F`/`Z`/`X`/`C` 直接作为方�
 
 | 按键 | 功能 |
 |---|---|
-| `←` `→` | 调谐（Shift = 粗调） |
+| `←` `→` | 调谐（Alt = 粗调） |
+| `Alt`+`Z`/`C` | 粗调（step × 10） |
 | `↑` `↓` | 增益 |
-| `PgUp` `PgDn` | ±1 MHz |
 | `D` | 解调模式 |
 | `B` / `Shift+B` | 解调带宽 |
 | `Space` | 音频开关 |
-| `V` / `C` | 音量 + / - |
 | `S` | 静噪 |
 | `T` | 调谐步进 |
-| `M` | 显示模式 |
+| `M` | 配色主题 |
 | `Shift+Z` | 显示缩放 |
 | `Shift+R` | FFT 大小 |
 | `Shift+S` | 截图 |
@@ -314,6 +337,7 @@ TCA8418 键盘会自动识别（`tca8418c`）。`F`/`Z`/`X`/`C` 直接作为方�
 | 音频 AGC | 开 / 关 | 开 |
 | FFT 大小 | 256 / 512 / 1024 / 2048 | 512 |
 | 采样率 | 1.024 / 1.2 / 1.8 / 2.048 / 2.4 MHz | 1.024 MHz |
+| 首次启动引导 | `SHOW GUIDE`：立即重新打开 | — |
 
 修改采样率时，显示跨度会自动切到"新带宽能填满的最大档"（1.2 M → 1.0 M，
 2.048 M → 2.0 M），避免出现"跨度大于采样率、按 `Y` 看起来没反应"的情况。
@@ -353,18 +377,18 @@ TCA8418 键盘会自动识别（`tca8418c`）。`F`/`Z`/`X`/`C` 直接作为方�
 
 ## ADSB 页面
 
-按 `Tab` 在 SDR 页面和 ADSB 飞机列表之间切换。列表页按键：
+按 `Tab` 在 SDR 页面、宽带频谱页和 ADSB 飞机列表之间切换。列表页按键：
 
 | 按键 | 功能 |
 |---|---|
 | `↑` / `↓` | 选择飞机 |
-| `←` / `→` | 上下翻 5 行（`PgUp`/`PgDn` 也可） |
+| `←` / `→` | 上下翻 5 行 |
 | `Enter` | 顺序切换视图：列表 → 详情 → 雷达 → 列表 |
 | `R` | 直接跳到雷达视图（需要先设置观测点位置） |
 | `H` | 按键列表 + 设置（经度/纬度、清除位置） |
 | `L` | 观测点位置编辑 |
 | `G` / `+` / `-` | 雷达增益模式 / 增益 |
-| `Tab` | 返回 SDR 页面 |
+| `Tab` | 切到下一个页面 |
 
 雷达左侧列表显示 `ICAO` / 高度 / 距离，选中飞机的呼号以大字显示在左侧栏底部的
 暗色通栏条带上（没有呼号时显示 ICAO）。呼号以及 ADSB 的状态栏/详情文字使用抗锯齿
@@ -389,6 +413,36 @@ ADSB 解码使用随包安装的 `readsb`（带 RTL-SDR 后端，位于
 - 雷达每转一圈（60°/s，6 秒）一次声纳 ping
 - 扫描线每经过 90° 一个轻微 tick
 - 出现新飞机时两音提示（最多每 3 秒一次）
+
+## 宽带频谱页
+
+`Tab` 在 SDR → 频谱 → ADSB 三页之间循环。频谱页是一个 qspectrumanalyzer 风格的
+扫描式频谱仪：把 RTL-SDR 在用户指定的起止频率之间反复调谐，把每一片拼成一条宽
+频谱，下面配瀑布。RTL-SDR V4 的范围是 24–1766 MHz。
+
+第一次进入时会要求输入 START / STOP（MHz）。用数字和 `.` 输入，`↑`/`↓` 切换字段，
+`Enter` 逐项确认；范围保存在 `~/.config/zerosdr/config.json` 的 `spectrum` 段里，
+之后直接复用。
+
+| 按键 | 功能 |
+|---|---|
+| `←` / `→` | 平移可见窗口 |
+| `↑` / `↓` | 放大 / 缩小 |
+| `Enter` | 回到完整范围 |
+| `M` | 峰值保持开关（红色包络） |
+| `R` | 修改起止频率 |
+| `H` | 半透明帮助浮层 |
+| `Tab` | 切换页面（SDR → 频谱 → ADSB） |
+| `Esc`（长按 2 秒） | 退出 |
+
+说明：
+
+- 每一片用 1.024 MHz 采样率、取中间约 0.78 MHz，调谐稳定 15 ms，一步约 20 ms；
+  20 MHz 范围不到一秒扫完，100 MHz 几秒钟。
+- 宽频时一个 bin 约 2 kHz，放大后一个 bin 一列像素。
+- 峰值保持默认开启，`M` 关闭时会清空已记录的峰值。
+- 平移或缩放时会清空瀑布窗口，避免显示别处残留的历史。
+- 离开页面时会释放 SDR，交还给 SDR 页和 ADSB 页。
 
 ## 命令行参数
 

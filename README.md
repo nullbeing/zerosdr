@@ -15,6 +15,16 @@ and demodulates FM / NFM / AM / USB / LSB audio through ALSA.
 > Press `→` there to switch to the settings tab (FM de-emphasis, audio AGC,
 > FFT size, sample rate). Press `H` again to close.
 
+| | |
+|:---:|:---:|
+| ![Spectrum page](images/spectrum.png) | ![ADSB radar](images/radar.png) |
+| Wideband spectrum page: swept 460–490 MHz with max hold | ADSB radar view with range rings and a callsign plate |
+
+| | |
+|:---:|:---:|
+| ![ADSB detail](images/detail.png) | ![On-screen keys](images/sdr.png) |
+| Aircraft detail view with the flight display | Real-time spectrum, waterfall and the status bar |
+
 ## Features
 
 - Real-time spectrum and waterfall on a 320x170 framebuffer
@@ -24,6 +34,8 @@ and demodulates FM / NFM / AM / USB / LSB audio through ALSA.
 - On-screen key reference and settings panel (`H`)
 - ADSB aircraft page (readsb) with radar/PFD view
 - Wideband swept spectrum page with a custom start/stop range, pan and zoom
+- Six colour themes for the spectrum and waterfall (`M`)
+- System volume from the keyboard on every page (`Fn`+`D` / `Fn`+`S`)
 - Runs as the normal desktop user (no root) thanks to the librtlsdr udev rule
 - Optimized for Raspberry Pi Zero 2W / Pi 5 and the M5Stack Cardputer Zero
 
@@ -50,6 +62,18 @@ cmake --build build -j"$(nproc)"
 
 `Release` build is required on the CM0: FFT + demodulation + resampling all run
 in real time on four small cores.
+
+## Install on Cardputer Zero
+
+zeroSDR is in the Cardputer Zero AppStore: open the store, find **zeroSDR** and
+install it. On the device shell the same package is:
+
+```bash
+sudo apt update && sudo apt install zerosdr
+```
+
+It installs the binary, the APPLaunch entry and icon, and the `readsb` decoder
+with the RTL-SDR backend, so nothing else needs to be set up.
 
 ## Manual deployment on Cardputer Zero
 
@@ -285,7 +309,7 @@ codes, and plain letters are used for the SDR controls.
 | `Y` | Display zoom (only spans the sample rate can fill) |
 | `Fn`+`P` (F12) | Screenshot (`~/zerosdr_screenshot_*.png`) |
 | `H` | Key list, then `→` for settings |
-| `Tab` | Switch page (SDR ↔ ADSB) |
+| `Tab` | Switch page (SDR → Spectrum → ADSB) |
 | `Q` | Quit immediately |
 | `Esc` (hold 2 s) | Quit, with a centered progress prompt |
 
@@ -320,6 +344,7 @@ Rarely changed options live in the settings tab instead of hotkeys:
 | Audio AGC | On / Off | On |
 | FFT size | 256 / 512 / 1024 / 2048 | 512 |
 | Sample rate | 1.024 / 1.2 / 1.8 / 2.048 / 2.4 MHz | 1.024 MHz |
+| First-run guide | `SHOW GUIDE`: reopen it now | — |
 
 Changing the sample rate resets the display span to the widest level that fits
 the new band (1.2 M → 1.0 M, 2.048 M → 2.0 M), so `Y` never appears to do
@@ -373,7 +398,8 @@ the current sample rate can fill.
 
 ## ADSB page
 
-`Tab` switches between the SDR page and the ADSB aircraft list. In the list:
+`Tab` switches between the SDR page, the wideband spectrum page and the ADSB
+aircraft list. In the list:
 
 | Key | Action |
 |-----|--------|

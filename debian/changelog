@@ -1,3 +1,37 @@
+zerosdr (0.3.7) trixie; urgency=medium
+
+  * New wideband spectrum page (Tab now cycles SDR -> Spectrum -> ADSB):
+    a qspectrumanalyzer style sweep over a user supplied start/stop range,
+    1.024 MHz slices stitched into one trace with a waterfall below, a 3/5
+    spectrum and 2/5 waterfall split, a smoothed trace, pan/zoom, max hold
+    (on by default) and a translucent help overlay; the range is saved in
+    the spectrum section of the config file and the capture is released
+    when the page is left
+  * All settings move into one JSON file, ~/.config/zerosdr/config.json
+    (system / sdr / spectrum / adsb); the old sdr_settings.json,
+    spectrum_range.txt, adsb_config.json and guide.json are imported once
+  * Fn+D / Fn+S adjust the system sink volume on every page, including the
+    help overlays and the range/position editors; the SDR status bar
+    follows the sink and the spectrum/ADSB pages show a VOL popup
+  * M now cycles spectrum and waterfall colour themes (DEFAULT, CLASSIC,
+    TURBO, INFERNO, VIRIDIS, PLASMA); DEFAULT keeps the original
+    green/blue look
+  * Esc only quits after a two second hold, with a rounded progress prompt,
+    and now also leaves the radar and detail views
+  * Coarse tuning moved to Alt+Left/Right (Alt+Z/C on the keypad)
+  * Screenshots (Fn+P) are written to the home directory
+  * The SDR status bar shows the demodulation mode in red
+  * Help overlay: the key list and the settings tab are grouped and the
+    settings hint is highlighted; the ADSB and spectrum pages draw theirs
+    as a translucent rounded popup
+  * Radar: the scope fills the screen height, the list shows the distance
+    unit, non-selected rows are brighter and the counter is labelled
+    Traffic
+  * Removed the Page Up/Down shortcuts, which collided with the volume keys
+  * CI: build with the current action versions and install FreeType
+
+ -- Weiming Feng <bestedwin@gmail.com>  Sun, 15 Nov 2026 21:40:00 +0800
+
 zerosdr (0.3.6) trixie; urgency=medium
 
   * ADSB: no position is ever invented. The legacy settings menu shows
