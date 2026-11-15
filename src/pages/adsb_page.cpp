@@ -1,4 +1,5 @@
 #include "pages/adsb_page.h"
+#include "system_volume.h"
 #include "screenshot.h"
 #include <iostream>
 #include <algorithm>
@@ -246,7 +247,32 @@ void ADSBPage::update(float delta_time) {
 
     // Render current view
     renderCurrentView();
+    if (!help_visible_) drawVolumeToast();
     fb_.update();
+}
+
+void ADSBPage::onVolumeChanged(int percent) {
+    if (percent < 0) return;
+
+    char buf[16];
+    std::snprintf(buf, sizeof(buf), "VOL %d%%", percent);
+    volume_toast_ = buf;
+    volume_toast_until_ = std::chrono::steady_clock::now() +
+                          std::chrono::milliseconds(1500);
+    beeps_.play(1200.0f, 20, 0.05f);
+}
+
+void ADSBPage::drawVolumeToast() {
+    if (volume_toast_.empty()) return;
+    if (std::chrono::steady_clock::now() >= volume_toast_until_) return;
+
+    const int text_w = static_cast<int>(volume_toast_.size()) * 9;
+    const int w = text_w + 12;
+    const int x = (320 - w) / 2;
+    const int y = 21;
+    fb_.fillRect(x, y, w, 19, COLOR_ADSB_STATUSBAR_BG);
+    fb_.drawRect(x, y, w, 19, COLOR_YELLOW);
+    ui_.drawText(x + 6, y + 1, volume_toast_.c_str(), COLOR_YELLOW);
 }
 
 void ADSBPage::openRadarView() {

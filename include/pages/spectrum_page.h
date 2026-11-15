@@ -31,6 +31,7 @@ public:
     void onExit() override;
     void update(float delta_time) override;
     bool handleInput(AppKeyCode key) override;
+    void onVolumeChanged(int percent) override;
     const char* getName() const override { return "Spectrum"; }
     const char* getDescription() const override {
         return "Wideband swept spectrum analyzer";

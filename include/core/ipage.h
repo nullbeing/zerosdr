@@ -50,6 +50,13 @@ public:
     virtual bool handleInput(AppKeyCode key) = 0;
 
     /**
+     * Called after the system volume changed (fn+D / fn+S). Pages can use it
+     * for transient feedback. The default implementation ignores it.
+     * @param percent New sink volume (0-100), or -1 when unavailable
+     */
+    virtual void onVolumeChanged(int percent) { (void)percent; }
+
+    /**
      * Get the page name (for display and identification)
      * @return Page name string
      */

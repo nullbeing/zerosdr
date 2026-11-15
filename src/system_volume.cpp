@@ -204,3 +204,67 @@ bool SystemVolume::write(int percent) {
     }
     return true;
 }
+
+namespace {
+
+SystemVolume& sharedVolume() {
+    static SystemVolume volume;
+    return volume;
+}
+
+bool g_volume_initialized = false;
+bool g_volume_ready = false;
+int g_volume_percent = 0;
+
+bool ensureSystemVolume() {
+    if (!g_volume_initialized) {
+        g_volume_initialized = true;
+        g_volume_ready = sharedVolume().init();
+        if (g_volume_ready) {
+            int percent = 0;
+            if (sharedVolume().read(percent)) {
+                g_volume_percent = percent;
+            } else {
+                g_volume_ready = false;
+            }
+        }
+    }
+    return g_volume_ready;
+}
+
+}  // namespace
+
+bool systemVolumeInit() { return ensureSystemVolume(); }
+
+bool systemVolumeAvailable() { return ensureSystemVolume(); }
+
+const char* systemVolumeError() {
+    ensureSystemVolume();
+    return sharedVolume().error();
+}
+
+int systemVolumePercent() {
+    if (!ensureSystemVolume()) return -1;
+    return g_volume_percent;
+}
+
+int systemVolumeRefresh() {
+    if (!ensureSystemVolume()) return -1;
+    int percent = 0;
+    if (!sharedVolume().read(percent)) return -1;
+    g_volume_percent = percent;
+    return percent;
+}
+
+int systemVolumeStep(int delta_percent) {
+    if (!ensureSystemVolume()) return -1;
+
+    // Pick up changes made elsewhere (for example the launcher) first.
+    int percent = g_volume_percent;
+    if (sharedVolume().read(percent)) g_volume_percent = percent;
+
+    const int next = std::clamp(percent + delta_percent, 0, 100);
+    if (!sharedVolume().write(next)) return -1;
+    g_volume_percent = next;
+    return next;
+}

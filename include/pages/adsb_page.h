@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 #include <set>
+#include <chrono>
 
 /**
  * ADSBPage - ADSB receiver page
@@ -41,6 +42,7 @@ public:
     void onExit() override;
     void update(float delta_time) override;
     bool handleInput(AppKeyCode key) override;
+    void onVolumeChanged(int percent) override;
     const char* getName() const override { return "ADSB"; }
     const char* getDescription() const override { return "ADSB Aircraft Tracker"; }
 
@@ -122,6 +124,8 @@ private:
     std::unique_ptr<READSBController> readsb_;
     READSBJSONParser json_parser_;
     std::string json_path_;
+    std::string volume_toast_;
+    std::chrono::steady_clock::time_point volume_toast_until_{};
     time_t last_json_read_;
 
     // Configuration
@@ -139,6 +143,9 @@ private:
     void handleDetailInput(AppKeyCode key);
     void handleRadarInput(AppKeyCode key);
     void handleSettingsInput(AppKeyCode key);
+
+    // Transient fn+D / fn+S feedback drawn over the current view.
+    void drawVolumeToast();
     void renderSettingsMenu();
     void loadConfig();
     void saveConfig();

@@ -832,14 +832,15 @@ void ADSBUIRenderer::renderKeyHelp() {
         {"H",          "HELP / SETTINGS"},
         {"G",          "GAIN MODE (RADAR)"},
         {"+ / -",      "GAIN (RADAR)"},
+        {"FN+D/S",     "VOLUME"},
         {"Q / ESC",    "QUIT"},
     };
 
-    int y = py + 32;
+    int y = py + 24;
     for (const auto& r : rows) {
         drawSmallText(px + 14, y, r.key, COLOR_YELLOW);
         drawSmallText(px + 92, y, r.action, COLOR_WHITE);
-        y += 12;
+        y += 11;
     }
 }
 

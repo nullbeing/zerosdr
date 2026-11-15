@@ -1,5 +1,6 @@
 #include "pages/spectrum_page.h"
 #include "app_config.h"
+#include "system_volume.h"
 #include "screenshot.h"
 
 #include <algorithm>
@@ -528,7 +529,7 @@ void SpectrumPage::drawHelpOverlay() {
     }
 
     const int panel_w = 252;
-    const int panel_h = 126;
+    const int panel_h = 138;
     const int radius = 9;
     const int px = (kWidth - panel_w) / 2;
     const int py = (170 - panel_h) / 2;
@@ -540,11 +541,13 @@ void SpectrumPage::drawHelpOverlay() {
 
     static const char* const keys[] = {
         "LEFT/RIGHT", "UP/DOWN", "ENTER",  "M",
-        "R",          "TAB",     "H",      "FN+P",     "HOLD ESC",
+        "R",          "TAB",     "FN+D/S", "FN+P",       "HOLD ESC",
+        "H",
     };
     static const char* const actions[] = {
         "PAN",       "ZOOM",   "FULL SPAN", "MAX HOLD",
-        "SET RANGE", "PAGE",   "CLOSE",     "SCREENSHOT", "EXIT",
+        "SET RANGE", "PAGE",   "VOLUME",    "SCREENSHOT", "EXIT",
+        "CLOSE",
     };
 
     const int row_y = py + 26;
@@ -724,6 +727,18 @@ void SpectrumPage::drawWaterfall() {
             fb_.drawPixel(x, kWaterfallY + row, wf_pixels_[row * kWidth + x]);
         }
     }
+}
+
+void SpectrumPage::onVolumeChanged(int percent) {
+    char buf[16];
+    if (percent >= 0) {
+        std::snprintf(buf, sizeof(buf), "VOL %d%%", percent);
+    } else {
+        std::snprintf(buf, sizeof(buf), "NO VOL");
+    }
+    toast_ = buf;
+    toast_until_ = std::chrono::steady_clock::now() +
+                   std::chrono::milliseconds(1500);
 }
 
 void SpectrumPage::drawStatusBar() {

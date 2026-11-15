@@ -38,6 +38,7 @@ public:
     void onExit() override;
     void update(float delta_time) override;
     bool handleInput(AppKeyCode key) override;
+    void onVolumeChanged(int percent) override;
     const char* getName() const override { return "SDR"; }
     const char* getDescription() const override { return "SDR Spectrum Analyzer"; }
 
@@ -118,9 +119,8 @@ private:
     // Spectrum/waterfall colour theme (M key).
     int theme_index_ = 0;
 
-    // The launcher handles the volume keys; the viewer only mirrors the
-    // resulting PipeWire/PulseAudio sink volume in its status bar.
-    SystemVolume system_volume_;
+    // The main loop applies the volume keys through the shared system volume;
+    // the page only mirrors the resulting sink volume in its status bar.
     bool system_volume_ok_ = false;
     float volume_poll_accum_ = 0.0f;
 
@@ -156,7 +156,6 @@ private:
     void handleNavigationKeys(AppKeyCode key);
     void handleAudioControls(AppKeyCode key);
     void refreshSystemVolume();
-    void applyVolumeStep(int delta_percent);
     void handleModeControls(AppKeyCode key);
 
     void startAudioThread();

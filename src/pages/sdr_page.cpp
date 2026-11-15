@@ -74,20 +74,19 @@ bool SDRPage::init() {
     std::cout << "SDRPage: Initializing..." << std::endl;
     loadSettings();
     ui_.setTheme(theme_index_);
-    system_volume_ok_ = system_volume_.init();
-    int system_percent = 0;
-    if (system_volume_ok_ && !system_volume_.read(system_percent)) {
-        system_volume_ok_ = false;
-    }
+    system_volume_ok_ = systemVolumeInit();
     // The sink already applies the volume, so the demod path stays at unity
     // gain instead of attenuating twice.
     demod_.setVolume(1.0f);
     if (system_volume_ok_) {
-        volume_ = static_cast<float>(system_percent) / 100.0f;
-        std::cout << "System volume: " << system_percent << "%"
-                  << std::endl;
+        const int system_percent = systemVolumeRefresh();
+        if (system_percent >= 0) {
+            volume_ = static_cast<float>(system_percent) / 100.0f;
+            std::cout << "System volume: " << system_percent << "%"
+                      << std::endl;
+        }
     } else {
-        std::cout << "System volume unavailable (" << system_volume_.error()
+        std::cout << "System volume unavailable (" << systemVolumeError()
                   << ")" << std::endl;
     }
     demod_.setSquelch(squelch_);
@@ -202,8 +201,8 @@ void SDRPage::onExit() {
 }
 
 void SDRPage::update(float delta_time) {
-    // The launcher owns the volume keys; keep the displayed value in step
-    // with the system sink.
+    // Keep the displayed value in step with the system sink (it may also
+    // change from the launcher while another page is active).
     volume_poll_accum_ += delta_time;
     if (system_volume_ok_ && volume_poll_accum_ >= 0.5f) {
         volume_poll_accum_ = 0.0f;
@@ -526,11 +525,10 @@ void SDRPage::handleNavigationKeys(AppKeyCode key) {
 void SDRPage::handleAudioControls(AppKeyCode key) {
     switch (key) {
         case APPKEY_V:
-            audio_enabled_ = true;  // volume-up also unmutes
-            applyVolumeStep(10);
+            // Volume-up also unmutes; the main loop reports the new level.
+            audio_enabled_ = true;
             break;
         case APPKEY_C:
-            applyVolumeStep(-10);
             break;
         case APPKEY_S: {
             // Hold-to-accelerate: short tap = fine (5%), medium hold = 10%, long hold = 25%
@@ -573,23 +571,15 @@ void SDRPage::handleAudioControls(AppKeyCode key) {
     }
 }
 
-void SDRPage::applyVolumeStep(int delta_percent) {
-    if (system_volume_ok_) {
-        const int current =
-            static_cast<int>(std::lround(volume_ * 100.0f));
-        const int next = std::clamp(current + delta_percent, 0, 100);
-        if (system_volume_.write(next)) {
-            volume_ = static_cast<float>(next) / 100.0f;
-        }
-    }
-    std::cout << "Volume: " << static_cast<int>(std::lround(volume_ * 100.0f))
-              << "%" << (system_volume_ok_ ? " (system)" : "") << std::endl;
+void SDRPage::onVolumeChanged(int percent) {
+    if (percent < 0) return;
+    volume_ = static_cast<float>(percent) / 100.0f;
 }
 
 void SDRPage::refreshSystemVolume() {
     if (!system_volume_ok_) return;
-    int percent = 0;
-    if (!system_volume_.read(percent)) return;
+    const int percent = systemVolumeRefresh();
+    if (percent < 0) return;
     volume_ = static_cast<float>(percent) / 100.0f;
 }
 

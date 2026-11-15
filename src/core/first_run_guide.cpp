@@ -132,6 +132,7 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
                 {"H", "key list + settings"},
                 {"TAB", "SDR > SPECTRUM > ADSB"},
                 {"ENTER", "ADSB: list > detail > radar"},
+                {"FN+D/S", "system volume"},
                 {"< >", "change guide page"},
             };
             for (auto& r : rows) {

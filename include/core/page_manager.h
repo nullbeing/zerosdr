@@ -91,6 +91,13 @@ private:
     struct timeval exit_hold_start_ {};
     std::vector<uint16_t> exit_snapshot_;
 
+    // fn+D / fn+S: give the launcher's own binding a moment to take effect;
+    // if the sink volume did not move, apply the step ourselves.
+    bool volume_key_pending_ = false;
+    int volume_key_delta_ = 0;
+    int volume_key_before_ = -1;
+    struct timeval volume_key_deadline_ {};
+
     /**
      * Perform page transition
      * @param new_index Index of the page to switch to

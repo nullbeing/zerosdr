@@ -3,9 +3,7 @@
 
 #include <cstdint>
 
-// Read the default PulseAudio/PipeWire sink volume. The launcher already
-// handles the Cardputer Zero volume keys (fn+D / fn+S) through labwc, so the
-// viewer only follows the system volume instead of implementing its own.
+// Read the default PulseAudio/PipeWire sink volume.
 class SystemVolume {
 public:
     SystemVolume();
@@ -30,5 +28,22 @@ private:
     bool ready_ = false;
     const char* error_ = "";
 };
+
+// Process-wide volume helper shared by all pages. The main loop applies the
+// fn+D / fn+S keys through stepSystemVolume() so they work whatever page is
+// in the foreground; pages read systemVolumePercent() for display.
+bool systemVolumeInit();
+bool systemVolumeAvailable();
+const char* systemVolumeError();
+
+// Cached value, refreshed by the calls below. -1 when unavailable.
+int systemVolumePercent();
+
+// Re-read the sink volume. Returns the percentage, or -1 on failure.
+int systemVolumeRefresh();
+
+// Change the sink volume by delta percent (clamped to 0-100) and return the
+// new percentage, or -1 when the sound server is unavailable.
+int systemVolumeStep(int delta_percent);
 
 #endif  // SYSTEM_VOLUME_H

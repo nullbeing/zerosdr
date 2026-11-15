@@ -1,4 +1,5 @@
 #include "core/page_manager.h"
+#include "system_volume.h"
 #include "font.h"
 #include <iostream>
 #include <sys/time.h>
@@ -119,6 +120,28 @@ int PageManager::run() {
                         exit_snapshot_.size() * sizeof(uint16_t));
         }
 
+        // fn+D / fn+S are global. The launcher normally binds them to a 5%
+        // sink step through labwc, so record the request and check the sink a
+        // moment later instead of double-stepping; the key is still routed to
+        // the page (SDR uses volume-up to unmute).
+        if (key == APPKEY_V || key == APPKEY_C) {
+            if (!volume_key_pending_) {
+                // Read the live value so a change made from the launcher does
+                // not look like a reaction to this key press.
+                const int current = systemVolumeRefresh();
+                volume_key_before_ =
+                    current >= 0 ? current : systemVolumePercent();
+                volume_key_pending_ = true;
+            }
+            volume_key_delta_ += (key == APPKEY_V) ? 10 : -10;
+            gettimeofday(&volume_key_deadline_, nullptr);
+            volume_key_deadline_.tv_usec += 300000;
+            if (volume_key_deadline_.tv_usec >= 1000000) {
+                volume_key_deadline_.tv_usec -= 1000000;
+                volume_key_deadline_.tv_sec += 1;
+            }
+        }
+
         // Check for global page-switching keys
         if (key == APPKEY_ESC) {
             // Swallow the press; the hold is handled after the page update.
@@ -140,6 +163,33 @@ int PageManager::run() {
         IPage* current_page = getCurrentPage();
         if (current_page && !exit_hold_active_) {
             current_page->update(delta_time);
+        }
+
+        // Resolve a pending volume key once the launcher has had its chance.
+        if (volume_key_pending_) {
+            struct timeval now;
+            gettimeofday(&now, nullptr);
+            const bool due =
+                now.tv_sec > volume_key_deadline_.tv_sec ||
+                (now.tv_sec == volume_key_deadline_.tv_sec &&
+                 now.tv_usec >= volume_key_deadline_.tv_usec);
+            if (due) {
+                volume_key_pending_ = false;
+                int percent = systemVolumeRefresh();
+                if (percent >= 0 && percent == volume_key_before_) {
+                    // The launcher did not react: step the sink ourselves.
+                    percent = systemVolumeStep(volume_key_delta_);
+                }
+                volume_key_delta_ = 0;
+                if (percent >= 0) {
+                    std::cout << "Volume: " << percent << "% (system)"
+                              << std::endl;
+                } else {
+                    std::cerr << "Volume: system volume unavailable"
+                              << std::endl;
+                }
+                if (current_page) current_page->onVolumeChanged(percent);
+            }
         }
 
         // Hold-to-exit overlay and timing.
