@@ -56,6 +56,11 @@ void SpectrumPage::loadRange() {
     const auto& data = AppConfig::instance().data();
     if (!data.contains("spectrum") || !data["spectrum"].is_object()) return;
     const auto& spectrum = data["spectrum"];
+
+    max_hold_decay_db_s_ = spectrum.value("max_hold_decay_db_s", 1.5f);
+    if (max_hold_decay_db_s_ < 0.0f) max_hold_decay_db_s_ = 0.0f;
+    if (max_hold_decay_db_s_ > 20.0f) max_hold_decay_db_s_ = 20.0f;
+
     if (!spectrum.value("configured", false)) return;
 
     const uint32_t start = spectrum.value("start_hz", 88000000u);
@@ -186,6 +191,7 @@ void SpectrumPage::sweepLoop() {
     std::vector<float> acc;
 
     while (sweep_run_) {
+        const auto sweep_start = std::chrono::steady_clock::now();
         sweep_progress_ = 0;
         const size_t steps = step_count_;
         const size_t sbins = slice_bins_;
@@ -234,6 +240,25 @@ void SpectrumPage::sweepLoop() {
 
             sweep_progress_ =
                 static_cast<int>((s + 1) * 100 / std::max<size_t>(1, steps));
+        }
+
+        // Max-hold decay. A persistent signal still refreshes the envelope
+        // (the clamp to bins_db_ keeps it at the live level), but a peak that
+        // has disappeared falls back by max_hold_decay_db_s_ dB per second
+        // instead of sitting on the display forever.
+        if (max_hold_active_.load() && max_hold_decay_db_s_ > 0.0f) {
+            const float elapsed = std::chrono::duration<float>(
+                std::chrono::steady_clock::now() - sweep_start).count();
+            const float drop = max_hold_decay_db_s_ * elapsed;
+            std::lock_guard<std::mutex> lock(data_mutex_);
+            const size_t count =
+                std::min(max_hold_db_.size(), bins_db_.size());
+            for (size_t i = 0; i < count; ++i) {
+                float held = max_hold_db_[i] - drop;
+                if (held < bins_db_[i]) held = bins_db_[i];
+                if (held < -120.0f) held = -120.0f;
+                max_hold_db_[i] = held;
+            }
         }
 
         // Short pause before starting the next sweep.
@@ -545,7 +570,7 @@ void SpectrumPage::drawHelpOverlay() {
         "H",
     };
     static const char* const actions[] = {
-        "PAN",       "ZOOM",   "FULL SPAN", "MAX HOLD",
+        "PAN",       "ZOOM",   "FULL SPAN", "MAX HOLD (DECAY)",
         "SET RANGE", "MENU",   "VOLUME",    "SCREENSHOT", "EXIT",
         "CLOSE",
     };

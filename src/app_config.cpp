@@ -81,6 +81,9 @@ void AppConfig::setDefaults() {
     if (!spectrum.contains("configured")) spectrum["configured"] = false;
     if (!spectrum.contains("start_hz")) spectrum["start_hz"] = 88000000;
     if (!spectrum.contains("stop_hz")) spectrum["stop_hz"] = 108000000;
+    if (!spectrum.contains("max_hold_decay_db_s")) {
+        spectrum["max_hold_decay_db_s"] = 1.5;
+    }
 
     nlohmann::json& adsb = section("adsb");
     if (!adsb.contains("observer_latitude")) adsb["observer_latitude"] = 0.0;

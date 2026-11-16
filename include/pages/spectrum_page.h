@@ -98,6 +98,9 @@ private:
     std::vector<float> max_hold_db_;
     std::vector<float> hold_row_db_;
     std::atomic<bool> max_hold_active_{true};
+    // Decay of the red max-hold envelope, in dB per second. 0 keeps the
+    // classic "hold forever" behaviour; the default lets stale peaks fall.
+    float max_hold_decay_db_s_ = 1.5f;
     mutable std::mutex data_mutex_;
     std::vector<uint16_t> wf_pixels_;
     std::vector<float> row_db_;

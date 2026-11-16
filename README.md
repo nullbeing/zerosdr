@@ -494,7 +494,7 @@ reused afterwards.
 | `←` / `→` | Pan the visible window |
 | `↑` / `↓` | Zoom in / out |
 | `Enter` | Reset to the full configured range |
-| `M` | Toggle max hold (red peak trace) |
+| `M` | Toggle max hold (red peak trace, decays at 1.5 dB/s) |
 | `R` | Edit the start/stop range |
 | `H` | Toggle the translucent help overlay |
 | `Tab` | Page menu (select with arrows, `Enter` opens) |
@@ -507,7 +507,9 @@ Notes:
   A 20 MHz range sweeps in well under a second, 100 MHz in a few seconds.
 - Wide bins are about 2 kHz; zooming in shows them one bin per pixel.
 - Max hold is on by default (red envelope); `M` toggles it and clears the
-  stored peaks.
+  stored peaks. The envelope decays at 1.5 dB/s
+  (`spectrum.max_hold_decay_db_s`; set 0 to hold forever), so stale peaks
+  fall away while a persistent signal keeps refreshing its level.
 - The waterfall window is cleared when you pan or zoom so stale history from
   another part of the band is not shown.
 - The page stops the SDR capture when you leave it, releasing the dongle for

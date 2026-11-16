@@ -11,7 +11,7 @@
 // Sections:
 //   system   - guide_show
 //   sdr      - deemphasis_us, audio_agc, fft_size, sample_rate, theme
-//   spectrum - configured, start_hz, stop_hz
+//   spectrum - configured, start_hz, stop_hz, max_hold_decay_db_s
 //   adsb     - observer_latitude, observer_longitude, manual_override
 //   imu      - enabled, heading_up, offset_deg, invert (radar compass)
 //
