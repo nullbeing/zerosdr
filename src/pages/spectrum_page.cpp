@@ -406,8 +406,6 @@ void SpectrumPage::applyGain() {
     sdr_.setAutoGain(false);
     sdr_.setGain(gain_db_);
     sdr_.setAGCMode(false);
-    const int actual = sdr_.getGain();
-    if (actual >= 0) gain_db_ = actual;
 }
 
 void SpectrumPage::openEditor() {
