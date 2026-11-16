@@ -326,6 +326,8 @@ AppKeyCode InputHandler::translateCardputerZero(int linux_keycode,
             return APPKEY_LEFT_COARSE;
         case KEY_KP6:                 // sym + 6 -> coarse right
             return APPKEY_RIGHT_COARSE;
+        case KEY_KP7:                 // sym + - -> "-" (negative lat/lon)
+            return APPKEY_MINUS;
 
         default:
             return APPKEY_NONE;

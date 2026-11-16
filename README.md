@@ -298,6 +298,7 @@ codes, and plain letters are used for the SDR controls.
 | `Enter` | Apply frequency |
 | `Backspace` | Delete last digit |
 | `Esc` | Cancel input |
+| `Sym`+`-` | Minus sign in the position editor (South/West) |
 | `D` | Cycle demodulation mode (FM/NFM/AM/USB/LSB) |
 | `B` / `Fn`+`B` | Cycle demodulation bandwidth |
 | `Fn`+`D` | System volume up (any page) |

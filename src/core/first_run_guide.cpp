@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cstring>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -198,7 +199,7 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
                 text.draw(fb, 12, 104, "UP/DOWN select   ENTER edit/confirm",
                           COLOR_TEXT_DIM, 12);
             }
-            text.draw(fb, 12, 120, "digits and . to type, BACKSPACE deletes",
+            text.draw(fb, 12, 120, "digits . - to type, BACKSPACE deletes",
                       COLOR_TEXT_DIM, 12);
             text.draw(fb, 12, 136,
                       "GPS updates the position unless you edit",
@@ -292,6 +293,19 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
                         buf[len] = '.';
                         buf[len + 1] = '\0';
                     }
+                }
+            } else if (key == APPKEY_MINUS) {
+                // Toggle the sign: South latitudes and West longitudes.
+                if (edit_fresh) {
+                    buf[0] = '\0';
+                    edit_fresh = false;
+                }
+                const size_t len = strlen(buf);
+                if (buf[0] == '-') {
+                    memmove(buf, buf + 1, len);  // includes the terminator
+                } else if (len + 2 < sizeof(lat_buf)) {
+                    memmove(buf + 1, buf, len + 1);
+                    buf[0] = '-';
                 }
             } else if (key == APPKEY_BACKSPACE) {
                 edit_fresh = false;
