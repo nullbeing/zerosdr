@@ -645,9 +645,10 @@ void ADSBPage::renderCurrentView() {
         fb_.clear(COLOR_RADAR_BG);
 
         // Render status bar
+        const bool compass_active = imu_enabled_ && imu_.hasHeading();
         radar_ui_.renderStatusBar(aircraft_list_.size(), max_range,
-                                  imu_.hasHeading(), imu_.heading(),
-                                  heading_up_ && imu_.hasHeading());
+                                  compass_active, imu_.heading(),
+                                  heading_up_ && compass_active);
 
         // Render radar display with split layout
         radar_ui_.renderRadarDisplay(aircraft_list_, sweep_angle_, max_range,
@@ -813,7 +814,8 @@ void ADSBPage::updateRadarRotation(float delta_time) {
     // north (0) in north-up mode. Easing keeps toggles and sensor jitter
     // from snapping the whole scope around.
     const float target =
-        (heading_up_ && imu_.hasHeading()) ? imu_.heading() : 0.0f;
+        (imu_enabled_ && heading_up_ && imu_.hasHeading()) ? imu_.heading()
+                                                          : 0.0f;
 
     float delta = target - radar_rotation_;
     while (delta > 180.0f) delta -= 360.0f;
@@ -1083,9 +1085,9 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
             break;
 
         case APPKEY_I:
-            if (!imu_.available()) {
+            if (!imu_.available() || !imu_enabled_) {
                 beeps_.play(220.0f, 80, 0.10f);
-                std::cout << "ADSBPage: No IMU compass on this board"
+                std::cout << "ADSBPage: IMU compass not available"
                           << std::endl;
                 break;
             }
@@ -1099,7 +1101,7 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
 
         case APPKEY_0:
             // Compass calibration: point the top edge north, then zero it.
-            if (!imu_.available() || !imu_.hasHeading()) {
+            if (!imu_.available() || !imu_enabled_ || !imu_.hasHeading()) {
                 beeps_.play(220.0f, 80, 0.10f);
                 break;
             }
