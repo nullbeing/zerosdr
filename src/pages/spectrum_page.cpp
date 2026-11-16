@@ -599,7 +599,7 @@ void SpectrumPage::drawHelpOverlay() {
 
     static const char* const keys[] = {
         "LEFT/RIGHT", "UP/DN +/-", "ENTER",  "M",
-        "R",          "TAB",       "ALT+/- G", "FN+D/S", "FN+P", "HOLD ESC",
+        "R",          "TAB",       "ALT+F/X G", "FN+D/S", "FN+P", "HOLD ESC",
         "H",
     };
     static const char* const actions[] = {

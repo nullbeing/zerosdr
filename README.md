@@ -493,7 +493,7 @@ reused afterwards.
 |-----|--------|
 | `←` / `→` | Pan the visible window |
 | `↑` / `↓` or `+` / `-` | Zoom in / out |
-| `Alt`+`+` / `-` | Manual gain up / down (switches to manual if in AGC) |
+| `Alt`+`F` / `X` (Alt+`↑`/`↓`) | Manual gain up / down (switches to manual if in AGC) |
 | `G` | Toggle tuner AGC / manual gain |
 | `Enter` | Reset to the full configured range |
 | `M` | Toggle max hold (red peak trace, decays at 1.5 dB/s) |
@@ -510,7 +510,7 @@ Notes:
 - Wide bins are about 2 kHz; zooming in shows them one bin per pixel.
 - The status bar shows `AGC` or `+NNdB`; the spectrum page inherits the SDR
   page's gain on the first visit and remembers changes made with `G` or
-  `Alt`+`+`/`-` for the rest of the session.
+  `Alt`+`F`/`X` for the rest of the session.
 - Max hold is on by default (red envelope); `M` toggles it and clears the
   stored peaks. The envelope decays at 1.5 dB/s
   (`spectrum.max_hold_decay_db_s`; set 0 to hold forever), so stale peaks
