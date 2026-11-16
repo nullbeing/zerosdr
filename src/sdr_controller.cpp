@@ -4,8 +4,7 @@
 #include <algorithm>
 
 SDRController::SDRController()
-    : device(nullptr), initialized(false), agc_enabled(false),
-      auto_gain(true), capturing(false),
+    : device(nullptr), initialized(false), agc_enabled(false), capturing(false),
       current_frequency(100000000), current_sample_rate(2048000),
       current_gain(0), ring_buffer_size(2097152), write_pos(0), read_pos(0) {
     // Ring buffer: 2MB = ~2 seconds at 1.024 MHz, ~0.87 s at 2.4 MHz.
@@ -107,7 +106,6 @@ bool SDRController::setAutoGain(bool enable) {
         return false;
     }
 
-    auto_gain = enable;
     return true;
 }
 
@@ -130,7 +128,6 @@ bool SDRController::setAGCMode(bool enable) {
     }
 
     agc_enabled = enable;
-    auto_gain = enable;
     return true;
 }
 

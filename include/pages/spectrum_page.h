@@ -68,7 +68,6 @@ private:
     void drawDisplay();
     void drawHelpOverlay();
     void zoomView(bool zoom_in);
-    void applyGain();
     void drawRoundedPanel(int x, int y, int w, int h, int radius,
                           uint16_t color, float alpha);
     void drawSpectrum();
@@ -103,13 +102,6 @@ private:
     // Decay of the red max-hold envelope, in dB per second. 0 keeps the
     // classic "hold forever" behaviour; the default lets stale peaks fall.
     float max_hold_decay_db_s_ = 1.5f;
-
-    // Spectrum-page gain: -1 = tuner AGC, 0..49 = manual dB. The setting is
-    // per session; it is inherited from the SDR page until the user changes
-    // it here.
-    int gain_db_ = -1;
-    int last_manual_gain_db_ = 20;
-    bool gain_user_set_ = false;
     mutable std::mutex data_mutex_;
     std::vector<uint16_t> wf_pixels_;
     std::vector<float> row_db_;

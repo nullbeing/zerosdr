@@ -196,9 +196,7 @@ AppKeyCode InputHandler::pollKey() {
             bool is_nav = (code == APPKEY_UP || code == APPKEY_DOWN ||
                            code == APPKEY_LEFT || code == APPKEY_RIGHT ||
                            code == APPKEY_LEFT_COARSE ||
-                           code == APPKEY_RIGHT_COARSE ||
-                           code == APPKEY_GAIN_UP ||
-                           code == APPKEY_GAIN_DOWN);
+                           code == APPKEY_RIGHT_COARSE);
             bool is_squelch = (code == APPKEY_S);
 
             if (is_nav || is_squelch) {
@@ -223,9 +221,7 @@ AppKeyCode InputHandler::pollKey() {
             bool is_nav = (code == APPKEY_UP || code == APPKEY_DOWN ||
                            code == APPKEY_LEFT || code == APPKEY_RIGHT ||
                            code == APPKEY_LEFT_COARSE ||
-                           code == APPKEY_RIGHT_COARSE ||
-                           code == APPKEY_GAIN_UP ||
-                           code == APPKEY_GAIN_DOWN);
+                           code == APPKEY_RIGHT_COARSE);
             if (is_nav) {
                 last_nav_key = code;
                 key_is_held = true;
@@ -291,13 +287,12 @@ AppKeyCode InputHandler::translateCardputerZero(int linux_keycode,
                                                  bool alt_pressed) {
     switch (linux_keycode) {
         // Arrows: official F/Z/X/C plus the real arrow codes from the fn layer.
-        // Alt + up/down = gain, matching the spectrum page.
         case KEY_UP:
         case KEY_F:
-            return alt_pressed ? APPKEY_GAIN_UP : APPKEY_UP;
+            return APPKEY_UP;
         case KEY_DOWN:
         case KEY_X:
-            return alt_pressed ? APPKEY_GAIN_DOWN : APPKEY_DOWN;
+            return APPKEY_DOWN;
         case KEY_LEFT:
         case KEY_Z:
             return alt_pressed ? APPKEY_LEFT_COARSE : APPKEY_LEFT;
@@ -349,18 +344,17 @@ AppKeyCode InputHandler::translateKeyCode(int linux_keycode,
     }
 
     switch (linux_keycode) {
-        case KEY_UP:       return alt_pressed ? APPKEY_GAIN_UP : APPKEY_UP;
-        case KEY_DOWN:     return alt_pressed ? APPKEY_GAIN_DOWN : APPKEY_DOWN;
+        case KEY_UP:       return APPKEY_UP;
+        case KEY_DOWN:     return APPKEY_DOWN;
 
         // Left/Right: Alt+Left/Right = coarse tune (step × 10) in SDRPage
         case KEY_LEFT:     return alt_pressed ? APPKEY_LEFT_COARSE  : APPKEY_LEFT;
         case KEY_RIGHT:    return alt_pressed ? APPKEY_RIGHT_COARSE : APPKEY_RIGHT;
 
-        case KEY_EQUAL:    return alt_pressed ? APPKEY_GAIN_UP
-                                              : (shift_pressed ? APPKEY_PLUS : APPKEY_NONE);
-        case KEY_KPPLUS:   return alt_pressed ? APPKEY_GAIN_UP : APPKEY_PLUS;
-        case KEY_MINUS:    return alt_pressed ? APPKEY_GAIN_DOWN : APPKEY_MINUS;
-        case KEY_KPMINUS:  return alt_pressed ? APPKEY_GAIN_DOWN : APPKEY_MINUS;
+        case KEY_EQUAL:    return shift_pressed ? APPKEY_PLUS : APPKEY_NONE;
+        case KEY_KPPLUS:   return APPKEY_PLUS;
+        case KEY_MINUS:    return APPKEY_MINUS;
+        case KEY_KPMINUS:  return APPKEY_MINUS;
 
         case KEY_M:        return APPKEY_M;
         case KEY_G:        return APPKEY_G;

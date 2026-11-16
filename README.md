@@ -493,8 +493,6 @@ reused afterwards.
 |-----|--------|
 | `←` / `→` | Pan the visible window |
 | `↑` / `↓` or `+` / `-` | Zoom in / out |
-| `Alt`+`F` / `X` (Alt+`↑`/`↓`) | Manual gain up / down (switches to manual if in AGC) |
-| `G` | Toggle tuner AGC / manual gain |
 | `Enter` | Reset to the full configured range |
 | `M` | Toggle max hold (red peak trace, decays at 1.5 dB/s) |
 | `R` | Edit the start/stop range |
@@ -508,9 +506,9 @@ Notes:
   15 ms retune settling time; one step takes roughly 20 ms.
   A 20 MHz range sweeps in well under a second, 100 MHz in a few seconds.
 - Wide bins are about 2 kHz; zooming in shows them one bin per pixel.
-- The status bar shows `AGC` or `+NNdB`; the spectrum page inherits the SDR
-  page's gain on the first visit and remembers changes made with `G` or
-  `Alt`+`F`/`X` for the rest of the session.
+- The wideband page always uses the tuner's automatic gain (AGC). Fixed
+  manual gain amplifies the RTL-SDR's 28.8 MHz clock spur, so it is not
+  offered here; use the SDR page's gain control if you need it.
 - Max hold is on by default (red envelope); `M` toggles it and clears the
   stored peaks. The envelope decays at 1.5 dB/s
   (`spectrum.max_hold_decay_db_s`; set 0 to hold forever), so stale peaks
