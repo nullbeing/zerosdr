@@ -19,7 +19,8 @@ void RadarUIRenderer::renderRadarDisplay(const std::vector<AircraftState>& aircr
                                          double observer_lon,
                                          int selected_index,
                                          int scroll_offset,
-                                         bool blink_state) {
+                                         bool blink_state,
+                                         float heading_deg) {
     // Clear entire display area with dark background
     fb_.fillRect(0, RADAR_Y, 320, RADAR_H, COLOR_RADAR_BG);
 
@@ -33,13 +34,19 @@ void RadarUIRenderer::renderRadarDisplay(const std::vector<AircraftState>& aircr
 
     // Render radar display in right panel
     // Draw range rings
-    drawRangeRings(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS, NUM_RANGE_RINGS, max_range);
+    drawRangeRings(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS,
+                   NUM_RANGE_RINGS, max_range, heading_deg);
 
-    // Translucent sweep with an angular gradient tail.
-    drawSweep(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS, sweep_angle);
+    // Translucent sweep with an angular gradient tail. Its angle is an
+    // absolute compass bearing, so it turns with the compass rose.
+    float sweep_screen = sweep_angle - heading_deg;
+    while (sweep_screen < 0.0f) sweep_screen += 360.0f;
+    while (sweep_screen >= 360.0f) sweep_screen -= 360.0f;
+    drawSweep(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS, sweep_screen);
 
     // Labels go on top of the sweep so they stay readable.
-    drawCompassMarkings(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS);
+    drawCompassMarkings(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS,
+                        heading_deg);
     drawRingLabels(RADAR_CENTER_X, RADAR_CENTER_Y, RADAR_RADIUS,
                    NUM_RANGE_RINGS, max_range);
 
@@ -56,7 +63,7 @@ void RadarUIRenderer::renderRadarDisplay(const std::vector<AircraftState>& aircr
             drawAircraftBlip(RADAR_CENTER_X, RADAR_CENTER_Y,
                            ac.distance, ac.bearing,
                            ac.heading, ac.velocity_valid,
-                           max_range, is_selected);
+                           max_range, is_selected, heading_deg);
         }
     }
 
@@ -103,7 +110,9 @@ void RadarUIRenderer::renderRadarDisplay(const std::vector<AircraftState>& aircr
     }
 }
 
-void RadarUIRenderer::renderStatusBar(int aircraft_count, float max_range) {
+void RadarUIRenderer::renderStatusBar(int aircraft_count, float max_range,
+                                      bool heading_valid, float heading_deg,
+                                      bool heading_up) {
     // Clear status bar with dark background
     fb_.fillRect(0, STATUS_BAR_Y, 320, STATUS_BAR_H, COLOR_BG_DARK);
 
@@ -121,6 +130,24 @@ void RadarUIRenderer::renderStatusBar(int aircraft_count, float max_range) {
         ui_font_.draw(fb_, 5, STATUS_BAR_Y + 12, status, COLOR_RADAR_TEXT);
     } else {
         drawText(5, STATUS_BAR_Y + 2, status, COLOR_RADAR_TEXT);
+    }
+
+    // Compass heading, right-aligned. Bright when the scope is heading-up,
+    // dim while it is north-up (the IMU keeps tracking either way).
+    if (heading_valid) {
+        char heading[24];
+        snprintf(heading, sizeof(heading), "HDG %03.0f",
+                 heading_deg < 0.0f ? heading_deg + 360.0f : heading_deg);
+        const uint16_t color = heading_up ? COLOR_RADAR_SWEEP
+                                          : COLOR_RADAR_GRID;
+        if (ui_font_.valid()) {
+            const int width = ui_font_.textWidth(heading);
+            ui_font_.draw(fb_, 315 - width, STATUS_BAR_Y + 12,
+                          heading, color);
+        } else {
+            const int width = (int)strlen(heading) * 7;
+            drawText(315 - width, STATUS_BAR_Y + 2, heading, color);
+        }
     }
 }
 
@@ -208,7 +235,8 @@ void RadarUIRenderer::renderText(int x, int y, const char* text, uint16_t color,
     drawText(x, y, text, color);
 }
 
-void RadarUIRenderer::drawRangeRings(int cx, int cy, int radius, int num_rings, float max_range) {
+void RadarUIRenderer::drawRangeRings(int cx, int cy, int radius, int num_rings,
+                                     float max_range, float rotation_deg) {
     // Draw concentric circles for range rings in green
     for (int i = 1; i <= num_rings; i++) {
         int ring_radius = (radius * i) / num_rings;
@@ -221,9 +249,10 @@ void RadarUIRenderer::drawRangeRings(int cx, int cy, int radius, int num_rings, 
         }
     }
 
-    // Draw tick marks on outer ring every 15 degrees
+    // Draw tick marks on outer ring every 15 degrees. The marks belong to
+    // the compass rose, so they turn with the heading.
     for (int angle = 0; angle < 360; angle += 15) {
-        float rad = (angle - 90.0f) * M_PI / 180.0f;
+        float rad = (angle - 90.0f - rotation_deg) * M_PI / 180.0f;
 
         // Longer ticks at 30° intervals, shorter at 15°
         int tick_length = (angle % 30 == 0) ? 4 : 2;
@@ -285,17 +314,25 @@ void RadarUIRenderer::drawRingLabels(int cx, int cy, int radius, int num_rings,
     }
 }
 
-void RadarUIRenderer::drawCompassMarkings(int cx, int cy, int radius) {
-    // Cardinal labels sit outside the ring. The circle is allowed to reach
-    // into the otherwise empty right side of the top status bar.
-    drawText(cx - 3, cy - radius - 10, "N", COLOR_RADAR_TEXT);
-    drawText(cx - 3, cy + radius + 2, "S", COLOR_RADAR_TEXT);
-    drawText(cx + radius + 4, cy - 4, "E", COLOR_RADAR_TEXT);
-    drawText(cx - radius - 12, cy - 4, "W", COLOR_RADAR_TEXT);
+void RadarUIRenderer::drawCompassMarkings(int cx, int cy, int radius,
+                                          float rotation_deg) {
+    // Cardinal labels turn with the compass rose. They sit just outside the
+    // ring and are clamped so a rotated label never leaves the screen.
+    static const char* labels[4] = {"N", "E", "S", "W"};
+    const float label_radius = (float)radius + 7.0f;
+    for (int i = 0; i < 4; ++i) {
+        const float screen_angle =
+            ((float)(i * 90) - rotation_deg) * (float)M_PI / 180.0f;
+        int x = cx + (int)lroundf(label_radius * sinf(screen_angle)) - 3;
+        int y = cy - (int)lroundf(label_radius * cosf(screen_angle)) - 4;
+        x = std::max(LIST_W + 1, std::min(320 - 8, x));
+        y = std::max(1, std::min(170 - 9, y));
+        drawText(x, y, labels[i], COLOR_RADAR_TEXT);
+    }
 
     // Draw tick marks at cardinal directions
     for (int angle = 0; angle < 360; angle += 90) {
-        float rad = (angle - 90.0f) * M_PI / 180.0f;
+        float rad = (angle - 90.0f - rotation_deg) * M_PI / 180.0f;
         int x1 = cx + (int)((radius - 3) * cos(rad));
         int y1 = cy + (int)((radius - 3) * sin(rad));
         int x2 = cx + (int)(radius * cos(rad));
@@ -329,7 +366,7 @@ void RadarUIRenderer::drawSweep(int cx, int cy, int radius, float angle) {
             float pix_angle = 90.0f - atan2f((float)dy, (float)dx) * kInvDeg;
             if (pix_angle < 0.0f) pix_angle += 360.0f;
 
-            float delta = angle - pix_angle;
+            float delta = fmodf(angle - pix_angle, 360.0f);
             if (delta < 0.0f) delta += 360.0f;  // 0..360 behind the sweep
             if (delta > kTrailDeg) continue;
 
@@ -343,10 +380,13 @@ void RadarUIRenderer::drawSweep(int cx, int cy, int radius, float angle) {
 
 void RadarUIRenderer::drawAircraftBlip(int cx, int cy, float distance, float bearing,
                                        float heading, bool velocity_valid,
-                                       float max_range, bool selected) {
-    // Convert polar to Cartesian
+                                       float max_range, bool selected,
+                                       float rotation_deg) {
+    // Convert polar to Cartesian. A heading-up scope rotates both the
+    // position and the aircraft glyph by the same angle.
     int blip_x, blip_y;
-    polarToCartesian(distance, bearing, max_range, &blip_x, &blip_y);
+    polarToCartesian(distance, bearing - rotation_deg, max_range,
+                     &blip_x, &blip_y);
 
     // Choose color
     uint16_t color = selected ? COLOR_RADAR_SELECTED : COLOR_RADAR_BLIP;
@@ -355,7 +395,7 @@ void RadarUIRenderer::drawAircraftBlip(int cx, int cy, float distance, float bea
     // Pointed nose (3 rows), tapering body, full-width wing at y=-1, narrow tail.
     // Each entry is (dx, dy) where dx = right offset, dy = forward offset.
     // No velocity data -> point North (0°).
-    float h = velocity_valid ? heading : 0.0f;
+    float h = (velocity_valid ? heading : 0.0f) - rotation_deg;
     float rad = (h - 90.0f) * M_PI / 180.0f;
     float sin_h = sin(rad);
     float cos_h = cos(rad);

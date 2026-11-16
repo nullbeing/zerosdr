@@ -106,6 +106,7 @@ set(SOURCES
     src/sdr_controller.cpp
     src/audio_output.cpp
     src/system_volume.cpp
+    src/imu_compass.cpp
 
     # Processing
     src/fft_processor.cpp

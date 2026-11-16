@@ -6,6 +6,7 @@
 #include "core/gps_locator.h"
 #include "framebuffer.h"
 #include "sdr_controller.h"
+#include "imu_compass.h"
 #include "ui/adsb_ui_renderer.h"
 #include "ui/radar_ui_renderer.h"
 #include "adsb/adsb_message.h"
@@ -78,6 +79,13 @@ private:
     bool blink_state_;            // Current blink state (true = visible)
     int last_sweep_sector_;       // Radar sector (90 deg) for the tick sound
 
+    // Compass (BMI270 + BMM150). When the board has no IMU the radar stays
+    // north-up and the I key is a no-op.
+    ImuCompass imu_;
+    bool imu_enabled_;            // Poll the compass at all
+    bool heading_up_;             // Rotate the scope so the heading is at the top
+    float radar_rotation_;        // Smoothed rotation currently drawn
+
     // UI sounds
     BeepPlayer beeps_;
     std::set<uint32_t> known_icaos_;  // for the "new aircraft" chime
@@ -143,6 +151,11 @@ private:
     void handleDetailInput(AppKeyCode key);
     void handleRadarInput(AppKeyCode key);
     void handleSettingsInput(AppKeyCode key);
+
+    // Compass helpers
+    void updateRadarRotation(float delta_time);
+    void loadImuConfig();
+    void saveImuConfig();
 
     // Transient fn+D / fn+S feedback drawn over the current view.
     void drawVolumeToast();

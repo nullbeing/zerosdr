@@ -368,6 +368,7 @@ AppKeyCode InputHandler::translateKeyCode(int linux_keycode,
         case KEY_ESC:      return APPKEY_ESC;
         case KEY_H:        return APPKEY_H;
         case KEY_L:        return APPKEY_L;
+        case KEY_I:        return APPKEY_I;
         case KEY_R:        return shift_pressed ? APPKEY_RES : APPKEY_R;
         case KEY_B:        return APPKEY_BW;
         case KEY_Z:

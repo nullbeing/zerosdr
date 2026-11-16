@@ -1,4 +1,5 @@
 #include "pages/adsb_page.h"
+#include "app_config.h"
 #include "system_volume.h"
 #include "screenshot.h"
 #include <iostream>
@@ -38,6 +39,9 @@ ADSBPage::ADSBPage(Framebuffer& fb, SDRController& sdr, ADSBUIRenderer& ui, Rada
       blink_timer_(0.0f),
       blink_state_(true),
       last_sweep_sector_(-1),
+      imu_enabled_(true),
+      heading_up_(true),
+      radar_rotation_(0.0f),
       settings_selected_item_(0),
       editing_lat_(false),
       editing_lon_(false),
@@ -63,6 +67,10 @@ bool ADSBPage::init() {
     std::cout << "ADSBPage: Initializing..." << std::endl;
     // Load configuration
     loadConfig();
+
+    // Compass: BMI270 + BMM150 on boards that have them. Missing hardware
+    // is not an error - the radar simply stays north-up.
+    imu_.open();
     return true;
 }
 
@@ -127,6 +135,9 @@ void ADSBPage::onEnter() {
     known_icaos_.clear();
     loadConfig();  // pick up position changes made from the guide
 
+    // The IIO devices may appear only after the page was first created.
+    if (!imu_.available()) imu_.open();
+
     // Reset view state
     view_mode_ = VIEW_LIST;
     selected_index_ = 0;
@@ -190,6 +201,10 @@ void ADSBPage::update(float delta_time) {
                 beeps_.play(1568.0f, 12, 0.045f);
             }
         }
+
+        // Compass heading and the smoothed rose rotation.
+        if (imu_enabled_) imu_.update(delta_time);
+        updateRadarRotation(delta_time);
 
         // Update blink timer (blink every 0.5 seconds)
         blink_timer_ += delta_time;
@@ -630,12 +645,15 @@ void ADSBPage::renderCurrentView() {
         fb_.clear(COLOR_RADAR_BG);
 
         // Render status bar
-        radar_ui_.renderStatusBar(aircraft_list_.size(), max_range);
+        radar_ui_.renderStatusBar(aircraft_list_.size(), max_range,
+                                  imu_.hasHeading(), imu_.heading(),
+                                  heading_up_ && imu_.hasHeading());
 
         // Render radar display with split layout
         radar_ui_.renderRadarDisplay(aircraft_list_, sweep_angle_, max_range,
                                      observer_lat_, observer_lon_,
-                                     selected_index_, scroll_offset_, blink_state_);
+                                     selected_index_, scroll_offset_,
+                                     blink_state_, radar_rotation_);
 
     } else if (view_mode_ == VIEW_SETTINGS) {
         // Render settings menu
@@ -762,6 +780,49 @@ void ADSBPage::loadConfig() {
     } else {
         std::cout << "ADSBPage: No saved observer position" << std::endl;
     }
+    loadImuConfig();
+}
+
+void ADSBPage::loadImuConfig() {
+    const auto& data = AppConfig::instance().data();
+    if (!data.contains("imu") || !data["imu"].is_object()) return;
+    const auto& imu = data["imu"];
+    imu_enabled_ = imu.value("enabled", true);
+    heading_up_ = imu.value("heading_up", true);
+    imu_.setOffsetDeg(imu.value("offset_deg", 0.0f));
+    imu_.setInvert(imu.value("invert", false));
+}
+
+void ADSBPage::saveImuConfig() {
+    auto& data = AppConfig::instance().data();
+    if (!data.contains("imu") || !data["imu"].is_object()) {
+        data["imu"] = nlohmann::json::object();
+    }
+    auto& imu = data["imu"];
+    imu["enabled"] = imu_enabled_;
+    imu["heading_up"] = heading_up_;
+    imu["offset_deg"] = imu_.offsetDeg();
+    imu["invert"] = imu_.invert();
+    if (!AppConfig::instance().save()) {
+        std::cerr << "ADSBPage: Failed to save compass settings" << std::endl;
+    }
+}
+
+void ADSBPage::updateRadarRotation(float delta_time) {
+    // Target rotation for the rose: the compass heading in heading-up mode,
+    // north (0) in north-up mode. Easing keeps toggles and sensor jitter
+    // from snapping the whole scope around.
+    const float target =
+        (heading_up_ && imu_.hasHeading()) ? imu_.heading() : 0.0f;
+
+    float delta = target - radar_rotation_;
+    while (delta > 180.0f) delta -= 360.0f;
+    while (delta < -180.0f) delta += 360.0f;
+
+    const float step = std::min(1.0f, delta_time * 6.0f);
+    radar_rotation_ += delta * step;
+    if (radar_rotation_ < 0.0f) radar_rotation_ += 360.0f;
+    if (radar_rotation_ >= 360.0f) radar_rotation_ -= 360.0f;
 }
 
 void ADSBPage::saveConfig() {
@@ -1019,6 +1080,40 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
             lat_input_.clear();
             lon_input_.clear();
             std::cout << "ADSBPage: Opening settings menu from radar" << std::endl;
+            break;
+
+        case APPKEY_I:
+            if (!imu_.available()) {
+                beeps_.play(220.0f, 80, 0.10f);
+                std::cout << "ADSBPage: No IMU compass on this board"
+                          << std::endl;
+                break;
+            }
+            heading_up_ = !heading_up_;
+            saveImuConfig();
+            beeps_.play(heading_up_ ? 1320.0f : 880.0f, 30, 0.08f);
+            std::cout << "ADSBPage: Radar "
+                      << (heading_up_ ? "heading-up" : "north-up")
+                      << " (heading " << imu_.heading() << " deg)" << std::endl;
+            break;
+
+        case APPKEY_0:
+            // Compass calibration: point the top edge north, then zero it.
+            if (!imu_.available() || !imu_.hasHeading()) {
+                beeps_.play(220.0f, 80, 0.10f);
+                break;
+            }
+            {
+                float offset = std::fmod(imu_.offsetDeg() - imu_.heading(),
+                                         360.0f);
+                if (offset < 0.0f) offset += 360.0f;
+                imu_.setOffsetDeg(offset);
+                imu_.resetSmoothing();
+                saveImuConfig();
+                beeps_.play(1760.0f, 40, 0.08f);
+                std::cout << "ADSBPage: Compass zeroed, offset "
+                          << offset << " deg" << std::endl;
+            }
             break;
 
         case APPKEY_SCREENSHOT: {

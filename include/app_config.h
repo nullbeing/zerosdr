@@ -13,6 +13,7 @@
 //   sdr      - deemphasis_us, audio_agc, fft_size, sample_rate, theme
 //   spectrum - configured, start_hz, stop_hz
 //   adsb     - observer_latitude, observer_longitude, manual_override
+//   imu      - enabled, heading_up, offset_deg, invert (radar compass)
 //
 // On first load the legacy sdr_settings.json / spectrum_range.txt /
 // adsb_config.json / guide.json files are imported once.

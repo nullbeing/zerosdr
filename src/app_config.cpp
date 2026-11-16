@@ -86,6 +86,12 @@ void AppConfig::setDefaults() {
     if (!adsb.contains("observer_latitude")) adsb["observer_latitude"] = 0.0;
     if (!adsb.contains("observer_longitude")) adsb["observer_longitude"] = 0.0;
     if (!adsb.contains("manual_override")) adsb["manual_override"] = false;
+
+    nlohmann::json& imu = section("imu");
+    if (!imu.contains("enabled")) imu["enabled"] = true;
+    if (!imu.contains("heading_up")) imu["heading_up"] = true;
+    if (!imu.contains("offset_deg")) imu["offset_deg"] = 0.0;
+    if (!imu.contains("invert")) imu["invert"] = false;
 }
 
 void AppConfig::migrateLegacyFiles() {

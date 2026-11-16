@@ -32,6 +32,7 @@ public:
      * @param selected_index Index of selected aircraft (-1 for none)
      * @param scroll_offset Scroll offset for aircraft list
      * @param blink_state Blink state for selected aircraft (true = visible)
+     * @param heading_deg Heading placed at the top of the scope (0 = north up)
      */
     void renderRadarDisplay(const std::vector<AircraftState>& aircraft,
                            float sweep_angle,
@@ -40,15 +41,21 @@ public:
                            double observer_lon,
                            int selected_index,
                            int scroll_offset,
-                           bool blink_state);
+                           bool blink_state,
+                           float heading_deg = 0.0f);
 
     /**
      * Render top status bar
      * @param aircraft_count Number of aircraft
      * @param max_range Maximum range (km)
-     * @param gain Current gain value
+     * @param heading_valid Whether the compass has a heading
+     * @param heading_deg Compass heading in degrees
+     * @param heading_up Whether the scope is heading-up (otherwise north-up)
      */
-    void renderStatusBar(int aircraft_count, float max_range);
+    void renderStatusBar(int aircraft_count, float max_range,
+                         bool heading_valid = false,
+                         float heading_deg = 0.0f,
+                         bool heading_up = false);
 
     /**
      * Render aircraft list in left panel
@@ -102,16 +109,20 @@ private:
      * @param radius Outer radius
      * @param num_rings Number of rings
      * @param max_range Maximum range for labels
+     * @param rotation_deg Rotation of the compass rose (heading at the top)
      */
-    void drawRangeRings(int cx, int cy, int radius, int num_rings, float max_range);
+    void drawRangeRings(int cx, int cy, int radius, int num_rings,
+                        float max_range, float rotation_deg = 0.0f);
 
     /**
      * Draw compass markings (N/E/S/W)
      * @param cx Center X
      * @param cy Center Y
      * @param radius Radar radius
+     * @param rotation_deg Rotation of the compass rose (heading at the top)
      */
-    void drawCompassMarkings(int cx, int cy, int radius);
+    void drawCompassMarkings(int cx, int cy, int radius,
+                             float rotation_deg = 0.0f);
     void drawRingLabels(int cx, int cy, int radius, int num_rings, float max_range);
     void drawScaledText(int x, int y, const char* text, uint16_t color, int scale);
 
@@ -148,10 +159,12 @@ private:
      * @param velocity_valid Whether heading is meaningful
      * @param max_range Maximum range for scaling
      * @param selected Whether this aircraft is selected
+     * @param rotation_deg Rotation of the compass rose (heading at the top)
      */
     void drawAircraftBlip(int cx, int cy, float distance, float bearing,
                          float heading, bool velocity_valid,
-                         float max_range, bool selected);
+                         float max_range, bool selected,
+                         float rotation_deg = 0.0f);
 
     /**
      * Draw circle outline (for range rings)

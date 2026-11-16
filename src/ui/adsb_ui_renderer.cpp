@@ -828,6 +828,7 @@ void ADSBUIRenderer::renderKeyHelp() {
         {"LEFT/RIGHT", "PAGE 5 ROWS"},
         {"ENTER",      "LIST>DETAIL>RADAR"},
         {"R",          "RADAR VIEW"},
+        {"I / 0",      "COMPASS UP / NORTH"},
         {"L",          "POSITION SETTINGS"},
         {"H",          "HELP / SETTINGS"},
         {"G",          "GAIN MODE (RADAR)"},
@@ -836,11 +837,14 @@ void ADSBUIRenderer::renderKeyHelp() {
         {"Q / ESC",    "QUIT"},
     };
 
+    const int count = (int)(sizeof(rows) / sizeof(rows[0]));
+    const int step = count > 11 ? 10 : 11;
     int y = py + 24;
-    for (const auto& r : rows) {
+    for (int i = 0; i < count; ++i) {
+        const auto& r = rows[i];
         drawSmallText(px + 14, y, r.key, COLOR_YELLOW);
         drawSmallText(px + 92, y, r.action, COLOR_WHITE);
-        y += 11;
+        y += step;
     }
 }
 

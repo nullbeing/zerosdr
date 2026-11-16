@@ -407,6 +407,8 @@ aircraft list. In the list:
 | `←` / `→` | Move 5 rows |
 | `Enter` | Cycle views: list → detail → radar → list |
 | `R` | Jump straight to the radar view (needs an observer position) |
+| `I` | Toggle heading-up / north-up radar (needs the IMU compass) |
+| `0` | Zero the compass: point the top edge north, then press |
 | `H` | Key list + settings (latitude, longitude, clear position) |
 | `L` | Position editor |
 | `G` / `+` / `-` | Radar gain mode / gain |
@@ -416,6 +418,41 @@ The radar's left panel lists `ICAO` / altitude / distance, with the selected
 aircraft's callsign shown in large text on a dim strip that spans the full
 width of the panel. The callsign and the ADSB status/detail text are rendered
 with an anti-aliased TrueType font.
+
+### Compass (BMI270 + BMM150)
+
+Some Cardputer Zero boards carry a BMI270 accelerometer and a BMM150
+magnetometer (the magnetometer is reached through the BMI270 auxiliary I²C
+bus). zeroSDR reads both through the kernel's IIO sysfs devices, so no extra
+driver, daemon or permission is needed. When they are present the radar can be
+**heading-up**: the compass rose rotates so that the direction the top edge of
+the device points is at the top of the scope, and the aircraft blips (and the
+sweep) turn with it.
+
+- `I` toggles heading-up / north-up. The status bar shows `HDG 123`, bright
+  while heading-up is active and dim while the compass keeps tracking in
+  north-up.
+- `0` stores a compass zero: point the top edge north first (or true north to
+  fold in the local magnetic declination), then press it. The offset is kept
+  in the config file.
+- The heading is tilt-compensated from the accelerometer and smoothed as a
+  unit vector, so it does not snap when it crosses 0°/360°.
+- On boards without the IMU the radar simply stays north-up and `I` beeps.
+
+Settings live in `~/.config/zerosdr/config.json`:
+
+```json
+"imu": {
+  "enabled": true,
+  "heading_up": true,
+  "offset_deg": 0.0,
+  "invert": false
+}
+```
+
+`offset_deg` rotates the rose to match how the chip is mounted in the case (and
+can absorb the declination); `invert` flips the rotation direction for a mirrored
+mount.
 
 The observer position can come from a GPS receiver (gpsd on port 2947 or an
 NMEA stream on `/dev/serial0`, `/dev/ttyAMA0`, `/dev/ttyS0`, `/dev/ttyUSB0`

@@ -30,6 +30,7 @@ enum AppKeyCode {
     APPKEY_ESC,
     APPKEY_H,
     APPKEY_L,      // Location settings (ADSB)
+    APPKEY_I,      // IMU compass (ADSB radar)
     APPKEY_R,    // Retry (for device detection)
     APPKEY_TAB,  // Page switching
     APPKEY_P,    // Page switching (alternative)
