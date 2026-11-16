@@ -120,10 +120,7 @@ int PageManager::run() {
                         exit_snapshot_.size() * sizeof(uint16_t));
         }
 
-        // fn+D / fn+S are global. The launcher normally binds them to a 5%
-        // sink step through labwc, so record the request and check the sink a
-        // moment later instead of double-stepping; the key is still routed to
-        // the page (SDR uses volume-up to unmute).
+        // Global volume keys stay live even while the page menu is open.
         if (key == APPKEY_V || key == APPKEY_C) {
             if (!volume_key_pending_) {
                 // Read the live value so a change made from the launcher does
@@ -142,26 +139,38 @@ int PageManager::run() {
             }
         }
 
-        // Check for global page-switching keys
-        if (key == APPKEY_ESC) {
-            // Swallow the press; the hold is handled after the page update.
-        } else if (isPageSwitchKey(key)) {
-            if (key == APPKEY_TAB) {
-                nextPage();
-            } else if (key == APPKEY_P) {
-                nextPage();  // P key also switches pages
+        if (page_menu_open_) {
+            // The menu owns the key while it is up; the page below is frozen.
+            handlePageMenuInput(key);
+        } else {
+            if (key == APPKEY_ESC && !exit_hold_active_) {
+                exit_hold_active_ = true;
+                gettimeofday(&exit_hold_start_, nullptr);
+                // Freeze the page frame so the translucent prompt does not
+                // flicker between page redraws, and so repeated blends do not
+                // accumulate on the back buffer.
+                exit_snapshot_.resize(fb_.pixelCount());
+                std::memcpy(exit_snapshot_.data(), fb_.pixels(),
+                            exit_snapshot_.size() * sizeof(uint16_t));
             }
-        } else if (key != APPKEY_NONE) {
-            // Route input to current page
-            IPage* current_page = getCurrentPage();
-            if (current_page) {
-                current_page->handleInput(key);
+
+            // Check for global page-switching keys
+            if (key == APPKEY_ESC) {
+                // Swallow the press; the hold is handled after the page update.
+            } else if (!exit_hold_active_ && isPageSwitchKey(key)) {
+                openPageMenu();
+            } else if (key != APPKEY_NONE) {
+                // Route input to current page
+                IPage* current_page = getCurrentPage();
+                if (current_page) {
+                    current_page->handleInput(key);
+                }
             }
         }
 
-        // Update current page (frozen while the exit prompt is up).
+        // Update current page (frozen while an overlay is up).
         IPage* current_page = getCurrentPage();
-        if (current_page && !exit_hold_active_) {
+        if (current_page && !exit_hold_active_ && !page_menu_open_) {
             current_page->update(delta_time);
         }
 
@@ -225,6 +234,14 @@ int PageManager::run() {
                     fb_.update();
                 }
             }
+        }
+
+        // Page menu: redraw the frozen frame plus the translucent bar every
+        // loop so repeated blends never pile up.
+        if (page_menu_open_) {
+            restoreSnapshot(page_menu_snapshot_);
+            drawPageMenu();
+            fb_.update();
         }
 
         // Frame rate control (~33 FPS)
@@ -345,6 +362,188 @@ void PageManager::drawExitPrompt(float progress) {
     if (filled > 0) {
         fb_.fillRect(bar_x, bar_y, filled, 4, COLOR_SPECTRUM);
     }
+}
+
+void PageManager::drawCircleOutline(int cx, int cy, int radius,
+                                    uint16_t color) {
+    if (radius <= 0) return;
+    int x = radius;
+    int y = 0;
+    int err = 1 - radius;
+    while (x >= y) {
+        fb_.drawPixel(cx + x, cy + y, color);
+        fb_.drawPixel(cx + y, cy + x, color);
+        fb_.drawPixel(cx - y, cy + x, color);
+        fb_.drawPixel(cx - x, cy + y, color);
+        fb_.drawPixel(cx - x, cy - y, color);
+        fb_.drawPixel(cx - y, cy - x, color);
+        fb_.drawPixel(cx + y, cy - x, color);
+        fb_.drawPixel(cx + x, cy - y, color);
+        ++y;
+        if (err < 0) {
+            err += 2 * y + 1;
+        } else {
+            --x;
+            err += 2 * (y - x) + 1;
+        }
+    }
+}
+
+void PageManager::restoreSnapshot(const std::vector<uint16_t>& snapshot) {
+    if (snapshot.empty()) return;
+    if (snapshot.size() != fb_.pixelCount()) return;
+    std::memcpy(fb_.pixels(), snapshot.data(),
+                snapshot.size() * sizeof(uint16_t));
+}
+
+void PageManager::openPageMenu() {
+    if (pages_.empty()) return;
+    page_menu_index_ = current_page_index_;
+    page_menu_snapshot_.resize(fb_.pixelCount());
+    std::memcpy(page_menu_snapshot_.data(), fb_.pixels(),
+                page_menu_snapshot_.size() * sizeof(uint16_t));
+    page_menu_open_ = true;
+    std::cout << "PageManager: Page menu open" << std::endl;
+}
+
+void PageManager::closePageMenu(bool restore) {
+    page_menu_open_ = false;
+    if (restore) {
+        restoreSnapshot(page_menu_snapshot_);
+        fb_.update();
+    }
+    page_menu_snapshot_.clear();
+}
+
+void PageManager::handlePageMenuInput(AppKeyCode key) {
+    const size_t count = pages_.size();
+    if (count == 0) {
+        closePageMenu(false);
+        return;
+    }
+
+    switch (key) {
+        case APPKEY_TAB:
+        case APPKEY_P:
+        case APPKEY_RIGHT:
+            page_menu_index_ = (page_menu_index_ + 1) % count;
+            break;
+
+        case APPKEY_LEFT:
+            page_menu_index_ = (page_menu_index_ + count - 1) % count;
+            break;
+
+        case APPKEY_ENTER:
+            if (page_menu_index_ == current_page_index_) {
+                closePageMenu(true);
+            } else {
+                const size_t target = page_menu_index_;
+                page_menu_open_ = false;
+                page_menu_snapshot_.clear();
+                transitionToPage(target);
+            }
+            break;
+
+        case APPKEY_ESC:
+            closePageMenu(true);
+            break;
+
+        default:
+            break;
+    }
+}
+
+void PageManager::drawPageIcon(int page_index, int x, int y,
+                               uint16_t color) {
+    if (page_index < 0 || page_index >= (int)pages_.size()) return;
+    const char* name = pages_[page_index]->getName();
+
+    if (std::strcmp(name, "SDR") == 0) {
+        // Mini spectrum with a waterfall underneath.
+        static const uint8_t bars[9] = {2, 4, 6, 9, 5, 8, 3, 7, 4};
+        const int base = y + 10;
+        for (int i = 0; i < 9; ++i) {
+            fb_.fillRect(x + 1 + i * 2, base - bars[i], 1, bars[i], color);
+        }
+        fb_.fillRect(x, y + 13, 18, 1, color);
+        fb_.fillRect(x, y + 16, 18, 1, color);
+    } else if (std::strcmp(name, "Spectrum") == 0) {
+        // Wideband trace with a baseline.
+        static const int points[][2] = {
+            {0, 11}, {2, 9}, {4, 12}, {6, 7}, {8, 10},
+            {10, 4}, {12, 8}, {14, 2}, {17, 6},
+        };
+        constexpr int count = (int)(sizeof(points) / sizeof(points[0]));
+        for (int i = 0; i + 1 < count; ++i) {
+            fb_.drawLine(x + points[i][0], y + points[i][1],
+                         x + points[i + 1][0], y + points[i + 1][1], color);
+        }
+        fb_.fillRect(x, y + 14, 18, 1, color);
+        fb_.fillRect(x + 14, y + 1, 2, 2, color);
+    } else if (std::strcmp(name, "ADSB") == 0) {
+        // Radar ring with a small aircraft.
+        drawCircleOutline(x + 9, y + 9, 8, color);
+        fb_.fillRect(x + 9, y + 4, 1, 8, color);
+        fb_.fillRect(x + 4, y + 7, 11, 1, color);
+        fb_.fillRect(x + 6, y + 12, 7, 1, color);
+    } else {
+        fb_.drawRect(x + 1, y + 1, 16, 16, color);
+    }
+}
+
+void PageManager::drawPageMenu() {
+    const int w = fb_.getWidth();
+    const int h = fb_.getHeight();
+    if (w <= 0 || h <= 0 || pages_.empty()) return;
+
+    // Dim the frozen page, then lay the translucent bar on top.
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            fb_.blendPixel(x, y, COLOR_BLACK, 0.45f);
+        }
+    }
+
+    const int count = (int)pages_.size();
+    const int tile_w = 70;
+    const int tile_h = 46;
+    const int gap = 6;
+    const int panel_w = count * tile_w + (count - 1) * gap + 18;
+    const int panel_h = 74;
+    const int px = (w - panel_w) / 2;
+    const int py = (h - panel_h) / 2;
+    drawRoundedPanel(px, py, panel_w, panel_h, 10, COLOR_DIALOG_BG, 0.86f);
+
+    int x = px + 9;
+    const int tile_y = py + 6;
+    for (int i = 0; i < count; ++i) {
+        const bool selected = (i == (int)page_menu_index_);
+        const bool current = (i == (int)current_page_index_);
+
+        if (selected) {
+            drawRoundedPanel(x, tile_y, tile_w, tile_h, 7,
+                             COLOR_SELECTED, 0.95f);
+            fb_.fillRect(x + 6, tile_y, tile_w - 12, 1, COLOR_SPECTRUM);
+        }
+
+        const uint16_t icon_color =
+            selected ? COLOR_SPECTRUM : COLOR_TEXT_DIM;
+        drawPageIcon(i, x + (tile_w - 18) / 2, tile_y + 5, icon_color);
+
+        const char* name = pages_[i]->getName();
+        const int label_w = (int)std::strlen(name) * FONT_6X8_WIDTH;
+        drawText6x8(x + (tile_w - label_w) / 2, tile_y + 30, name,
+                    selected ? COLOR_WHITE : COLOR_TEXT_DIM);
+
+        if (current) {
+            fb_.fillRect(x + tile_w / 2 - 1, tile_y + tile_h - 5, 2, 2,
+                         selected ? COLOR_SPECTRUM : COLOR_TEXT_BRIGHT);
+        }
+        x += tile_w + gap;
+    }
+
+    static const char* hint = "<> SELECT   ENTER OPEN   ESC CLOSE";
+    const int hint_w = (int)std::strlen(hint) * FONT_6X8_WIDTH;
+    drawText6x8((w - hint_w) / 2, py + panel_h - 14, hint, COLOR_TEXT_DIM);
 }
 
 float PageManager::calculateDeltaTime() {

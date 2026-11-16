@@ -823,7 +823,7 @@ void ADSBUIRenderer::renderKeyHelp() {
 
     struct Row { const char* key; const char* action; };
     static const Row rows[] = {
-        {"TAB",        "SDR / ADSB"},
+        {"TAB",        "PAGE MENU"},
         {"UP/DOWN",    "SELECT AIRCRAFT"},
         {"LEFT/RIGHT", "PAGE 5 ROWS"},
         {"ENTER",      "LIST>DETAIL>RADAR"},

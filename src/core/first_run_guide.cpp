@@ -130,7 +130,7 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
             int y = 40;
             const char* rows[][2] = {
                 {"H", "key list + settings"},
-                {"TAB", "SDR > SPECTRUM > ADSB"},
+                {"TAB", "OPEN PAGE MENU"},
                 {"ENTER", "ADSB: list > detail > radar"},
                 {"FN+D/S", "system volume"},
                 {"< >", "change guide page"},
@@ -145,7 +145,7 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
             text.draw(fb, 12, 10, "WIDEBAND SPECTRUM", COLOR_YELLOW, 16);
             int y = 42;
             const char* rows[][2] = {
-                {"TAB", "SDR > SPECTRUM > ADSB"},
+                {"TAB", "OPEN PAGE MENU"},
                 {"R", "set START / STOP range"},
                 {"< >", "pan the visible window"},
                 {"UP/DOWN", "zoom in / out"},

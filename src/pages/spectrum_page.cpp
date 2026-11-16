@@ -546,7 +546,7 @@ void SpectrumPage::drawHelpOverlay() {
     };
     static const char* const actions[] = {
         "PAN",       "ZOOM",   "FULL SPAN", "MAX HOLD",
-        "SET RANGE", "PAGE",   "VOLUME",    "SCREENSHOT", "EXIT",
+        "SET RANGE", "MENU",   "VOLUME",    "SCREENSHOT", "EXIT",
         "CLOSE",
     };
 

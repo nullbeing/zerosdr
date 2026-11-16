@@ -209,8 +209,8 @@ Open **zeroSDR** from the launcher, then check:
 1. the spectrum/waterfall is moving,
 2. **press `H` — the key list appears; press `→` for settings**,
 3. audio is audible (tune to a known station),
-4. `Tab` switches to the ADSB page; hold `Esc` for 2 s (or press `Q`) to return
-   to the launcher.
+4. `Tab` opens the page menu; pick ADSB with the arrows and `Enter`; hold
+   `Esc` for 2 s (or press `Q`) to return to the launcher.
 
 Logs:
 
@@ -259,7 +259,7 @@ On the first start zeroSDR shows a short guide (reopen it from
 `H` → settings → `SHOW GUIDE`):
 
 - `H` opens the key list and settings
-- `Tab` switches between the SDR and ADSB pages
+- `Tab` opens the page menu for the SDR, Spectrum and ADSB pages
 - `Enter` cycles the ADSB views (list → detail → radar)
 - Observer position: entered by hand, or read from a GPS when one is present
   (gpsd or a serial NMEA device). A manual entry overrides GPS until the
@@ -269,7 +269,8 @@ On the first start zeroSDR shows a short guide (reopen it from
 
 ### Press `H` first
 
-`Tab` cycles the three pages: SDR → Spectrum → ADSB.
+`Tab` opens a translucent page menu: `←`/`→` (or `Tab`) select a page,
+`Enter` opens it, `Esc` closes the menu.
 
 The SDR page has a built-in reference:
 
@@ -309,7 +310,7 @@ codes, and plain letters are used for the SDR controls.
 | `Y` | Display zoom (only spans the sample rate can fill) |
 | `Fn`+`P` (F12) | Screenshot (`~/zerosdr_screenshot_*.png`) |
 | `H` | Key list, then `→` for settings |
-| `Tab` | Switch page (SDR → Spectrum → ADSB) |
+| `Tab` | Page menu (select with arrows, `Enter` opens) |
 | `Q` | Quit immediately |
 | `Esc` (hold 2 s) | Quit, with a centered progress prompt |
 
@@ -330,7 +331,7 @@ codes, and plain letters are used for the SDR controls.
 | `Shift+R` | FFT size |
 | `Shift+S` | Screenshot |
 | `H` | Key list / settings |
-| `Tab` | Switch page |
+| `Tab` | Page menu |
 | `Q` | Quit immediately |
 | `Esc` (hold 2 s) | Quit, with a centered progress prompt |
 
@@ -398,8 +399,8 @@ the current sample rate can fill.
 
 ## ADSB page
 
-`Tab` switches between the SDR page, the wideband spectrum page and the ADSB
-aircraft list. In the list:
+`Tab` opens the page menu for the SDR page, the wideband spectrum page and the
+ADSB aircraft list. In the list:
 
 | Key | Action |
 |-----|--------|
@@ -412,7 +413,7 @@ aircraft list. In the list:
 | `H` | Key list + settings (latitude, longitude, clear position) |
 | `L` | Position editor |
 | `G` / `+` / `-` | Radar gain mode / gain |
-| `Tab` | Back to the SDR page |
+| `Tab` | Page menu |
 
 The radar's left panel lists `ICAO` / altitude / distance, with the selected
 aircraft's callsign shown in large text on a dim strip that spans the full
@@ -478,9 +479,9 @@ Audio feedback:
 
 ## Wideband spectrum page
 
-`Tab` cycles SDR → Spectrum → ADSB. The spectrum page is a swept analyzer in
-the style of qspectrumanalyzer: it retunes the RTL-SDR across a user supplied
-range, stitches the slices into one wide spectrum and draws a yellow trace
+`Tab` opens the page menu (SDR, Spectrum, ADSB). The spectrum page is a
+swept analyzer in the style of qspectrumanalyzer: it retunes the RTL-SDR
+across a user supplied range, stitches the slices into one wide spectrum and draws a yellow trace
 with a waterfall below it. The RTL-SDR V4 range is 24–1766 MHz.
 
 On first use it asks for START and STOP in MHz. Use the digits and `.`,
@@ -496,7 +497,7 @@ reused afterwards.
 | `M` | Toggle max hold (red peak trace) |
 | `R` | Edit the start/stop range |
 | `H` | Toggle the translucent help overlay |
-| `Tab` | Switch page (SDR → Spectrum → ADSB) |
+| `Tab` | Page menu (select with arrows, `Enter` opens) |
 | `Esc` (hold 2 s) | Quit, with the centered progress prompt |
 
 Notes:

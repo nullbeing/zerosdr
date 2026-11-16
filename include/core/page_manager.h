@@ -91,6 +91,12 @@ private:
     struct timeval exit_hold_start_ {};
     std::vector<uint16_t> exit_snapshot_;
 
+    // Tab opens a translucent page menu. The page frame is frozen while the
+    // menu is up; arrows/Tab move the highlight, Enter switches, Esc closes.
+    bool page_menu_open_ = false;
+    size_t page_menu_index_ = 0;
+    std::vector<uint16_t> page_menu_snapshot_;
+
     // fn+D / fn+S: give the launcher's own binding a moment to take effect;
     // if the sink volume did not move, apply the step ourselves.
     bool volume_key_pending_ = false;
@@ -115,6 +121,15 @@ private:
     void drawRoundedPanel(int x, int y, int w, int h, int radius,
                           uint16_t color, float alpha);
     void drawText6x8(int x, int y, const char* text, uint16_t color);
+    void drawCircleOutline(int cx, int cy, int radius, uint16_t color);
+
+    // Tab page menu.
+    void openPageMenu();
+    void closePageMenu(bool restore);
+    void handlePageMenuInput(AppKeyCode key);
+    void drawPageMenu();
+    void drawPageIcon(int page_index, int x, int y, uint16_t color);
+    void restoreSnapshot(const std::vector<uint16_t>& snapshot);
 };
 
 #endif // PAGE_MANAGER_H
