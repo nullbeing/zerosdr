@@ -196,7 +196,9 @@ AppKeyCode InputHandler::pollKey() {
             bool is_nav = (code == APPKEY_UP || code == APPKEY_DOWN ||
                            code == APPKEY_LEFT || code == APPKEY_RIGHT ||
                            code == APPKEY_LEFT_COARSE ||
-                           code == APPKEY_RIGHT_COARSE);
+                           code == APPKEY_RIGHT_COARSE ||
+                           code == APPKEY_GAIN_UP ||
+                           code == APPKEY_GAIN_DOWN);
             bool is_squelch = (code == APPKEY_S);
 
             if (is_nav || is_squelch) {
@@ -221,7 +223,9 @@ AppKeyCode InputHandler::pollKey() {
             bool is_nav = (code == APPKEY_UP || code == APPKEY_DOWN ||
                            code == APPKEY_LEFT || code == APPKEY_RIGHT ||
                            code == APPKEY_LEFT_COARSE ||
-                           code == APPKEY_RIGHT_COARSE);
+                           code == APPKEY_RIGHT_COARSE ||
+                           code == APPKEY_GAIN_UP ||
+                           code == APPKEY_GAIN_DOWN);
             if (is_nav) {
                 last_nav_key = code;
                 key_is_held = true;
@@ -351,10 +355,11 @@ AppKeyCode InputHandler::translateKeyCode(int linux_keycode,
         case KEY_LEFT:     return alt_pressed ? APPKEY_LEFT_COARSE  : APPKEY_LEFT;
         case KEY_RIGHT:    return alt_pressed ? APPKEY_RIGHT_COARSE : APPKEY_RIGHT;
 
-        case KEY_EQUAL:    return shift_pressed ? APPKEY_PLUS : APPKEY_NONE;
-        case KEY_KPPLUS:   return APPKEY_PLUS;
-        case KEY_MINUS:    return APPKEY_MINUS;
-        case KEY_KPMINUS:  return APPKEY_MINUS;
+        case KEY_EQUAL:    return alt_pressed ? APPKEY_GAIN_UP
+                                              : (shift_pressed ? APPKEY_PLUS : APPKEY_NONE);
+        case KEY_KPPLUS:   return alt_pressed ? APPKEY_GAIN_UP : APPKEY_PLUS;
+        case KEY_MINUS:    return alt_pressed ? APPKEY_GAIN_DOWN : APPKEY_MINUS;
+        case KEY_KPMINUS:  return alt_pressed ? APPKEY_GAIN_DOWN : APPKEY_MINUS;
 
         case KEY_M:        return APPKEY_M;
         case KEY_G:        return APPKEY_G;

@@ -27,6 +27,7 @@ public:
 
     bool setAGCMode(bool enable);
     bool getAGCEnabled() const { return agc_enabled; }
+    bool isAutoGain() const { return auto_gain; }
 
     bool startCapture();
     void stopCapture();
@@ -48,6 +49,7 @@ private:
     rtlsdr_dev_t* device;
     bool initialized;
     bool agc_enabled;
+    bool auto_gain;
     std::atomic<bool> capturing;
 
     uint32_t current_frequency;

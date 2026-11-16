@@ -14,6 +14,8 @@ enum AppKeyCode {
     APPKEY_PAGEDOWN,
     APPKEY_PLUS,
     APPKEY_MINUS,
+    APPKEY_GAIN_UP,    // Alt + '+'
+    APPKEY_GAIN_DOWN,  // Alt + '-'
     APPKEY_M,
     APPKEY_A,
     APPKEY_G,      // Toggle hardware AGC

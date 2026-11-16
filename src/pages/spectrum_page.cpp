@@ -145,6 +145,15 @@ void SpectrumPage::onEnter() {
         sdr_.setSampleRate(kSampleRate);
     }
 
+    // Gain: inherit the SDR page's mode on the first visit; after the user
+    // changes it here, remember it for the rest of the session.
+    if (gain_user_set_) {
+        applyGain();
+    } else {
+        gain_db_ = sdr_.isAutoGain() ? -1 : sdr_.getGain();
+        if (gain_db_ >= 0) last_manual_gain_db_ = gain_db_;
+    }
+
     rebuildGeometry();
     if (!range_configured_) {
         openEditor();
@@ -306,7 +315,6 @@ bool SpectrumPage::handleInput(AppKeyCode key) {
         return true;
     }
 
-    const size_t min_bins = std::min<size_t>(32, total_bins_);
     switch (key) {
         case APPKEY_LEFT: {
             const size_t step = std::max<size_t>(1, view_bins_ / 8);
@@ -322,30 +330,33 @@ bool SpectrumPage::handleInput(AppKeyCode key) {
             clearWaterfall();
             return true;
         }
-        case APPKEY_UP: {
-            const size_t center = view_start_ + view_bins_ / 2;
-            size_t bins = std::max(min_bins, view_bins_ / 2);
-            if (bins > total_bins_) bins = total_bins_;
-            view_bins_ = bins;
-            view_start_ = center > bins / 2 ? center - bins / 2 : 0;
-            if (view_start_ + view_bins_ > total_bins_) {
-                view_start_ = total_bins_ > view_bins_ ? total_bins_ - view_bins_
-                                                       : 0;
-            }
-            clearWaterfall();
+        case APPKEY_UP:
+        case APPKEY_PLUS:
+            zoomView(true);
             return true;
-        }
-        case APPKEY_DOWN: {
-            const size_t center = view_start_ + view_bins_ / 2;
-            size_t bins = std::min(total_bins_, view_bins_ * 2);
-            if (bins < min_bins) bins = min_bins;
-            view_bins_ = bins;
-            view_start_ = center > bins / 2 ? center - bins / 2 : 0;
-            if (view_start_ + view_bins_ > total_bins_) {
-                view_start_ = total_bins_ > view_bins_ ? total_bins_ - view_bins_
-                                                       : 0;
+        case APPKEY_DOWN:
+        case APPKEY_MINUS:
+            zoomView(false);
+            return true;
+        case APPKEY_G:
+            if (gain_db_ < 0) {
+                gain_db_ = last_manual_gain_db_;
+            } else {
+                last_manual_gain_db_ = gain_db_;
+                gain_db_ = -1;
             }
-            clearWaterfall();
+            gain_user_set_ = true;
+            applyGain();
+            return true;
+        case APPKEY_GAIN_UP:
+        case APPKEY_GAIN_DOWN: {
+            if (gain_db_ < 0) gain_db_ = last_manual_gain_db_;
+            gain_db_ += (key == APPKEY_GAIN_UP) ? 1 : -1;
+            if (gain_db_ < 0) gain_db_ = 0;
+            if (gain_db_ > 49) gain_db_ = 49;
+            last_manual_gain_db_ = gain_db_;
+            gain_user_set_ = true;
+            applyGain();
             return true;
         }
         case APPKEY_M: {
@@ -367,6 +378,36 @@ bool SpectrumPage::handleInput(AppKeyCode key) {
         default:
             return false;
     }
+}
+
+void SpectrumPage::zoomView(bool zoom_in) {
+    const size_t min_bins = std::min<size_t>(32, total_bins_);
+    const size_t center = view_start_ + view_bins_ / 2;
+    size_t bins = zoom_in ? std::max(min_bins, view_bins_ / 2)
+                          : std::min(total_bins_, view_bins_ * 2);
+    if (bins < min_bins) bins = min_bins;
+    if (bins > total_bins_) bins = total_bins_;
+    view_bins_ = bins;
+    view_start_ = center > bins / 2 ? center - bins / 2 : 0;
+    if (view_start_ + view_bins_ > total_bins_) {
+        view_start_ = total_bins_ > view_bins_ ? total_bins_ - view_bins_ : 0;
+    }
+    clearWaterfall();
+}
+
+void SpectrumPage::applyGain() {
+    if (gain_db_ < 0) {
+        sdr_.setAutoGain(true);
+        sdr_.setAGCMode(true);
+        return;
+    }
+
+    if (gain_db_ > 49) gain_db_ = 49;
+    sdr_.setAutoGain(false);
+    sdr_.setGain(gain_db_);
+    sdr_.setAGCMode(false);
+    const int actual = sdr_.getGain();
+    if (actual >= 0) gain_db_ = actual;
 }
 
 void SpectrumPage::openEditor() {
@@ -559,18 +600,18 @@ void SpectrumPage::drawHelpOverlay() {
     ui_.drawText(px + (panel_w - title_w) / 2, py + 8, title, COLOR_YELLOW);
 
     static const char* const keys[] = {
-        "LEFT/RIGHT", "UP/DOWN", "ENTER",  "M",
-        "R",          "TAB",     "FN+D/S", "FN+P",       "HOLD ESC",
+        "LEFT/RIGHT", "UP/DN +/-", "ENTER",  "M",
+        "R",          "TAB",       "ALT+/- G", "FN+D/S", "FN+P", "HOLD ESC",
         "H",
     };
     static const char* const actions[] = {
-        "PAN",       "ZOOM",   "FULL SPAN", "MAX HOLD (DECAY)",
-        "SET RANGE", "MENU",   "VOLUME",    "SCREENSHOT", "EXIT",
+        "PAN",       "ZOOM",     "FULL SPAN", "MAX HOLD (DECAY)",
+        "SET RANGE", "MENU",     "GAIN / AGC", "VOLUME", "SCREENSHOT", "EXIT",
         "CLOSE",
     };
 
     const int row_y = py + 26;
-    const int row_step = 11;
+    const int row_step = 10;
     for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
         const int y = row_y + static_cast<int>(i) * row_step;
         ui_.drawText(px + 16, y, keys[i], COLOR_YELLOW);
@@ -779,6 +820,15 @@ void SpectrumPage::drawStatusBar() {
     const std::string left = formatMhz(visible_start, decimals) + "-" +
                              formatMhz(visible_end, decimals);
     ui_.drawText(2, kStatusY + 3, left.c_str(), COLOR_TEXT_BRIGHT);
+
+    char gain_str[16];
+    if (gain_db_ < 0) {
+        std::snprintf(gain_str, sizeof(gain_str), "AGC");
+    } else {
+        std::snprintf(gain_str, sizeof(gain_str), "+%ddB", gain_db_);
+    }
+    ui_.drawText(110, kStatusY + 3, gain_str,
+                 gain_db_ < 0 ? COLOR_TEXT_DIM : COLOR_YELLOW);
 
     if (!toast_.empty() &&
         std::chrono::steady_clock::now() < toast_until_) {
