@@ -179,11 +179,11 @@ void SDRPage::onEnter() {
     sdr_.setFrequency(center_freq_);
     sdr_.setSampleRate(sample_rate_);
     if (gain_ >= 0) {
-        sdr_.setAutoGain(false);
-        sdr_.setGain(gain_);
+        // Manual mode first, gain last: setAGCMode(false) resets the
+        // LNA/mixer to zero, so setting the gain before it would be lost.
         sdr_.setAGCMode(false);
+        sdr_.setGain(gain_);
     } else {
-        sdr_.setAutoGain(true);
         sdr_.setAGCMode(true);
     }
     if (!sdr_.isCapturing()) {

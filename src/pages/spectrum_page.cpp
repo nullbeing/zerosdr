@@ -397,15 +397,15 @@ void SpectrumPage::zoomView(bool zoom_in) {
 
 void SpectrumPage::applyGain() {
     if (gain_db_ < 0) {
-        sdr_.setAutoGain(true);
         sdr_.setAGCMode(true);
         return;
     }
 
     if (gain_db_ > 49) gain_db_ = 49;
-    sdr_.setAutoGain(false);
-    sdr_.setGain(gain_db_);
+    // setAGCMode(false) also puts the tuner in manual mode, which resets the
+    // LNA/mixer gain to zero. Apply the requested gain *after* it.
     sdr_.setAGCMode(false);
+    sdr_.setGain(gain_db_);
 }
 
 void SpectrumPage::openEditor() {
