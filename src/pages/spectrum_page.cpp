@@ -190,8 +190,13 @@ void SpectrumPage::sweepLoop() {
     std::vector<float> mag;
     std::vector<float> acc;
 
+    auto last_sweep_start = std::chrono::steady_clock::now();
+
     while (sweep_run_) {
         const auto sweep_start = std::chrono::steady_clock::now();
+        const float sweep_period = std::chrono::duration<float>(
+            sweep_start - last_sweep_start).count();
+        last_sweep_start = sweep_start;
         sweep_progress_ = 0;
         const size_t steps = step_count_;
         const size_t sbins = slice_bins_;
@@ -227,12 +232,20 @@ void SpectrumPage::sweepLoop() {
                 if (off + sbins <= bins_db_.size()) {
                     const bool hold = max_hold_active_.load();
                     const bool have_hold = hold && off + sbins <= max_hold_db_.size();
+                    const float decay = max_hold_decay_db_s_ * sweep_period;
                     for (size_t j = 0; j < sbins; ++j) {
                         const float value =
                             acc[j] / static_cast<float>(frames);
                         bins_db_[off + j] = value;
-                        if (have_hold && value > max_hold_db_[off + j]) {
-                            max_hold_db_[off + j] = value;
+                        if (have_hold) {
+                            // Age the envelope once per sweep, then let the
+                            // new value win if it is higher. A persistent
+                            // signal keeps its level; a peak that is gone
+                            // falls by max_hold_decay_db_s_ dB per second.
+                            float held = max_hold_db_[off + j] - decay;
+                            if (held < -120.0f) held = -120.0f;
+                            if (value > held) held = value;
+                            max_hold_db_[off + j] = held;
                         }
                     }
                 }
@@ -240,25 +253,6 @@ void SpectrumPage::sweepLoop() {
 
             sweep_progress_ =
                 static_cast<int>((s + 1) * 100 / std::max<size_t>(1, steps));
-        }
-
-        // Max-hold decay. A persistent signal still refreshes the envelope
-        // (the clamp to bins_db_ keeps it at the live level), but a peak that
-        // has disappeared falls back by max_hold_decay_db_s_ dB per second
-        // instead of sitting on the display forever.
-        if (max_hold_active_.load() && max_hold_decay_db_s_ > 0.0f) {
-            const float elapsed = std::chrono::duration<float>(
-                std::chrono::steady_clock::now() - sweep_start).count();
-            const float drop = max_hold_decay_db_s_ * elapsed;
-            std::lock_guard<std::mutex> lock(data_mutex_);
-            const size_t count =
-                std::min(max_hold_db_.size(), bins_db_.size());
-            for (size_t i = 0; i < count; ++i) {
-                float held = max_hold_db_[i] - drop;
-                if (held < bins_db_[i]) held = bins_db_[i];
-                if (held < -120.0f) held = -120.0f;
-                max_hold_db_[i] = held;
-            }
         }
 
         // Short pause before starting the next sweep.
