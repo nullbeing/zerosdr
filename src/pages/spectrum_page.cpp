@@ -636,8 +636,9 @@ void SpectrumPage::drawSpectrum() {
     }
 
     if (smooth_display_) {
-        // Median over roughly 1 MHz of the drawn trace: narrow clock spurs
-        // are removed while broad signals (the 465-478 MHz hump) survive.
+        // Median over roughly 1 MHz of the drawn trace, mixed 50/50 with the
+        // raw trace: half-strength smoothing. It knocks the narrow clock
+        // spurs down without erasing real narrow signals completely.
         const double range = static_cast<double>(stop_hz_ - start_hz_);
         const double bin_hz = range / std::max<size_t>(1, total_bins_);
         const double view_span =
@@ -647,8 +648,14 @@ void SpectrumPage::drawSpectrum() {
                          ? static_cast<int>(std::lround(1.0e6 / hz_per_px))
                          : 3;
         window = std::clamp(window, 3, 31);
+        const std::vector<float> raw_row = row_db_;
+        const std::vector<float> raw_hold = hold_row_db_;
         smoothTrace(row_db_, window);
         smoothTrace(hold_row_db_, window);
+        for (int x = 0; x < kWidth; ++x) {
+            row_db_[x] = 0.5f * (row_db_[x] + raw_row[x]);
+            hold_row_db_[x] = 0.5f * (hold_row_db_[x] + raw_hold[x]);
+        }
     }
 
     // Spatial [1 2 1] smoothing plus a light temporal blend removes the

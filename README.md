@@ -511,10 +511,11 @@ Notes:
   manual gain amplifies the RTL-SDR's 28.8 MHz clock spur, so it is not
   offered here; use the SDR page's gain control if you need it.
 - `Space` toggles display smoothing: a median filter over about 1 MHz of the
-  drawn trace. It removes narrow clock spurs and makes broad signals stand
-  out, but also softens real narrow signals. The captured bins, max hold and
-  its decay are not changed; only the trace and the new waterfall row are
-  filtered. The status bar shows `SM` while it is on.
+  drawn trace, mixed 50/50 with the raw trace. It knocks narrow clock spurs
+  down and makes broad signals stand out, while keeping some of a real narrow
+  signal. The captured bins, max hold and its decay are not changed; only the
+  trace and the new waterfall row are filtered. The status bar shows `SM`
+  while it is on.
 - Max hold is on by default (red envelope); `M` toggles it and clears the
   stored peaks. The envelope decays at 1.5 dB/s
   (`spectrum.max_hold_decay_db_s`; set 0 to hold forever), so stale peaks
