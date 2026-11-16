@@ -332,6 +332,12 @@ bool SpectrumPage::handleInput(AppKeyCode key) {
         case APPKEY_MINUS:
             zoomView(false);
             return true;
+        case APPKEY_SPACE:
+            smooth_display_ = !smooth_display_;
+            toast_ = smooth_display_ ? "SMOOTH ON" : "SMOOTH OFF";
+            toast_until_ = std::chrono::steady_clock::now() +
+                           std::chrono::milliseconds(1500);
+            return true;
         case APPKEY_M: {
             const bool next = !max_hold_active_.load();
             max_hold_active_ = next;
@@ -558,23 +564,43 @@ void SpectrumPage::drawHelpOverlay() {
     ui_.drawText(px + (panel_w - title_w) / 2, py + 8, title, COLOR_YELLOW);
 
     static const char* const keys[] = {
-        "LEFT/RIGHT", "UP/DN +/-", "ENTER",  "M",
-        "R",          "TAB",       "FN+D/S", "FN+P", "HOLD ESC",
+        "LEFT/RIGHT", "UP/DN +/-", "ENTER",  "M",     "SPACE",
+        "R",          "TAB",       "FN+D/S", "FN+P",  "HOLD ESC",
         "H",
     };
     static const char* const actions[] = {
-        "PAN",       "ZOOM",     "FULL SPAN", "MAX HOLD (DECAY)",
+        "PAN",       "ZOOM",     "FULL SPAN", "MAX HOLD (DECAY)", "SMOOTH",
         "SET RANGE", "MENU",     "VOLUME",    "SCREENSHOT", "EXIT",
         "CLOSE",
     };
 
     const int row_y = py + 26;
-    const int row_step = 11;
+    const int row_step = 10;
     for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
         const int y = row_y + static_cast<int>(i) * row_step;
         ui_.drawText(px + 16, y, keys[i], COLOR_YELLOW);
         ui_.drawText(px + 100, y, actions[i], COLOR_TEXT_BRIGHT);
     }
+}
+
+void SpectrumPage::smoothTrace(std::vector<float>& values, int window) const {
+    if (window < 3 || values.size() < 3) return;
+    if ((window & 1) == 0) ++window;
+    const int half = window / 2;
+    std::vector<float> out(values.size());
+    std::vector<float> buf(static_cast<size_t>(window));
+    for (size_t i = 0; i < values.size(); ++i) {
+        for (int k = -half; k <= half; ++k) {
+            const int idx = std::clamp<int>(
+                static_cast<int>(i) + k, 0,
+                static_cast<int>(values.size()) - 1);
+            buf[static_cast<size_t>(k + half)] =
+                values[static_cast<size_t>(idx)];
+        }
+        std::nth_element(buf.begin(), buf.begin() + half, buf.end());
+        out[i] = buf[static_cast<size_t>(half)];
+    }
+    values.swap(out);
 }
 
 void SpectrumPage::drawSpectrum() {
@@ -607,6 +633,22 @@ void SpectrumPage::drawSpectrum() {
             }
             hold_row_db_[x] = held;
         }
+    }
+
+    if (smooth_display_) {
+        // Median over roughly 1 MHz of the drawn trace: narrow clock spurs
+        // are removed while broad signals (the 465-478 MHz hump) survive.
+        const double range = static_cast<double>(stop_hz_ - start_hz_);
+        const double bin_hz = range / std::max<size_t>(1, total_bins_);
+        const double view_span =
+            bin_hz * static_cast<double>(std::max<size_t>(1, view_bins_));
+        const double hz_per_px = view_span / static_cast<double>(kWidth);
+        int window = hz_per_px > 0.0
+                         ? static_cast<int>(std::lround(1.0e6 / hz_per_px))
+                         : 3;
+        window = std::clamp(window, 3, 31);
+        smoothTrace(row_db_, window);
+        smoothTrace(hold_row_db_, window);
     }
 
     // Spatial [1 2 1] smoothing plus a light temporal blend removes the
@@ -778,6 +820,10 @@ void SpectrumPage::drawStatusBar() {
     const std::string left = formatMhz(visible_start, decimals) + "-" +
                              formatMhz(visible_end, decimals);
     ui_.drawText(2, kStatusY + 3, left.c_str(), COLOR_TEXT_BRIGHT);
+
+    if (smooth_display_) {
+        ui_.drawText(120, kStatusY + 3, "SM", COLOR_YELLOW);
+    }
 
     if (!toast_.empty() &&
         std::chrono::steady_clock::now() < toast_until_) {

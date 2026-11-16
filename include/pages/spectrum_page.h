@@ -68,6 +68,7 @@ private:
     void drawDisplay();
     void drawHelpOverlay();
     void zoomView(bool zoom_in);
+    void smoothTrace(std::vector<float>& values, int window) const;
     void drawRoundedPanel(int x, int y, int w, int h, int radius,
                           uint16_t color, float alpha);
     void drawSpectrum();
@@ -99,6 +100,9 @@ private:
     std::vector<float> max_hold_db_;
     std::vector<float> hold_row_db_;
     std::atomic<bool> max_hold_active_{true};
+    // Display-only median smoothing (Space). It does not change the captured
+    // bins or the max-hold data, only the drawn trace and waterfall row.
+    bool smooth_display_ = false;
     // Decay of the red max-hold envelope, in dB per second. 0 keeps the
     // classic "hold forever" behaviour; the default lets stale peaks fall.
     float max_hold_decay_db_s_ = 1.5f;
