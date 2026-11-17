@@ -700,7 +700,6 @@ void SDRUIRenderer::renderKeyHelp() {
         {nullptr,  "SYSTEM"},
         {"FN+P",   "SCREENSHOT"},
         {"TAB",    "PAGE MENU"},
-        {"Q",      "QUIT"},
         {"HOLD ESC","QUIT"},
     };
 

@@ -26,7 +26,6 @@ enum AppKeyCode {
     APPKEY_SPACE,  // Toggle audio
     APPKEY_LEFT_COARSE,   // Alt+Left  = current step × 10 (coarse tune)
     APPKEY_RIGHT_COARSE,  // Alt+Right = current step × 10 (coarse tune)
-    APPKEY_Q,
     APPKEY_ESC,
     APPKEY_H,
     APPKEY_L,      // Location settings (ADSB)

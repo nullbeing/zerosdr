@@ -102,13 +102,8 @@ int PageManager::run() {
         // Handle input
         AppKeyCode key = input_.pollKey();
 
-        // Q still exits immediately; ESC requires a three second hold so a
-        // stray tap cannot close the viewer.
-        if (key == APPKEY_Q) {
-            std::cout << "PageManager: Exit key pressed, stopping..." << std::endl;
-            running_ = false;
-            continue;
-        }
+        // ESC requires a two second hold so a stray tap cannot close the
+        // viewer; there is no single-key quit.
         if (key == APPKEY_ESC && !exit_hold_active_) {
             exit_hold_active_ = true;
             gettimeofday(&exit_hold_start_, nullptr);

@@ -210,7 +210,7 @@ Open **zeroSDR** from the launcher, then check:
 2. **press `H` — the key list appears; press `→` for settings**,
 3. audio is audible (tune to a known station),
 4. `Tab` opens the page menu; pick ADSB with the arrows and `Enter`; hold
-   `Esc` for 2 s (or press `Q`) to return to the launcher.
+   `Esc` for 2 s to return to the launcher.
 
 Logs:
 
@@ -313,7 +313,6 @@ codes, and plain letters are used for the SDR controls.
 | `Fn`+`P` (F12) | Screenshot (`~/zerosdr_screenshot_*.png`) |
 | `H` | Key list, then `→` for settings |
 | `Tab` | Page menu (select with arrows, `Enter` opens) |
-| `Q` | Quit immediately |
 | `Esc` (hold 2 s) | Quit, with a centered progress prompt |
 
 ### PC keyboard
@@ -334,7 +333,6 @@ codes, and plain letters are used for the SDR controls.
 | `Shift+S` | Screenshot |
 | `H` | Key list / settings |
 | `Tab` | Page menu |
-| `Q` | Quit immediately |
 | `Esc` (hold 2 s) | Quit, with a centered progress prompt |
 
 ## Settings (`H` → `→`)

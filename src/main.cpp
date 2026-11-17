@@ -176,7 +176,6 @@ int main(int argc, char* argv[]) {
                     break;
                 }
 
-                case APPKEY_Q:
                 case APPKEY_ESC:
                     std::cout << "User cancelled" << std::endl;
                     input.restore();

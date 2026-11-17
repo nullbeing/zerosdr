@@ -468,7 +468,7 @@ zeroSDR 会自动识别设备名中的 `tca8418`，并使用 Cardputer Zero 专�
 | `Fn` + `P`（F12） | 截图（`~/zerosdr_screenshot_*.png`） |
 | `H` | 按键列表（`→` 切设置页） |
 | `Tab` | SDR / ADSB 页面切换 |
-| `Q` / `Esc` | 退出 |
+| `Esc`（长按 2 秒） | 退出 |
 
 > 直接输入频率时的小数点就是键盘上的 `.` 键（内部由 TCA8418 的符号层键码
 > `KEY_HIRAGANA` 映射）——如果这个键失效，检查 `input_handler.cpp` 里的
@@ -644,7 +644,7 @@ ls -l /tmp/readsb/aircraft.json
 4. 确认音频有输出
 5. 按 `H` 确认按键列表/设置页可以打开
 6. 按 `Tab` 测试 ADSB 页面
-7. 按 `Q` 或 `Esc` 退出，APPLaunch 应返回桌面
+7. 长按 `Esc` 2 秒退出，APPLaunch 应返回桌面
 
 日志：
 

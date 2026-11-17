@@ -834,7 +834,7 @@ void ADSBUIRenderer::renderKeyHelp() {
         {"G",          "GAIN MODE (RADAR)"},
         {"+ / -",      "GAIN (RADAR)"},
         {"FN+D/S",     "VOLUME"},
-        {"Q / ESC",    "QUIT"},
+        {"HOLD ESC",   "QUIT"},
     };
 
     const int count = (int)(sizeof(rows) / sizeof(rows[0]));
