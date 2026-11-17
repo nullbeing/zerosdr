@@ -389,6 +389,18 @@ void ADSBPage::handleListInput(AppKeyCode key) {
             openRadarView();
             break;
 
+        case APPKEY_L:
+            // Position editor. It must work from the list too: that is the
+            // first view after opening the page, and the README lists L as the
+            // position shortcut.
+            settings_return_view_ = VIEW_LIST;
+            view_mode_ = VIEW_SETTINGS;
+            settings_selected_item_ = 0;
+            lat_input_.clear();
+            lon_input_.clear();
+            std::cout << "ADSBPage: Opening settings menu from list" << std::endl;
+            break;
+
         case APPKEY_SCREENSHOT: {
             const std::string path = makeScreenshotPath();
             if (fb_.saveScreenshot(path.c_str())) {
@@ -523,13 +535,13 @@ void ADSBPage::handleDetailInput(AppKeyCode key) {
         }
 
         case APPKEY_L:
-            // Open settings menu, return here when done
-            settings_return_view_ = VIEW_LIST;
+            // Open the position editor and come back to this aircraft.
+            settings_return_view_ = VIEW_DETAIL;
             view_mode_ = VIEW_SETTINGS;
             settings_selected_item_ = 0;
             lat_input_.clear();
             lon_input_.clear();
-            std::cout << "ADSBPage: Opening settings menu" << std::endl;
+            std::cout << "ADSBPage: Opening settings menu from detail" << std::endl;
             break;
 
         default:
