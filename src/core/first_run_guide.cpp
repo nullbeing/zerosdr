@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -79,6 +80,19 @@ private:
     bool small_loaded_ = false;
     bool big_loaded_ = false;
 };
+
+// Strict coordinate parse: the whole string must be a finite number, so a
+// lone "-" or trailing junk is rejected instead of silently becoming 0.
+bool parseCoord(const char* text, double& value) {
+    if (text == nullptr || text[0] == '\0') return false;
+    try {
+        size_t used = 0;
+        value = std::stod(text, &used);
+        return used == std::strlen(text) && std::isfinite(value);
+    } catch (...) {
+        return false;
+    }
+}
 
 }  // namespace
 
@@ -313,10 +327,14 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
                 const size_t len = strlen(buf);
                 if (len > 0) buf[len - 1] = '\0';
             } else if (key == APPKEY_ENTER) {
-                const double lat = atof(lat_buf);
-                const double lon = atof(lon_buf);
-                const bool lat_ok = lat_buf[0] && lat >= -90.0 && lat <= 90.0;
-                const bool lon_ok = lon_buf[0] && lon >= -180.0 && lon <= 180.0;
+                double lat = 0.0;
+                double lon = 0.0;
+                const bool lat_parsed = parseCoord(lat_buf, lat);
+                const bool lon_parsed = parseCoord(lon_buf, lon);
+                const bool lat_ok =
+                    lat_parsed && lat >= -90.0 && lat <= 90.0;
+                const bool lon_ok =
+                    lon_parsed && lon >= -180.0 && lon <= 180.0;
 
                 if (field == 0) {
                     if (lat_ok) {
