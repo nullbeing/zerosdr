@@ -198,10 +198,10 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
                 text.draw(fb, 12, 104, "UP/DOWN select   ENTER edit/confirm",
                           COLOR_TEXT_DIM, 12);
             }
-            text.draw(fb, 12, 120, "digits and . to type, BACKSPACE deletes",
+            text.draw(fb, 12, 120, "digits, . and SYM+R (-) to type",
                       COLOR_TEXT_DIM, 12);
             text.draw(fb, 12, 136,
-                      "GPS updates the position unless you edit",
+                      "BACKSPACE deletes   GPS: auto position",
                       COLOR_TEXT_DIM, 12);
             text.draw(fb, 12, 152,
                       editing ? "ESC: cancel edit   <>: cancel + page"
@@ -292,6 +292,21 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
                         buf[len] = '.';
                         buf[len + 1] = '\0';
                     }
+                }
+            } else if (key == APPKEY_MINUS) {
+                // The Cardputer Zero has no dedicated minus key: SYM + R
+                // sends KEY_MINUS. While the field is fresh this starts a new
+                // negative value; afterwards it toggles the leading sign.
+                if (edit_fresh) {
+                    buf[0] = '\0';
+                    edit_fresh = false;
+                }
+                const size_t len = strlen(buf);
+                if (len > 0 && buf[0] == '-') {
+                    memmove(buf, buf + 1, len);
+                } else if (len + 2 < sizeof(lat_buf)) {
+                    memmove(buf + 1, buf, len + 1);
+                    buf[0] = '-';
                 }
             } else if (key == APPKEY_BACKSPACE) {
                 edit_fresh = false;

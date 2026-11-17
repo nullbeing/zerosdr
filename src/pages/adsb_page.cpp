@@ -889,7 +889,9 @@ void ADSBPage::renderSettingsMenu() {
                    false);
 
     // Help text
-    ui_.renderText(10, 150, "Enter: Select/Confirm  ESC: Cancel", COLOR_TEXT_DIM, false);
+    ui_.renderText(10, 146, "SYM+R: minus sign", COLOR_TEXT_DIM, false);
+    ui_.renderText(10, 158, "ENTER: select/confirm   ESC: cancel",
+                   COLOR_TEXT_DIM, false);
 }
 
 namespace {
@@ -927,8 +929,13 @@ void ADSBPage::handleSettingsInput(AppKeyCode key) {
             case APPKEY_9: input += '9'; break;
             case APPKEY_DOT: input += '.'; break;
             case APPKEY_MINUS:
-                if (input.empty() || input[0] != '-') {
-                    input = "-" + input;
+                // The Cardputer Zero has no dedicated minus key: SYM + R
+                // sends KEY_MINUS. Toggle the leading sign so a prefilled
+                // value can be flipped in either direction.
+                if (!input.empty() && input[0] == '-') {
+                    input.erase(0, 1);
+                } else {
+                    input.insert(input.begin(), '-');
                 }
                 break;
 

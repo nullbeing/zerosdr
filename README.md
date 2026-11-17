@@ -263,7 +263,9 @@ On the first start zeroSDR shows a short guide (reopen it from
 - `Enter` cycles the ADSB views (list → detail → radar)
 - Observer position: entered by hand, or read from a GPS when one is present
   (gpsd or a serial NMEA device). A manual entry overrides GPS until the
-  position is cleared.
+  position is cleared. The editor accepts negative values (southern/western
+  coordinates): press `SYM`+`R` for the minus sign; pressing it again removes
+  the sign.
 
 ## Keyboard controls
 
@@ -467,7 +469,9 @@ needed. A system `/usr/bin/readsb` is used as a fallback if present.
 
 `H` opens a translucent rounded popup with two tabs: the key list and a settings tab
 where you can view/edit the observer latitude and longitude (opening the usual
-position editor) or clear the stored position. `←`/`→` switch tabs, `↑`/`↓`
+position editor) or clear the stored position. In the editor `SYM`+`R` types a
+minus sign (press it again to clear the sign), so southern and western
+coordinates work the same way as positive ones. `←`/`→` switch tabs, `↑`/`↓`
 select, `Enter` edits, `H` closes.
 
 Audio feedback:
