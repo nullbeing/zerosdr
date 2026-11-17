@@ -314,6 +314,12 @@ AppKeyCode InputHandler::translateCardputerZero(int linux_keycode,
         case KEY_DOT:
         case KEY_KPDOT:      return APPKEY_DOT;
 
+        // Symbol layer. The driver's sym keymap (linux,keymap1) reports the
+        // printed "-" on R as KEY_KP7, not KEY_MINUS. The keys around it also
+        // use numpad/odd codes (T=KP8, Y=KP9, U=KPMINUS, ...).
+        case KEY_KP7:                 // sym + R -> "-"
+            return APPKEY_MINUS;
+
         // Symbol-layer aliases. The TCA8418 sends these raw keycodes for the
         // blue sym layer instead of a real KEY_DOT / Shift+key combination.
         case KEY_HIRAGANA:            // sym + B -> "."
