@@ -1,3 +1,21 @@
+zerosdr (0.3.8) trixie; urgency=medium
+
+  * Tab now opens a translucent page menu (SDR / Spectrum / ADSB) instead of
+    switching pages immediately
+  * Wideband spectrum page: always uses the tuner AGC (manual gain amplified
+    the RTL-SDR's 28.8 MHz clock spur), Space toggles display smoothing
+    (median over about 1 MHz, mixed 50/50 with the raw trace), and max hold
+    now decays at 1.5 dB/s instead of holding forever
+  * ADSB radar can be heading-up: the rose, blips and sweep follow the
+    BMI270 + BMM150 compass; I toggles heading-up and 0 stores a zero offset
+  * ADSB position editor: L opens it from the list view too, southern and
+    western coordinates work (the symbol layer reports its minus as KEY_KP7),
+    the first-run guide accepts a minus and rejects incomplete values, and a
+    saved position returns to the view it was opened from
+  * Q no longer quits immediately; the two second Esc hold is the only exit
+
+ -- Weiming Feng <bestedwin@gmail.com>  Tue, 17 Nov 2026 14:30:00 +0800
+
 zerosdr (0.3.7) trixie; urgency=medium
 
   * New wideband spectrum page (Tab now cycles SDR -> Spectrum -> ADSB):
