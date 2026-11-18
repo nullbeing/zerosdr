@@ -55,7 +55,9 @@ Cardputer Zero 背面，接收机和天线接口可以作为一个整体携带�
 
 可打印的 STL：
 [CardputerZero_RTLSDR_V4_mount.stl](hardware/rtl-sdr-v4-mount/CardputerZero_RTLSDR_V4_mount.stl)，
-尺寸和打印说明见 [支架目录](hardware/rtl-sdr-v4-mount/)。
+需要自备 2 颗 M2×6 mm 螺丝（不含），采用
+[CC0 1.0](hardware/rtl-sdr-v4-mount/LICENSE) 许可。尺寸和打印说明见
+[支架目录](hardware/rtl-sdr-v4-mount/)。
 
 ## 快速开始（桌面 / 树莓派）
 
@@ -600,6 +602,9 @@ scp build-aarch64/zerosdr pi@<cardputer-ip>:/tmp/
 ## 许可证
 
 本项目采用 GNU General Public License v3.0，详见 [LICENSE](LICENSE)。
+
+[`hardware/rtl-sdr-v4-mount/`](hardware/rtl-sdr-v4-mount/) 下的 RTL-SDR V4
+支架文件单独采用 CC0 1.0 许可，不受应用代码的 GPLv3 影响。
 
 ## 致谢
 

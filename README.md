@@ -58,7 +58,8 @@ the device.
 
 Printable STL:
 [CardputerZero_RTLSDR_V4_mount.stl](hardware/rtl-sdr-v4-mount/CardputerZero_RTLSDR_V4_mount.stl).
-Sizing and print notes are in the
+It needs two M2 x 6 mm screws (not included) and is released under
+[CC0 1.0](hardware/rtl-sdr-v4-mount/LICENSE). Sizing and print notes are in the
 [mount directory](hardware/rtl-sdr-v4-mount/).
 
 ## Quick start (desktop / Raspberry Pi)
@@ -663,6 +664,10 @@ scp build-aarch64/zerosdr pi@<cardputer-ip>:/tmp/
 
 This project is licensed under the GNU General Public License v3.0 — see the
 [LICENSE](LICENSE) file for details.
+
+The RTL-SDR V4 mount files in
+[`hardware/rtl-sdr-v4-mount/`](hardware/rtl-sdr-v4-mount/) are released under
+CC0 1.0, separately from the GPLv3 application code.
 
 ## Acknowledgments
 
