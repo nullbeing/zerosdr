@@ -43,6 +43,19 @@ framebuffer，音频解调（FM / NFM / AM / USB / LSB）通过 ALSA 输出。
 - RTL-SDR 电视棒（已验证：RTL-SDR Blog V4，RTL2832U）
 - 320×170 framebuffer 屏幕（`/dev/fb0`，Cardputer Zero 上还有 `/dev/fb_lcd`）
 - 尽量新的 rtl-sdr 驱动（直接影响调谐准确性）
+- 可选：[3D 打印的 RTL-SDR V4 支架](#rtl-sdr-v4-支架)
+
+## RTL-SDR V4 支架
+
+这是作者为 RTL-SDR Blog V4 电视棒设计的 3D 打印支架。它把电视棒固定在
+Cardputer Zero 背面，接收机和天线接口可以作为一个整体携带，短 USB-C 线从
+电视棒绕回设备。
+
+<a href="hardware/rtl-sdr-v4-mount/CardputerZero_RTLSDR_V4_mount.jpg"><img src="hardware/rtl-sdr-v4-mount/CardputerZero_RTLSDR_V4_mount.jpg" alt="装在支架上的 RTL-SDR V4 电视棒" width="320"></a>
+
+可打印的 STL：
+[CardputerZero_RTLSDR_V4_mount.stl](hardware/rtl-sdr-v4-mount/CardputerZero_RTLSDR_V4_mount.stl)，
+尺寸和打印说明见 [支架目录](hardware/rtl-sdr-v4-mount/)。
 
 ## 快速开始（桌面 / 树莓派）
 

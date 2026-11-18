@@ -45,6 +45,21 @@ and demodulates FM / NFM / AM / USB / LSB audio through ALSA.
 - RTL-SDR dongle (tested: RTL-SDR Blog V4, RTL2832U)
 - 320x170 framebuffer display (`/dev/fb0`, on Cardputer Zero also `/dev/fb_lcd`)
 - Latest rtl-sdr drivers (critical for correct tuning)
+- Optional: [3D-printed RTL-SDR V4 mount](#rtl-sdr-v4-mount)
+
+## RTL-SDR V4 mount
+
+A 3D-printed mount designed by the zeroSDR author for the RTL-SDR Blog V4
+dongle. It clamps the dongle to the back of the Cardputer Zero, so the receiver
+and the antenna connector travel as one unit; a short USB-C cable loops back to
+the device.
+
+<a href="hardware/rtl-sdr-v4-mount/CardputerZero_RTLSDR_V4_mount.jpg"><img src="hardware/rtl-sdr-v4-mount/CardputerZero_RTLSDR_V4_mount.jpg" alt="RTL-SDR V4 dongle in the printed mount" width="320"></a>
+
+Printable STL:
+[CardputerZero_RTLSDR_V4_mount.stl](hardware/rtl-sdr-v4-mount/CardputerZero_RTLSDR_V4_mount.stl).
+Sizing and print notes are in the
+[mount directory](hardware/rtl-sdr-v4-mount/).
 
 ## Quick start (desktop / Raspberry Pi)
 
