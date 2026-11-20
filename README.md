@@ -17,7 +17,7 @@ and demodulates FM / NFM / AM / USB / LSB audio through ALSA.
 
 | | |
 |:---:|:---:|
-| ![Wideband spectrum page](images/spectrum.png) | ![SDR page](images/sdr.png) |
+| ![Wideband spectrum page](images/spectrum-sweep.png) | ![SDR page](images/sdr-fm.png) |
 | Wideband spectrum page: 460–480 MHz sweep with max hold | SDR page: 103.6 MHz FM with spectrum and waterfall |
 
 ![ADSB radar, PFD and settings](images/adsb-showcase.png)
