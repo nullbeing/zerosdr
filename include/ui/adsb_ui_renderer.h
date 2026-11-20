@@ -56,7 +56,7 @@ public:
     // H overlay: key reference and settings summary
     void renderKeyHelp();
     void renderSettingsOverview(double lat, double lon, bool pos_set, int selected,
-                                const char* source);
+                                const char* source, const char* map_provider);
 
     /**
      * Render detail view for selected aircraft
@@ -72,7 +72,8 @@ public:
                               int aircraft_count,
                               uint32_t message_count,
                               float message_rate,
-                              float gain);
+                              float gain,
+                              bool square = false);
 
     /**
      * Render text at specified position
@@ -143,15 +144,26 @@ private:
     void formatDistance(float distance, char* buffer);
 
     // PFD rendering helpers
-    void renderPFD(const AircraftState& aircraft, int x, int y, int w, int h);
-    void drawArtificialHorizon(int cx, int cy, int radius, float pitch_angle);
-    void drawPitchLadder(int cx, int cy, int width, int height, float current_pitch);
-    void drawBankAngleIndicator(int cx, int cy, int radius);
-    void drawAltitudeTape(int x, int y, int w, int h, int altitude);
+    void renderPFD(const AircraftState& aircraft, int x, int y, int w, int h,
+                   bool square);
+    void drawArtificialHorizon(int cx, int cy, int radius, float pitch_angle,
+                               float bank_angle, bool square);
+    void drawPitchLadder(int cx, int cy, int radius, float current_pitch,
+                         float bank_angle);
+    void drawBankAngleIndicator(int cx, int cy, int radius, float bank_angle,
+                                bool square);
+    void drawAircraftSymbol(int cx, int cy);
+    void drawAltitudeTape(int x, int y, int w, int h, float altitude);
     void drawSpeedTape(int x, int y, int w, int h, int speed);
     void drawHeadingIndicator(int x, int y, int w, int h, int heading);
-    void drawVerticalSpeedIndicator(int x, int y, int w, int h, int vs);
+    void drawReadout(int x, int y, int w, int h, const char* text,
+                     bool right_aligned);
+    void drawSegDigit(int x, int y, int digit, int clip_top, int clip_bottom,
+                      uint16_t color = COLOR_PFD_SEG_ON);
     void drawCircleApprox(int cx, int cy, int radius, uint16_t color);
+    int roundedSquareHalfWidth(int dy, int half, int corner) const;
+    void drawRoundedSquareOutline(int cx, int cy, int half, int corner,
+                                  uint16_t color);
     float calculatePitchAngle(const AircraftState& aircraft);
 
     // 6x8 small font drawing (for labels on PFD instruments)

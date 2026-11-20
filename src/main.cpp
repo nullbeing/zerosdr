@@ -243,7 +243,7 @@ int main(int argc, char* argv[]) {
         std::make_unique<SpectrumPage>(fb, sdr, input);
     page_manager.registerPage(std::move(spectrum_page));
 
-    auto adsb_page = std::make_unique<ADSBPage>(fb, sdr, adsb_ui, radar_ui);
+    auto adsb_page = std::make_unique<ADSBPage>(fb, sdr, input, adsb_ui, radar_ui);
     page_manager.registerPage(std::move(adsb_page));
 
     std::cout << "Starting main loop with " << 2 << " pages..." << std::endl;

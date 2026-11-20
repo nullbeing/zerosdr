@@ -7,6 +7,8 @@
 #include <vector>
 #include <cmath>
 
+class MapBackground;
+
 /**
  * RadarUIRenderer - UI renderer for radar page
  *
@@ -17,10 +19,30 @@
  * - Compass markings
  * Layout optimized for 320x170 display
  */
+struct RadarTheme {
+    uint16_t bg;
+    uint16_t grid;
+    uint16_t sweep;
+    uint16_t blip;
+    uint16_t selected;
+    uint16_t text;
+    uint16_t text_selected;
+    uint16_t list_bg;
+    uint16_t list_selected;
+    uint16_t panel_strip;
+    uint16_t status_bg;
+    uint16_t status_text;
+};
+
 class RadarUIRenderer : public BaseUIRenderer {
 public:
     explicit RadarUIRenderer(Framebuffer& fb);
     ~RadarUIRenderer();
+
+    /** 0 = original green scope, 1 = red tech scope. */
+    void setTheme(int index);
+    uint16_t backgroundColor() const { return theme_.bg; }
+    uint16_t textColor() const { return theme_.text; }
 
     /**
      * Render complete radar display with left-right split layout
@@ -33,6 +55,9 @@ public:
      * @param scroll_offset Scroll offset for aircraft list
      * @param blink_state Blink state for selected aircraft (true = visible)
      * @param heading_deg Heading placed at the top of the scope (0 = north up)
+     * @param zoom Scope scale (1.0 = the normal right-hand panel)
+     * @param clear_screen Clear the whole display first (false when the
+     *                     status-bar background must stay underneath)
      */
     void renderRadarDisplay(const std::vector<AircraftState>& aircraft,
                            float sweep_angle,
@@ -42,7 +67,16 @@ public:
                            int selected_index,
                            int scroll_offset,
                            bool blink_state,
-                           float heading_deg = 0.0f);
+                           float heading_deg = 0.0f,
+                           float zoom = 1.0f,
+                           bool clear_screen = true);
+
+    /**
+     * Draw the full-screen map underlay. Call before the status background
+     * and renderRadarDisplay so the panels, rings and text stay on top.
+     */
+    void drawMapBackground(MapBackground& map, float max_range, float zoom,
+                           float heading_deg);
 
     /**
      * Render top status bar
@@ -51,21 +85,36 @@ public:
      * @param heading_valid Whether the compass has a heading
      * @param heading_deg Compass heading in degrees
      * @param heading_up Whether the scope is heading-up (otherwise north-up)
+     * @param zoom Current scope scale (shown as a multiplier)
      */
     void renderStatusBar(int aircraft_count, float max_range,
                          bool heading_valid = false,
                          float heading_deg = 0.0f,
-                         bool heading_up = false);
+                         bool heading_up = false,
+                         float zoom = 1.0f);
+
+    /** Status-bar background only. Used before the scope so the radar
+     *  circle can pass above the bar; the text follows afterwards. */
+    void renderStatusBackground(float zoom = 1.0f);
+
+    /** Status-bar text only, drawn on top of the enlarged radar scope. */
+    void renderStatusText(int aircraft_count, float max_range,
+                          bool heading_valid = false,
+                          float heading_deg = 0.0f,
+                          bool heading_up = false,
+                          float zoom = 1.0f);
 
     /**
      * Render aircraft list in left panel
      * @param aircraft Vector of aircraft to display
      * @param selected_index Index of selected aircraft
      * @param scroll_offset Scroll offset for list
+     * @param background_alpha Opacity of the panel over an enlarged scope
      */
     void renderAircraftList(const std::vector<AircraftState>& aircraft,
                            int selected_index,
-                           int scroll_offset);
+                           int scroll_offset,
+                           float background_alpha = 1.0f);
 
     /**
      * Render text at specified position
@@ -78,6 +127,8 @@ public:
     void renderText(int x, int y, const char* text, uint16_t color, bool bold = false);
 
 private:
+    RadarTheme theme_{};
+
     // Layout constants (320x170 display) - Left-right split layout
     static const int STATUS_BAR_Y = 0;
     static const int STATUS_BAR_H = 16;
@@ -160,11 +211,13 @@ private:
      * @param max_range Maximum range for scaling
      * @param selected Whether this aircraft is selected
      * @param rotation_deg Rotation of the compass rose (heading at the top)
+     * @param radius Scope radius in pixels
      */
     void drawAircraftBlip(int cx, int cy, float distance, float bearing,
                          float heading, bool velocity_valid,
                          float max_range, bool selected,
-                         float rotation_deg = 0.0f);
+                         float rotation_deg = 0.0f,
+                         int radius = RADAR_RADIUS);
 
     /**
      * Draw circle outline (for range rings)
@@ -198,11 +251,12 @@ private:
      * @param distance Distance in km
      * @param bearing Bearing in degrees (0° = North, clockwise)
      * @param max_range Maximum range for scaling
+     * @param radius Scope radius in pixels
      * @param out_x Output X coordinate
      * @param out_y Output Y coordinate
      */
     void polarToCartesian(float distance, float bearing, float max_range,
-                         int* out_x, int* out_y);
+                         int radius, int* out_x, int* out_y);
 };
 
 #endif // RADAR_UI_RENDERER_H

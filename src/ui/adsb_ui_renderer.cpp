@@ -267,25 +267,21 @@ void ADSBUIRenderer::renderAircraftDetail(const AircraftState& aircraft,
                                           int aircraft_count,
                                           uint32_t message_count,
                                           float message_rate,
-                                          float gain) {
-    // Clear screen
+                                          float gain,
+                                          bool square) {
     fb_.clear(COLOR_BG_DARK);
 
-    // Define layout areas - give more space to PFD
-    const int PFD_X = 0;
-    const int PFD_Y = 0;
-    const int PFD_W = 180;  // Increased from 140 to 180
-    const int PFD_H = STATS_BAR_Y;  // 152px
-
-    const int INFO_X = 180;  // Moved from 140 to 180
+    // Left: the full-height PFD. Right: the aircraft text column. The bottom
+    // status bar is intentionally gone so the PFD can use the whole height.
+    const int PFD_W = 200;
+    const int PFD_H = fb_.getHeight();
+    const int INFO_X = PFD_W;
     const int INFO_Y = 0;
-    const int INFO_W = 140;  // Reduced from 180 to 140
-    const int INFO_H = STATS_BAR_Y;  // 152px
+    const int INFO_W = fb_.getWidth() - PFD_W;
+    const int INFO_H = PFD_H;
 
-    // Render PFD on left side
-    renderPFD(aircraft, PFD_X, PFD_Y, PFD_W, PFD_H);
+    renderPFD(aircraft, 0, 0, PFD_W, PFD_H, square);
 
-    // Build detail text lines
     std::vector<std::string> lines;
     char buffer[64];
 
@@ -330,16 +326,14 @@ void ADSBUIRenderer::renderAircraftDetail(const AircraftState& aircraft,
     snprintf(buffer, sizeof(buffer), "Seen: %ld s", (long)elapsed);
     lines.push_back(std::string(buffer));
 
-    // Clear info area
     fb_.fillRect(INFO_X, INFO_Y, INFO_W, INFO_H, COLOR_BG_DARK);
 
-    // Render scrollable text on right side
     ensureUiFont();
-    const int LINE_HEIGHT = 15;
+    const int LINE_HEIGHT = 14;
     int y = INFO_Y + 2 - scroll_offset;
 
     for (size_t i = 0; i < lines.size(); i++) {
-        if (y + LINE_HEIGHT > INFO_Y && y < STATS_BAR_Y) {
+        if (y + LINE_HEIGHT > INFO_Y && y < INFO_H) {
             if (ui_font_.valid()) {
                 ui_font_.draw(fb_, INFO_X + 5, y + 11, lines[i].c_str(),
                               COLOR_TEXT_BRIGHT);
@@ -349,10 +343,6 @@ void ADSBUIRenderer::renderAircraftDetail(const AircraftState& aircraft,
         }
         y += LINE_HEIGHT;
     }
-
-    // Render bottom status bar
-    fb_.fillRect(0, STATS_BAR_Y, 320, STATS_BAR_H, COLOR_ADSB_STATUSBAR_BG);
-    drawText(2, STATS_BAR_Y + 2, "Enter:Radar  Up/Down:Scroll", COLOR_ADSB_STATUSBAR_TEXT);
 }
 
 void ADSBUIRenderer::formatTimeSince(time_t seconds, char* buffer) {
@@ -378,6 +368,30 @@ void ADSBUIRenderer::formatDistance(float distance, char* buffer) {
 }
 
 // PFD rendering implementation
+
+int ADSBUIRenderer::roundedSquareHalfWidth(int dy, int half, int corner) const {
+    const int ay = std::abs(dy);
+    if (ay <= half - corner) return half;
+    const int d = ay - (half - corner);
+    const int rr = corner * corner - d * d;
+    if (rr <= 0) return std::max(0, half - corner);
+    return (half - corner) + (int)lroundf(std::sqrt((float)rr));
+}
+
+void ADSBUIRenderer::drawRoundedSquareOutline(int cx, int cy, int half,
+                                              int corner, uint16_t color) {
+    if (half <= 0) return;
+    for (int dy = -half; dy <= half; ++dy) {
+        const int hw = roundedSquareHalfWidth(dy, half, corner);
+        fb_.drawPixel(cx - hw, cy + dy, color);
+        fb_.drawPixel(cx + hw, cy + dy, color);
+    }
+    const int edge = std::max(0, half - corner);
+    for (int dx = -edge; dx <= edge; ++dx) {
+        fb_.drawPixel(cx + dx, cy - half, color);
+        fb_.drawPixel(cx + dx, cy + half, color);
+    }
+}
 
 void ADSBUIRenderer::drawCircleApprox(int cx, int cy, int radius, uint16_t color) {
     // Bresenham's circle algorithm
@@ -430,349 +444,570 @@ float ADSBUIRenderer::calculatePitchAngle(const AircraftState& aircraft) {
     return pitch_deg;
 }
 
-void ADSBUIRenderer::drawArtificialHorizon(int cx, int cy, int radius, float pitch_angle) {
+namespace {
+
+// Linear blend between two RGB565 colours. The PFD only evaluates this once
+// per row for the sky/ground gradients, so it stays cheap on the Pi Zero.
+uint16_t lerp565(uint16_t a, uint16_t b, float t) {
+    if (t <= 0.0f) return a;
+    if (t >= 1.0f) return b;
+    const int ar = (a >> 11) & 0x1F;
+    const int ag = (a >> 5) & 0x3F;
+    const int ab = a & 0x1F;
+    const int br = (b >> 11) & 0x1F;
+    const int bg = (b >> 5) & 0x3F;
+    const int bb = b & 0x1F;
+    const int r = ar + (int)((br - ar) * t + 0.5f);
+    const int g = ag + (int)((bg - ag) * t + 0.5f);
+    const int bl = ab + (int)((bb - ab) * t + 0.5f);
+    return (uint16_t)((r << 11) | (g << 5) | bl);
+}
+
+}  // namespace
+
+void ADSBUIRenderer::drawSegDigit(int x, int y, int digit, int clip_top,
+                                  int clip_bottom, uint16_t color) {
+    static const uint8_t kSeg[10] = {0x3F, 0x06, 0x5B, 0x4F, 0x66,
+                                     0x6D, 0x7D, 0x07, 0x7F, 0x6F};
+    const uint8_t mask = (digit >= 0 && digit <= 9) ? kSeg[digit] : 0;
+
+    auto seg = [&](int sx, int sy, int sw, int sh, uint16_t color) {
+        const int y0 = std::max(sy, clip_top);
+        const int y1 = std::min(sy + sh - 1, clip_bottom);
+        if (y1 >= y0) fb_.fillRect(sx, y0, sw, y1 - y0 + 1, color);
+    };
+
+    auto draw_mask = [&](uint8_t m, uint16_t color) {
+        if (m & 0x01) seg(x + 1, y, 4, 2, color);       // a
+        if (m & 0x02) seg(x + 4, y + 2, 2, 5, color);   // b
+        if (m & 0x04) seg(x + 4, y + 9, 2, 5, color);   // c
+        if (m & 0x08) seg(x + 1, y + 14, 4, 2, color);  // d
+        if (m & 0x10) seg(x, y + 9, 2, 5, color);       // e
+        if (m & 0x20) seg(x, y + 2, 2, 5, color);       // f
+        if (m & 0x40) seg(x + 1, y + 7, 4, 2, color);   // g
+    };
+
+    draw_mask(mask, color);
+}
+
+void ADSBUIRenderer::drawReadout(int x, int y, int w, int h, const char* text,
+                                 bool right_aligned) {
+    const int len = (int)strlen(text);
+    if (len == 0) return;
+
+    // Mask the scale behind the digits with the panel face: no frame, but
+    // the ticks and labels do not bleed through the numbers.
+    fb_.fillRect(x, y, w, h, COLOR_PFD_PANEL);
+
+    const int pitch = 7;
+    const int text_w = len * pitch;
+    int tx = right_aligned ? (x + w - 1 - text_w) : (x + 1);
+    if (tx < x + 1) tx = x + 1;
+    const int ty = y + (h - 16) / 2;
+
+    for (int i = 0; i < len; ++i) {
+        const char ch = text[i];
+        const int digit = (ch >= '0' && ch <= '9') ? ch - '0' : -1;
+        drawSegDigit(tx + i * pitch, ty, digit, ty, ty + 15);
+    }
+}
+
+void ADSBUIRenderer::drawArtificialHorizon(int cx, int cy, int radius,
+                                           float pitch_angle, float bank_angle,
+                                           bool square) {
     const float pixels_per_degree = 2.5f;
 
-    // Calculate vertical offset for horizon line
-    // Positive pitch (nose up) = horizon moves down on display
-    int y_offset = (int)(pitch_angle * pixels_per_degree);
+    // Bank rotates the whole world behind the fixed aircraft symbol.
+    float bank = bank_angle;
+    if (bank > 45.0f) bank = 45.0f;
+    if (bank < -45.0f) bank = -45.0f;
 
-    // Clamp offset to keep horizon within visible circle
-    int max_offset = radius - 5;
+    const float phi = bank * (float)M_PI / 180.0f;
+    const float s = std::sin(phi);
+    const float c = std::cos(phi);
+
+    // Positive pitch (nose up) moves the horizon down behind the fixed
+    // aircraft symbol.
+    int y_offset = (int)lroundf(pitch_angle * pixels_per_degree);
+    const int max_offset = radius - 6;
     if (y_offset > max_offset) y_offset = max_offset;
     if (y_offset < -max_offset) y_offset = -max_offset;
+    const int horizon_y = cy + y_offset;
 
-    int horizon_y = cy + y_offset;
+    const int top = cy - radius;
+    const int bottom = cy + radius;
+    const int sky_span = std::max(1, horizon_y - top);
+    const int ground_span = std::max(1, bottom - horizon_y);
 
-    // Define clipping width (two-sided cut)
-    int clip_width = radius * 1.6;
-    int clip_left = cx - clip_width/2;
-    int clip_right = cx + clip_width/2;
+    // Fill the ball row by row. Each row is split where the tilted horizon
+    // crosses it, which keeps the gradient cheap (one colour per row/side)
+    // while the bank rotates the sky/ground boundary.
+    for (int y = top; y <= bottom; ++y) {
+        const int dy = y - cy;
+        const int dx = square
+                           ? roundedSquareHalfWidth(dy, radius, 14)
+                           : (int)lroundf(std::sqrt(
+                                 (float)(radius * radius - dy * dy)));
+        const int x_left = cx - dx;
+        const int x_right = cx + dx;
 
-    // Fill sky (above horizon line) with bright sky blue
-    for (int dy = -radius; dy <= radius; dy++) {
-        int current_y = cy + dy;
+        float sky_t = (float)(y - top) / (float)sky_span;
+        float ground_t = (float)(y - horizon_y) / (float)ground_span;
+        sky_t = std::max(0.0f, std::min(1.0f, sky_t));
+        ground_t = std::max(0.0f, std::min(1.0f, ground_t));
+        const uint16_t sky_color =
+            lerp565(COLOR_PFD_SKY_TOP, COLOR_PFD_SKY_LOW, sky_t);
+        const uint16_t ground_color =
+            lerp565(COLOR_PFD_GROUND_TOP, COLOR_PFD_GROUND_LOW, ground_t);
 
-        // Skip if below horizon
-        if (current_y >= horizon_y) continue;
+        if (std::fabs(s) < 0.005f) {
+            fb_.drawLine(x_left, y, x_right, y,
+                         (y < horizon_y) ? sky_color : ground_color);
+            continue;
+        }
 
-        int dx = (int)sqrt(radius * radius - dy * dy);
-        int x_start = std::max(clip_left, cx - dx);
-        int x_end = std::min(clip_right, cx + dx);
-        if (x_start < x_end) {
-            fb_.drawLine(x_start, current_y, x_end, current_y, COLOR_SKY_BLUE);
+        // x where the horizon line crosses this row. With a right bank the
+        // sky lies to the right of that crossing.
+        const int hx =
+            (int)lroundf((float)cx + (float)(y - horizon_y) * c / s);
+        if (hx <= x_left) {
+            fb_.drawLine(x_left, y, x_right, y,
+                         (s > 0.0f) ? sky_color : ground_color);
+        } else if (hx >= x_right) {
+            fb_.drawLine(x_left, y, x_right, y,
+                         (s > 0.0f) ? ground_color : sky_color);
+        } else if (s > 0.0f) {
+            fb_.drawLine(x_left, y, hx - 1, y, ground_color);
+            fb_.drawLine(hx, y, x_right, y, sky_color);
+        } else {
+            fb_.drawLine(x_left, y, hx - 1, y, sky_color);
+            fb_.drawLine(hx, y, x_right, y, ground_color);
         }
     }
 
-    // Fill ground (below horizon line) with earth brown
-    for (int dy = -radius; dy <= radius; dy++) {
-        int current_y = cy + dy;
+    // Rotated horizon bar: a two-pixel white core with dark lips, clipped to
+    // the ball so it reads over both the pale sky and the tan ground.
+    const float ux = c;
+    const float uy = s;
+    const float nx = -s;   // normal, positive towards the ground
+    const float ny = c;
 
-        // Skip if above horizon
-        if (current_y < horizon_y) continue;
+    auto clip_to_ball = [&](float ox, float oy, int& ax, int& ay, int& bx,
+                            int& by) {
+        const float px = ox - (float)cx;
+        const float py = oy - (float)cy;
+        const float b = px * ux + py * uy;
+        const float cc = px * px + py * py - (float)(radius * radius);
+        const float disc = b * b - cc;
+        if (disc < 0.0f) return false;
+        const float t = std::sqrt(disc);
+        const float t1 = -b - t;
+        const float t2 = -b + t;
+        ax = (int)lroundf(ox + ux * t1);
+        ay = (int)lroundf(oy + uy * t1);
+        bx = (int)lroundf(ox + ux * t2);
+        by = (int)lroundf(oy + uy * t2);
+        return true;
+    };
 
-        int dx = (int)sqrt(radius * radius - dy * dy);
-        int x_start = std::max(clip_left, cx - dx);
-        int x_end = std::min(clip_right, cx + dx);
-        if (x_start < x_end) {
-            fb_.drawLine(x_start, current_y, x_end, current_y, COLOR_EARTH_BROWN);
+    auto draw_bar = [&](float offset, uint16_t color) {
+        int ax, ay, bx, by;
+        if (clip_to_ball(cx + nx * offset, (float)horizon_y + ny * offset,
+                         ax, ay, bx, by)) {
+            fb_.drawLine(ax, ay, bx, by, color);
         }
+    };
+
+    draw_bar(-1.0f, COLOR_TEXT_DIM);
+    draw_bar(0.0f, COLOR_WHITE);
+    draw_bar(1.0f, COLOR_WHITE);
+    draw_bar(2.0f, COLOR_TEXT_DIM);
+
+    // Instrument bezel: dark seam, lit rim, then a two-pixel outer ring.
+    if (square) {
+        drawRoundedSquareOutline(cx, cy, radius, 14, COLOR_BLACK);
+        drawRoundedSquareOutline(cx, cy, radius + 1, 15, COLOR_PFD_BEZEL_HI);
+        drawRoundedSquareOutline(cx, cy, radius + 2, 16, COLOR_PFD_BEZEL);
+        drawRoundedSquareOutline(cx, cy, radius + 3, 17, COLOR_PFD_BEZEL);
+    } else {
+        drawCircleApprox(cx, cy, radius, COLOR_BLACK);
+        drawCircleApprox(cx, cy, radius + 1, COLOR_PFD_BEZEL_HI);
+        drawCircleApprox(cx, cy, radius + 2, COLOR_PFD_BEZEL);
+        drawCircleApprox(cx, cy, radius + 3, COLOR_PFD_BEZEL);
     }
-
-    // Draw horizon line at offset position (clipped, white)
-    fb_.drawLine(clip_left, horizon_y, clip_right, horizon_y, COLOR_WHITE);
-
-    // Draw aircraft symbol (yellow cross) - always at center (fixed reference)
-    fb_.drawLine(cx - 15, cy, cx - 5, cy, COLOR_YELLOW);
-    fb_.drawLine(cx + 5, cy, cx + 15, cy, COLOR_YELLOW);
-    fb_.drawLine(cx, cy - 5, cx, cy + 5, COLOR_YELLOW);
 }
 
-void ADSBUIRenderer::drawPitchLadder(int cx, int cy, int width, int height, float current_pitch) {
+void ADSBUIRenderer::drawPitchLadder(int cx, int cy, int radius,
+                                     float current_pitch, float bank_angle) {
     const float pixels_per_degree = 2.5f;
+    const float gap = 10.0f;
 
-    // Calculate offset for current pitch
-    // This makes the pitch ladder move with the horizon
-    int pitch_offset = (int)(current_pitch * pixels_per_degree);
+    float bank = bank_angle;
+    if (bank > 45.0f) bank = 45.0f;
+    if (bank < -45.0f) bank = -45.0f;
+    const float phi = bank * (float)M_PI / 180.0f;
+    const float ux = std::cos(phi);
+    const float uy = std::sin(phi);
+    const float nx = -uy;
+    const float ny = ux;
+    const float clip_r = (float)(radius - 3);
 
-    // Draw pitch marks every 5 degrees from -30 to +30
     for (int pitch = -30; pitch <= 30; pitch += 5) {
-        if (pitch == 0) continue;  // Skip horizon line (drawn separately)
+        if (pitch == 0) continue;  // horizon bar is drawn by the ball
 
-        // Calculate mark position relative to current pitch
-        int y_offset = -pitch * pixels_per_degree + pitch_offset;
-        int mark_y = cy + y_offset;
+        // Ladder line centre, offset along the screen vertical so the pitch
+        // spacing stays uniform while the line itself rolls with the bank.
+        const float y0 =
+            (float)cy + (current_pitch - (float)pitch) * pixels_per_degree;
+        const float py = y0 - (float)cy;
+        const float b = py * uy;
+        const float cc = py * py - clip_r * clip_r;
+        const float disc = b * b - cc;
+        if (disc <= 0.0f) continue;
 
-        // Skip if outside visible area
-        if (mark_y < cy - height/2 || mark_y > cy + height/2) continue;
+        const float half = std::sqrt(disc);
+        const float t1 = -b - half;
+        const float t2 = -b + half;
+        if (t2 - t1 < 2.0f * gap + 6.0f) continue;
 
-        // Longer marks for 10-degree intervals
-        int mark_width = (pitch % 10 == 0) ? 14 : 10;
+        const bool major = (pitch % 10 == 0);
+        const uint16_t color = major ? COLOR_PFD_LADDER : COLOR_PFD_TAPE_TICK;
 
-        // Draw left and right pitch marks (green)
-        fb_.drawLine(cx - width/2, mark_y, cx - width/2 + mark_width, mark_y, COLOR_GREEN);
-        fb_.drawLine(cx + width/2 - mark_width, mark_y, cx + width/2, mark_y, COLOR_GREEN);
-
-            // Draw text labels only for 10-degree intervals
-            if (pitch % 10 == 0) {
-                char label[8];
-                snprintf(label, sizeof(label), "%d", abs(pitch));
-
-                // Left label - pushed outward toward speed tape
-                drawSmallText(cx - width/2 - 22, mark_y - 3, label, COLOR_WHITE);
-
-                // Right label - pushed outward toward altitude tape
-                drawSmallText(cx + width/2 + 8, mark_y - 3, label, COLOR_WHITE);
+        auto draw_rot = [&](float ta, float tb, bool dashed) {
+            const int ax = (int)lroundf((float)cx + ux * ta);
+            const int ay = (int)lroundf(y0 + uy * ta);
+            const int bx = (int)lroundf((float)cx + ux * tb);
+            const int by = (int)lroundf(y0 + uy * tb);
+            if (dashed) {
+                const int len = (int)lroundf(tb - ta);
+                for (int i = 0; i <= len; ++i) {
+                    if (((i / 2) % 2) != 0) continue;
+                    fb_.drawPixel((int)lroundf((float)ax + ux * i),
+                                  (int)lroundf((float)ay + uy * i), color);
+                }
+                return;
             }
-    }
-}
+            fb_.drawLine(ax, ay, bx, by, color);
+            if (major) {
+                fb_.drawLine(ax + (int)lroundf(nx), ay + (int)lroundf(ny),
+                             bx + (int)lroundf(nx), by + (int)lroundf(ny),
+                             color);
+            }
+        };
 
-void ADSBUIRenderer::drawBankAngleIndicator(int cx, int cy, int radius) {
-    // Draw bank angle scale arc at bottom
-    const int bank_angles[] = {-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60};
+        // Minor pitch marks stop short of the ball edge so the 10-degree
+        // lines stay visually dominant.
+        const float shorten = major ? 0.0f : 7.0f;
+        draw_rot(t1 + shorten, -gap, pitch < 0);
+        draw_rot(gap, t2 - shorten, pitch < 0);
 
-    for (int angle : bank_angles) {
-        // Convert angle to radians
-        float rad = angle * M_PI / 180.0f;
-
-        // Calculate mark position on bottom arc
-        int mark_x = cx + (int)(radius * sin(rad));
-        int mark_y = cy + (int)(radius * cos(rad));
-
-        // Draw tick mark (longer for major angles)
-        int tick_length = (angle % 30 == 0) ? 5 : 3;
-        int tick_end_x = cx + (int)((radius + tick_length) * sin(rad));
-        int tick_end_y = cy + (int)((radius + tick_length) * cos(rad));
-
-        fb_.drawLine(mark_x, mark_y, tick_end_x, tick_end_y, COLOR_GREEN);
-
-        // Draw text labels for major angles (30, 60)
-        // Center text on the tick mark for left/right symmetry
-        if (angle % 30 == 0 && angle != 0) {
+        if (major && (t2 - t1) > 52.0f) {
+            // Below-horizon marks carry a minus sign, like a real PFD.
             char label[8];
-            snprintf(label, sizeof(label), "%d", abs(angle));
-            int text_x = mark_x - 7;  // 14px text width / 2
-            int text_y = mark_y - 4;  // 8px font height / 2
-            drawSmallText(text_x, text_y, label, COLOR_WHITE);
+            snprintf(label, sizeof(label), "%s%d",
+                     (pitch < 0) ? "-" : "", std::abs(pitch));
+            const int label_w = (int)strlen(label) * 7;
+
+            const int lx = (int)lroundf((float)cx + ux * t1);
+            const int ly = (int)lroundf(y0 + uy * t1) - 8;
+            drawSmallText(lx + 1, ly + 1, label, COLOR_BLACK);
+            drawSmallText(lx + 1, ly, label, COLOR_WHITE);
+
+            const int rx = (int)lroundf((float)cx + ux * t2) - label_w - 2;
+            const int ry = (int)lroundf(y0 + uy * t2) - 8;
+            drawSmallText(rx + 1, ry + 1, label, COLOR_BLACK);
+            drawSmallText(rx, ry, label, COLOR_WHITE);
         }
     }
-
-    // Draw center triangle pointer at top (0°) - this is the fixed reference
-    fb_.drawLine(cx, cy - radius - 4, cx - 2, cy - radius, COLOR_WHITE);
-    fb_.drawLine(cx, cy - radius - 4, cx + 2, cy - radius, COLOR_WHITE);
-    fb_.drawLine(cx - 2, cy - radius, cx + 2, cy - radius, COLOR_WHITE);
 }
 
-void ADSBUIRenderer::drawAltitudeTape(int x, int y, int w, int h, int altitude) {
-    // Draw tape background
-    fb_.fillRect(x, y, w, h, 0x2104);  // Dark background
-    fb_.drawRect(x, y, w, h, COLOR_GRID);
-    
-    // Draw altitude value in center
-    char alt_str[8];
-    snprintf(alt_str, sizeof(alt_str), "%d", altitude);
-    int text_y = y + h/2 - 8;
-    fb_.fillRect(x + 1, text_y, w - 2, 16, COLOR_BLACK);
-    drawText(x + 2, text_y, alt_str, COLOR_GREEN);
-    
-    // Draw tick marks (every 1000 ft)
-    int alt_base = (altitude / 1000) * 1000;
-    for (int i = -2; i <= 2; i++) {
-        int tick_alt = alt_base + i * 1000;
-        int tick_y = y + h/2 - ((altitude - tick_alt) * h / 5000);
-        if (tick_y >= y && tick_y <= y + h) {
-            fb_.drawLine(x, tick_y, x + 5, tick_y, COLOR_GRID);
+void ADSBUIRenderer::drawBankAngleIndicator(int cx, int cy, int radius,
+                                            float bank_angle, bool square) {
+    if (square) {
+        const int scale_y = cy - radius - 14;
+        const int span = (radius * 4) / 5;
+
+        for (int angle = -60; angle <= 60; angle += 10) {
+            const bool major = (angle == 0 || std::abs(angle) == 30 ||
+                                std::abs(angle) == 60);
+            const int x = cx + angle * span / 60;
+            const int len = major ? 6 : 3;
+            fb_.drawLine(x, scale_y, x, scale_y + len,
+                         major ? COLOR_WHITE : COLOR_PFD_TAPE_TICK);
+        }
+
+        float bank = bank_angle;
+        if (bank > 60.0f) bank = 60.0f;
+        if (bank < -60.0f) bank = -60.0f;
+        const int px = cx + (int)lroundf(bank * span / 60.0f);
+        fb_.drawLine(px, scale_y + 8, px - 2, scale_y + 11, COLOR_YELLOW);
+        fb_.drawLine(px, scale_y + 8, px + 2, scale_y + 11, COLOR_YELLOW);
+        fb_.drawLine(px - 2, scale_y + 11, px + 2, scale_y + 11,
+                     COLOR_YELLOW);
+        return;
+    }
+
+    static const int angles[] = {-60, -45, -30, -20, -10,
+                                 0,   10,  20,  30,  45,  60};
+
+    for (int angle : angles) {
+        const float rad = angle * (float)M_PI / 180.0f;
+        const float s = std::sin(rad);
+        const float c = std::cos(rad);
+
+        const bool major = (angle == 0 || std::abs(angle) == 30 ||
+                            std::abs(angle) == 60);
+        const int r0 = radius + 3;
+        const int r1 = radius + (major ? 8 : 5);
+        const uint16_t color = major ? COLOR_WHITE : COLOR_PFD_TAPE_TICK;
+
+        fb_.drawLine(cx + (int)lroundf(s * r0), cy - (int)lroundf(c * r0),
+                     cx + (int)lroundf(s * r1), cy - (int)lroundf(c * r1),
+                     color);
+    }
+
+    // Moving bank pointer, a small yellow triangle that slides along the
+    // scale as the aircraft turns.
+    float bank = bank_angle;
+    if (bank > 60.0f) bank = 60.0f;
+    if (bank < -60.0f) bank = -60.0f;
+
+    const float rad = bank * (float)M_PI / 180.0f;
+    const float s = std::sin(rad);
+    const float c = std::cos(rad);
+
+    auto draw_pointer = [&](int tip_r, int base_r, int half_width,
+                            uint16_t color) {
+        const int steps = base_r - tip_r;
+        for (int i = 0; i <= steps; ++i) {
+            const float t = (float)i / (float)steps;
+            const float rr = (float)(tip_r + i);
+            const int rx = cx + (int)lroundf(s * rr);
+            const int ry = cy - (int)lroundf(c * rr);
+            const int hw = (int)lroundf((float)half_width * t);
+            const int ox = (int)lroundf(c * hw);
+            const int oy = (int)lroundf(s * hw);
+            fb_.drawLine(rx - ox, ry - oy, rx + ox, ry + oy, color);
+        }
+    };
+
+    draw_pointer(radius + 1, radius + 8, 4, COLOR_BLACK);
+    draw_pointer(radius + 2, radius + 7, 3, COLOR_YELLOW);
+}
+
+void ADSBUIRenderer::drawAircraftSymbol(int cx, int cy) {
+    // Black backing keeps the reference symbol readable over sky and ground.
+    fb_.fillRect(cx - 19, cy - 1, 13, 4, COLOR_BLACK);
+    fb_.fillRect(cx + 7, cy - 1, 13, 4, COLOR_BLACK);
+    fb_.fillRect(cx - 2, cy - 2, 5, 5, COLOR_BLACK);
+
+    fb_.fillRect(cx - 18, cy, 11, 2, COLOR_YELLOW);
+    fb_.fillRect(cx + 8, cy, 11, 2, COLOR_YELLOW);
+    fb_.fillRect(cx - 18, cy - 1, 2, 4, COLOR_YELLOW);
+    fb_.fillRect(cx + 17, cy - 1, 2, 4, COLOR_YELLOW);
+    fb_.fillRect(cx - 1, cy - 1, 2, 2, COLOR_YELLOW);
+}
+
+void ADSBUIRenderer::drawAltitudeTape(int x, int y, int w, int h,
+                                      float altitude) {
+    const int center_y = y + h / 2;
+    const float px_per_ft = 0.05f;
+    const int whole = (int)std::floor(altitude + 0.0001f);
+
+    // Ticks every 500 ft, labelled every 1000 ft in a compact form.
+    const int base = (whole / 500) * 500;
+    for (int alt = base - 1500; alt <= base + 1500; alt += 500) {
+        if (alt < 0) continue;
+        const int ty =
+            center_y - (int)lroundf(((float)alt - altitude) * px_per_ft);
+        if (ty < y + 14 || ty > y + h - 4) continue;
+
+        const bool major = (alt % 1000 == 0);
+        fb_.drawLine(x, ty, x + (major ? 8 : 5), ty, COLOR_PFD_TAPE_TICK);
+
+        if (major) {
+            char label[8];
+            if (alt >= 10000) {
+                snprintf(label, sizeof(label), "%dk", alt / 1000);
+            } else {
+                snprintf(label, sizeof(label), "%d", alt);
+            }
+            drawSmallText(x + 10, ty - 3, label, COLOR_PFD_TAPE_TICK);
         }
     }
+
+    // Frameless readout window: a little taller than one digit so the
+    // adjacent numbers on the wheels stay visible above and below.
+    const int box_y = center_y - 11;
+    const int ty = box_y + 3;
+    const int tx = x + 1;
+    const int clip_top = ty;
+    const int clip_bottom = ty + 15;
+    fb_.fillRect(x, box_y, w, 22, COLOR_PFD_PANEL);
+
+    // Leading three digits are static; they are not wheels.
+    int base_val = whole;
+    if (altitude - (float)whole >= 0.5f) base_val = whole + 1;
+
+    char lead_str[8];
+    snprintf(lead_str, sizeof(lead_str), "%03d", (base_val / 100) % 1000);
+    for (int i = 0; i < 3; ++i) {
+        drawSegDigit(tx + i * 7, ty, lead_str[i] - '0', ty, ty + 15);
+    }
+
+    // Last two digits are independent wheels. The ones wheel rolls with the
+    // fractional foot; the tens wheel only turns during the 9->0 carry.
+    const int ones = whole % 10;
+    const float frac = altitude - (float)whole;
+    const int tens = (whole / 10) % 10;
+    const float tens_phase = (ones == 9) ? frac : 0.0f;
+
+    auto draw_wheel = [&](int wx, int digit, float phase) {
+        const int shift = (int)lroundf(phase * 16.0f);
+        drawSegDigit(wx, ty - shift, digit, clip_top, clip_bottom);
+        drawSegDigit(wx, ty + 16 - shift, (digit + 1) % 10, clip_top,
+                     clip_bottom, COLOR_PFD_SEG_DIM);
+        drawSegDigit(wx, ty - 16 - shift, (digit + 9) % 10, clip_top,
+                     clip_bottom, COLOR_PFD_SEG_DIM);
+    };
+
+    draw_wheel(tx + 21, tens, tens_phase);
+    draw_wheel(tx + 28, ones, frac);
 }
 
 void ADSBUIRenderer::drawSpeedTape(int x, int y, int w, int h, int speed) {
-    // Draw tape background
-    fb_.fillRect(x, y, w, h, 0x2104);
-    fb_.drawRect(x, y, w, h, COLOR_GRID);
-    
-    // Draw speed value in center
-    char spd_str[8];
-    snprintf(spd_str, sizeof(spd_str), "%d", speed);
-    int text_y = y + h/2 - 8;
-    fb_.fillRect(x + 1, text_y, w - 2, 16, COLOR_BLACK);
-    drawText(x + 2, text_y, spd_str, COLOR_GREEN);
-    
-    // Draw tick marks (every 50 kt)
-    int spd_base = (speed / 50) * 50;
-    for (int i = -2; i <= 2; i++) {
-        int tick_spd = spd_base + i * 50;
-        if (tick_spd < 0) continue;
-        int tick_y = y + h/2 - ((speed - tick_spd) * h / 250);
-        if (tick_y >= y && tick_y <= y + h) {
-            fb_.drawLine(x + w - 5, tick_y, x + w, tick_y, COLOR_GRID);
+    const int center_y = y + h / 2;
+    const float px_per_kt = 0.5f;
+
+    const int base = (speed / 50) * 50;
+    for (int s = base - 200; s <= base + 200; s += 50) {
+        if (s < 0) continue;
+        const int ty = center_y - (int)lroundf((s - speed) * px_per_kt);
+        if (ty < y + 14 || ty > y + h - 4) continue;
+
+        const bool major = (s % 100 == 0);
+        fb_.drawLine(x + w - 1, ty, x + w - (major ? 8 : 5), ty,
+                     COLOR_PFD_TAPE_TICK);
+
+        if (major) {
+            char label[8];
+            snprintf(label, sizeof(label), "%d", s);
+            const int label_w = (int)strlen(label) * 7;
+            drawSmallText(x + w - 10 - label_w, ty - 3, label,
+                          COLOR_PFD_TAPE_TICK);
         }
     }
+
+    const int box_y = center_y - 11;
+    // Mask the scale behind the readout band, but start one digit in so the
+    // black backing never covers the metal frame on the left.
+    fb_.fillRect(x + 8, box_y, w - 8, 22, COLOR_PFD_PANEL);
+    char spd_str[8];
+    snprintf(spd_str, sizeof(spd_str), "%d", speed);
+    // The readout window is one digit wider than the value, so the extra
+    // dark area covers the scale labels on the left without touching the
+    // metal frame.
+    const int digits = (int)strlen(spd_str);
+    int box_w = std::max(23, digits * 7 + 2) + 7;
+    if (box_w > w) box_w = w;
+
+    // Widen the mask by another digit and a few pixels vertically so the
+    // scale labels cannot peek around the readout, while staying inside the
+    // face (the metal frame ends at x + 3).
+    fb_.fillRect(x + 4, box_y - 7, w - 4, 30, COLOR_PFD_PANEL);
+    drawReadout(x + w - box_w, box_y, box_w, 22, spd_str, true);
 }
 
-// Helper function to get direction label for a given heading
-static const char* getDirectionLabel(int heading) {
-    // Normalize heading to 0-359 range
-    heading = ((heading % 360) + 360) % 360;
-
-    if (heading >= 337 || heading < 23) return "N";
-    if (heading >= 23 && heading < 68) return "NE";
-    if (heading >= 68 && heading < 113) return "E";
-    if (heading >= 113 && heading < 158) return "SE";
-    if (heading >= 158 && heading < 203) return "S";
-    if (heading >= 203 && heading < 248) return "SW";
-    if (heading >= 248 && heading < 293) return "W";
-    if (heading >= 293 && heading < 337) return "NW";
-    return "N";
-}
-
-void ADSBUIRenderer::drawHeadingIndicator(int x, int y, int w, int h, int heading) {
-    // Draw tape background
-    fb_.fillRect(x, y, w, h, 0x2104);  // Dark background
-    fb_.drawRect(x, y, w, h, COLOR_GRID);
-
-    // Calculate center position
-    int cx = x + w / 2;
-    int cy = y + h / 2;
-
-    // Visible range: ±60° from current heading (120° total)
+void ADSBUIRenderer::drawHeadingIndicator(int x, int y, int w, int h,
+                                          int heading) {
+    const int cx = x + w / 2;
     const int visible_range = 120;
-    const float pixels_per_degree = (float)w / (float)visible_range;
+    const float px_per_deg = (float)w / (float)visible_range;
 
-    // Draw major direction labels (every 45°)
-    for (int hdg = 0; hdg < 360; hdg += 45) {
-        // Calculate angular difference (handle wraparound)
-        int diff = hdg - heading;
-        if (diff > 180) diff -= 360;
-        if (diff < -180) diff += 360;
+    auto hdg_x = [&](int hdg) {
+        int diff = ((hdg - heading) % 360 + 540) % 360 - 180;
+        return cx + (int)lroundf(diff * px_per_deg);
+    };
 
-        // Skip if outside visible range
-        if (diff < -60 || diff > 60) continue;
-
-        // Calculate x position
-        int tick_x = cx + (int)(diff * pixels_per_degree);
-
-        // Draw direction label in middle area
-        const char* dir_label = "";
-        if (hdg == 0 || hdg == 360) dir_label = "N";
-        else if (hdg == 45) dir_label = "NE";
-        else if (hdg == 90) dir_label = "E";
-        else if (hdg == 135) dir_label = "SE";
-        else if (hdg == 180) dir_label = "S";
-        else if (hdg == 225) dir_label = "SW";
-        else if (hdg == 270) dir_label = "W";
-        else if (hdg == 315) dir_label = "NW";
-
-        int label_w = strlen(dir_label) * (FONT_6X8_WIDTH + 1);
-        drawSmallText(tick_x - label_w/2, cy - 3, dir_label, COLOR_WHITE);
-
-        // Draw tick mark at bottom
-        fb_.drawLine(tick_x, y + h - 6, tick_x, y + h - 1, COLOR_GRID);
+    // Ticks every 5 degrees, longer every 10 and 30.
+    for (int hdg = 0; hdg < 360; hdg += 5) {
+        const int tx = hdg_x(hdg);
+        if (tx < x + 3 || tx > x + w - 3) continue;
+        if (hdg % 30 == 0) {
+            fb_.drawLine(tx, y + h - 8, tx, y + h - 3, COLOR_PFD_TAPE_TICK);
+        } else if (hdg % 10 == 0) {
+            fb_.drawLine(tx, y + h - 7, tx, y + h - 3, COLOR_PFD_TAPE_TICK);
+        } else {
+            fb_.drawLine(tx, y + h - 5, tx, y + h - 3, COLOR_PFD_TAPE_TICK);
+        }
     }
 
-    // Draw minor tick marks (every 15°) without labels
-    for (int hdg = 0; hdg < 360; hdg += 15) {
-        // Skip major directions (already drawn)
-        if (hdg % 45 == 0) continue;
+    // Labels every 30 degrees; cardinals keep their letters.
+    for (int hdg = 0; hdg < 360; hdg += 30) {
+        const int tx = hdg_x(hdg);
+        if (tx < x + 10 || tx > x + w - 10) continue;
 
-        // Calculate angular difference (handle wraparound)
-        int diff = hdg - heading;
-        if (diff > 180) diff -= 360;
-        if (diff < -180) diff += 360;
+        char buf[8];
+        const char* label = buf;
+        switch (hdg) {
+            case 0:   label = "N"; break;
+            case 90:  label = "E"; break;
+            case 180: label = "S"; break;
+            case 270: label = "W"; break;
+            default:
+                snprintf(buf, sizeof(buf), "%02d", hdg / 10);
+                break;
+        }
 
-        // Skip if outside visible range
-        if (diff < -60 || diff > 60) continue;
-
-        // Calculate x position
-        int tick_x = cx + (int)(diff * pixels_per_degree);
-
-        // Draw shorter tick mark at bottom
-        fb_.drawLine(tick_x, y + h - 3, tick_x, y + h - 1, COLOR_GRID);
+        const int label_w = (int)strlen(label) * 7;
+        drawSmallText(tx - label_w / 2, y + 4, label, COLOR_PFD_LADDER);
     }
 
-    // Draw fixed triangle pointer at top center (aircraft reference)
-    fb_.drawLine(cx, y + 1, cx - 3, y + 5, COLOR_MAGENTA);
-    fb_.drawLine(cx, y + 1, cx + 3, y + 5, COLOR_MAGENTA);
-    fb_.drawLine(cx - 3, y + 5, cx + 3, y + 5, COLOR_MAGENTA);
+    // Fixed lubber line: a magenta triangle below the tick scale, pointing
+    // up at the current heading at the centre of the tape.
+    fb_.drawLine(cx, y + h, cx - 3, y + h + 4, COLOR_MAGENTA);
+    fb_.drawLine(cx, y + h, cx + 3, y + h + 4, COLOR_MAGENTA);
+    fb_.drawLine(cx - 3, y + h + 4, cx + 3, y + h + 4, COLOR_MAGENTA);
 }
 
-void ADSBUIRenderer::drawVerticalSpeedIndicator(int x, int y, int w, int h, int vs) {
-    // No border - removed for cleaner look
+void ADSBUIRenderer::renderPFD(const AircraftState& aircraft, int x, int y,
+                               int w, int h, bool square) {
+    fb_.fillRect(x, y, w, h, COLOR_PFD_PANEL);
 
-    // Calculate center position (where altitude value is displayed)
-    int cy = y + h/2;
+    const int CX = x + w / 2;
+    const int CENTER_Y = y + 80;
+    const int RADIUS = 58;
+    const int TAPE_W = 37;
+    const int TAPE_H = 136;
+    const int TAPE_Y = CENTER_Y - TAPE_H / 2;
+    const int speed_x = x + 1;
+    const int alt_x = x + w - TAPE_W - 1;
 
-    if (vs > 100) {
-        // Climbing - green arrow up (above altitude value)
-        int arrow_y = cy - 12;  // Position above altitude text
-        // Draw upward arrow
-        fb_.drawLine(x, arrow_y, x, arrow_y - 6, COLOR_GREEN);  // Vertical line
-        fb_.drawLine(x, arrow_y - 6, x - 2, arrow_y - 3, COLOR_GREEN);  // Left wing
-        fb_.drawLine(x, arrow_y - 6, x + 2, arrow_y - 3, COLOR_GREEN);  // Right wing
-    } else if (vs < -100) {
-        // Descending - red arrow down (below altitude value)
-        int arrow_y = cy + 12;  // Position below altitude text
-        // Draw downward arrow
-        fb_.drawLine(x, arrow_y, x, arrow_y + 6, COLOR_RED);  // Vertical line
-        fb_.drawLine(x, arrow_y + 6, x - 2, arrow_y + 3, COLOR_RED);  // Left wing
-        fb_.drawLine(x, arrow_y + 6, x + 2, arrow_y + 3, COLOR_RED);  // Right wing
+    if (aircraft.velocity_valid && aircraft.speed > 0) {
+        drawSpeedTape(speed_x, TAPE_Y, TAPE_W, TAPE_H, aircraft.speed);
     }
-}
-
-void ADSBUIRenderer::renderPFD(const AircraftState& aircraft, int x, int y, int w, int h) {
-    // Clear PFD area
-    fb_.fillRect(x, y, w, h, COLOR_BG_DARK);
-
-    // No border - removed for cleaner look
-
-    // Layout within PFD area
-    const int MARGIN = 2;
-    const int TAPE_WIDTH = 25;
-
-    // Artificial horizon in center
-    int horizon_cx = x + w/2;
-    int horizon_cy = y + h/2;
-    int horizon_radius = 45;  // Increased from 40 to 45 for more space
-
-    // Calculate pitch angle from aircraft data
-    float pitch_angle = calculatePitchAngle(aircraft);
+    if (aircraft.position_valid && aircraft.altitude > 0) {
+        const float alt_display = (aircraft.altitude_display > 0.5f)
+                                      ? aircraft.altitude_display
+                                      : (float)aircraft.altitude;
+        drawAltitudeTape(alt_x, TAPE_Y, TAPE_W, TAPE_H, alt_display);
+    }
 
     if (aircraft.velocity_valid || aircraft.position_valid) {
-        drawArtificialHorizon(horizon_cx, horizon_cy, horizon_radius, pitch_angle);
-        drawPitchLadder(horizon_cx, horizon_cy, horizon_radius * 1.8, horizon_radius * 2, pitch_angle);
-        drawBankAngleIndicator(horizon_cx, horizon_cy, horizon_radius);
+        const float pitch_angle = calculatePitchAngle(aircraft);
+        drawArtificialHorizon(CX, CENTER_Y, RADIUS, pitch_angle,
+                              aircraft.bank, square);
+        drawPitchLadder(CX, CENTER_Y, RADIUS, pitch_angle, aircraft.bank);
+        drawBankAngleIndicator(CX, CENTER_Y, RADIUS, aircraft.bank, square);
+        drawAircraftSymbol(CX, CENTER_Y);
     }
-    
-    // Speed tape on left
-    if (aircraft.velocity_valid && aircraft.speed > 0) {
-        drawSpeedTape(x + MARGIN, y + 20, TAPE_WIDTH, h - 60, aircraft.speed);
-    }
-    
-    // Altitude tape on right
-    if (aircraft.position_valid && aircraft.altitude > 0) {
-        drawAltitudeTape(x + w - TAPE_WIDTH - MARGIN, y + 20, TAPE_WIDTH, h - 60, aircraft.altitude);
-    }
-    
-    // Heading tape at bottom
+
     if (aircraft.velocity_valid && aircraft.heading >= 0) {
-        int hdg_y = y + h - 25;
-        int hdg_w = 140;  // Tape width
-        int hdg_h = 22;   // Tape height
-        drawHeadingIndicator(horizon_cx - hdg_w/2, hdg_y, hdg_w, hdg_h, aircraft.heading);
-    }
-    
-    // Vertical speed indicator (small, right of altitude tape)
-    if (aircraft.velocity_valid) {
-        int vs_x = x + w - 10;
-        int vs_y = y + 20;
-        int vs_h = h - 60;
-        drawVerticalSpeedIndicator(vs_x, vs_y, 8, vs_h, aircraft.vertical_rate);
-    }
-    
-    // Callsign at top
-    if (aircraft.callsign[0] != '\0') {
-        int text_w = strlen(aircraft.callsign) * 9;  // 8px char + 1px spacing
-        drawText(horizon_cx - text_w/2, y + 2, aircraft.callsign, COLOR_TEXT_BRIGHT);
+        const int hdg_w = 140;
+        const int hdg_y = y + h - 28;
+        const int hdg_h = 20;
+        drawHeadingIndicator(CX - hdg_w / 2, hdg_y, hdg_w, hdg_h,
+                             aircraft.heading);
     }
 }
 
@@ -825,14 +1060,15 @@ void ADSBUIRenderer::renderKeyHelp() {
     static const Row rows[] = {
         {"TAB",        "PAGE MENU"},
         {"UP/DOWN",    "SELECT AIRCRAFT"},
+        {"HOLD F",     "JUMP TO TOP"},
         {"LEFT/RIGHT", "PAGE 5 ROWS"},
-        {"ENTER",      "LIST>DETAIL>RADAR"},
-        {"R",          "RADAR VIEW"},
+        {"ENTER",      "RADAR>DETAIL>LIST"},
         {"I / 0",      "COMPASS UP / NORTH"},
-        {"L",          "POSITION SETTINGS"},
+        {"L",          "SETTINGS / MAP"},
         {"H",          "HELP / SETTINGS"},
-        {"G",          "GAIN MODE (RADAR)"},
-        {"+ / -",      "GAIN (RADAR)"},
+        {"G / +/-",    "GAIN (LIST)"},
+        {"M",          "PFD / RADAR THEME"},
+        {"R / T",      "ZOOM (RADAR)"},
         {"FN+D/S",     "VOLUME"},
         {"HOLD ESC",   "QUIT"},
     };
@@ -850,7 +1086,8 @@ void ADSBUIRenderer::renderKeyHelp() {
 
 void ADSBUIRenderer::renderSettingsOverview(double lat, double lon,
                                             bool pos_set, int selected,
-                                            const char* source) {
+                                            const char* source,
+                                            const char* map_provider) {
     for (int y = 0; y < 170; ++y) {
         for (int x = 0; x < 320; ++x) {
             fb_.blendPixel(x, y, COLOR_BLACK, 0.45f);
@@ -877,11 +1114,14 @@ void ADSBUIRenderer::renderSettingsOverview(double lat, double lon,
         snprintf(lon_s, sizeof(lon_s), "NOT SET");
     }
 
-    static const char* labels[3] = {"LATITUDE", "LONGITUDE", "CLEAR POSITION"};
-    const char* values[3] = {lat_s, lon_s, pos_set ? "ENTER to clear" : "-"};
+    static const char* labels[4] = {"LATITUDE", "LONGITUDE", "MAP SOURCE",
+                                    "CLEAR POSITION"};
+    const char* values[4] = {lat_s, lon_s,
+                             map_provider ? map_provider : "-",
+                             pos_set ? "ENTER to clear" : "-"};
 
-    for (int i = 0; i < 3; ++i) {
-        const int y = py + 40 + i * 26;
+    for (int i = 0; i < 4; ++i) {
+        const int y = py + 36 + i * 24;
         if (i == selected) {
             fb_.fillRect(px + 6, y - 6, panel_w - 12, 16, COLOR_SELECTED);
             drawSmallText(px + 10, y, ">", COLOR_YELLOW);
@@ -893,7 +1133,7 @@ void ADSBUIRenderer::renderSettingsOverview(double lat, double lon,
 
     char src_line[32];
     snprintf(src_line, sizeof(src_line), "SOURCE: %s", source ? source : "-");
-    drawSmallText(px + 18, py + 112, src_line, COLOR_TEXT_DIM);
-    drawSmallText(px + 18, py + 128, "UP/DOWN SELECT  ENTER  H CLOSE",
+    drawSmallText(px + 18, py + 126, src_line, COLOR_TEXT_DIM);
+    drawSmallText(px + 18, py + 138, "UP/DOWN SELECT  ENTER  H CLOSE",
                   COLOR_TEXT_DIM);
 }

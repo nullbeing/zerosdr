@@ -63,7 +63,7 @@ Cardputer Zero 背面，接收机和天线接口可以作为一个整体携带�
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libpulse-dev libfreetype-dev nlohmann-json3-dev
+sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libpulse-dev libfreetype-dev nlohmann-json3-dev curl
 
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
@@ -103,7 +103,7 @@ APPLaunch 以桌面用户 `pi` 启动应用，`Exec` / `Icon` 按 `/usr/share/AP
 ### 1. 在设备上构建（推荐）
 
 ```bash
-sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libpulse-dev libfreetype-dev nlohmann-json3-dev
+sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libpulse-dev libfreetype-dev nlohmann-json3-dev curl
 cd ~/zerosdr
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
@@ -267,8 +267,8 @@ sudo dpkg -i ../zerosdr_*.deb
 第一次运行会显示一个简短引导（之后可从 `H` → 设置 → `SHOW GUIDE` 重新打开）：
 
 - `H` 打开按键列表与设置
-- `Tab` 打开页面菜单，选择 SDR、频谱、ADSB
-- `Enter` 在 ADSB 的 列表 → 详情 → 雷达 之间循环
+- `Tab` 打开页面菜单，选择 SDR、频谱、ADSB；第二行的 RADAR 快捷入口直接进入 ADSB 雷达视图
+- `Enter` 在 ADSB 的 雷达 → 详情 → 列表 之间循环
 - 观测点位置：可以手动输入，也可以在检测到 GPS 时自动读取（gpsd 或串口
   NMEA）。手动输入会一直覆盖 GPS，直到在设置里清除位置。编辑器支持负数
   （南纬/西经）：按 `SYM`+`R` 输入减号，再按一次则去掉负号。
@@ -397,19 +397,31 @@ TCA8418 键盘会自动识别（`tca8418c`）。`F`/`Z`/`X`/`C` 直接作为方�
 | 按键 | 功能 |
 |---|---|
 | `↑` / `↓` | 选择飞机 |
+| 长按 `F`（上） | 直接回到列表顶部 |
 | `←` / `→` | 上下翻 5 行 |
-| `Enter` | 顺序切换视图：列表 → 详情 → 雷达 → 列表 |
-| `R` | 直接跳到雷达视图（需要先设置观测点位置） |
+| `Enter` | 顺序切换视图：雷达 → 详情 → 列表 → 雷达 |
 | `I` | 切换雷达的 航向朝上 / 北朝上（需要 IMU 罗盘） |
 | `0` | 罗盘归零：先把机身上边对准正北，再按一下 |
-| `H` | 按键列表 + 设置（经度/纬度、清除位置） |
-| `L` | 观测点位置编辑 |
-| `G` / `+` / `-` | 雷达增益模式 / 增益 |
+| `H` | 按键列表 + 设置（经度/纬度、地图源、清除位置） |
+| `L` | 设置：观测点位置 + 地图源 |
+| `G` / `+` / `-` | 雷达增益模式 / 增益（列表和详情页） |
+| `M` | 详情页切换 PFD 形状 / 雷达页切换红色主题 |
+| `R` / `T` | 雷达圈缩小 / 放大（雷达视图） |
 | `Tab` | 页面菜单 |
 
-雷达左侧列表显示 `ICAO` / 高度 / 距离，选中飞机的呼号以大字显示在左侧栏底部的
+雷达左侧列表显示 `ICAO` / 高度 / 距离，与主列表一样按距离由近到远排序，选中飞机的呼号以大字显示在左侧栏底部的
 暗色通栏条带上（没有呼号时显示 ICAO）。呼号以及 ADSB 的状态栏/详情文字使用抗锯齿
 TrueType 字体渲染。
+
+详情页左侧是占满高度的像素风格 PFD（200 px），右侧是 120 px 的飞机文字栏。
+没有外框，也没有底部状态栏。大号圆形姿态球占据左侧区域，天空/地面渐变，地平线
+随估计的坡度旋转，带俯仰梯和坡度指针；速度/高度刻度在球体两侧，航向带在底部。速度和高度不用外框，直接在
+面板上用琥珀色七段
+数码管显示；高度读数保留前导零，最后两位是独立滚轮（个位每 1 ft 滚动，十位只在
+9→0 进位时转动），每次变化只滚一下，爬升向上、下降向下。详情页还有音频变音器：
+只在高度数字滚动时发出密集的短促点声（每次新数据对应一小段点声），升降越快越密，
+爬升时音调升高、下降时音调降低。呼号只在右侧文字栏的 `Call:` 显示，
+只出现在列表和雷达页。俯仰角由升降率和地速推算，坡度由航向变化率估算。
 
 ### 罗盘（BMI270 + BMM150）
 
@@ -422,7 +434,11 @@ TrueType 字体渲染。
   时变暗（罗盘仍然在跟踪）。
 - `0` 把当前方向记为罗盘零点：先把机身上边对准正北（或对准真北，把当地磁偏角一并
   吃掉），再按一下。偏移会写入配置文件。
-- 航向由加速度计做倾斜补偿，并按单位向量平滑，跨过 0°/360° 时不会跳变。
+- 航向优先使用 BMI270 陀螺仪（投影到重力方向，机身倾斜时也能正确取偏航角），
+  磁力计只做低速修正。磁力计只有在场强接近地磁（约 0.2–1.2 高斯）时才可信；
+  这块板子的 BMM150 离扬声器磁铁太近，实测场强有几个高斯，转动时几乎不变。
+- 磁力计受干扰时由陀螺仪负责航向；按 `0` 把当前方向对齐到正北。
+  `imu.invert` 可以翻转旋转方向。
 - 没有 IMU 的机型，雷达保持北朝上，按 `I` 只会响一声提示。
 
 设置保存在 `~/.config/zerosdr/config.json`：
@@ -438,6 +454,55 @@ TrueType 字体渲染。
 
 `offset_deg` 用来补偿芯片在机身里的安装角度（也可以吸收磁偏角）；`invert` 用于
 镜像安装时翻转旋转方向。
+
+### 雷达地图背景
+
+雷达可以下载一块低精度地图，作为雷达背景。默认铺满整个屏幕，左侧列表和顶部状态栏
+会略微透明叠在地图之上。地图是可选的，会缓存，下载在后台线程里进行；网络慢或没有
+网络不会卡住雷达。
+
+默认使用 **Esri World Dark Gray Base**：深色、无地名标签、不需要 API key。其他
+`map.provider`：
+
+| provider | 说明 |
+|---|---|
+| `esri_dark` | 默认。无需 key，无标签，显示海岸线/河流/陆地。 |
+| `esri_imagery` | 卫星影像。无需 key，但细节较杂。 |
+| `osm` | OSM 标准瓦片，颜色和标签较多。 |
+| `amap` | 高德瓦片，WGS-84 会转换为 GCJ-02。 |
+| `carto_dark_nolabels` | CARTO 现在对无 key 请求加 “API KEY REQUIRED” 水印，仅建议配合带 key 的自定义 URL。 |
+| `custom` | 使用 `map.url_template`，支持 `{z}`、`{x}`、`{y}`。 |
+
+```json
+"map": {
+  "enabled": true,
+  "provider": "esri_dark",
+  "url_template": "",
+  "attribution": "",
+  "proxy": "",
+  "dim": 0.90,
+  "cache_hours": 168,
+  "full_screen": true
+}
+```
+
+- `L` 打开 ADSB 设置菜单，在 `Map source` 上按 Enter 会循环
+  `ESRI DARK -> AMAP -> OSM -> ESRI DARK`，并立即保存
+- 默认下载 5×5 张瓦片，裁成以观测点为中心的 1024×1024 图块，足够铺满整个屏幕；
+  设 `full_screen=false` 则回到 3×3 / 512×512、只画在雷达圆内的旧模式。图块缓存到
+  `~/.cache/zerosdr/radar_map/`
+- `dim` 是地图叠在雷达深色背景上的不透明度（0.1–1.0）。Esri 深色底图会做一次
+  中间调提亮，保证海岸线和河流在小屏上仍然看得清
+- `dark`（可选）会把浅色地图反色、去色并染成暗蓝灰；`amap` 和 `osm` 默认是
+  `true`，所以设置里显示为 `AMAP DARK` / `OSM DARK`；Esri 深色底图默认关闭。
+  把 `"dark": false` 可以恢复原来的浅色样式
+- `proxy` 可以填标准代理 URL，例如 `socks5h://192.168.31.59:1082`；留空表示直连
+  或继承 `https_proxy` 环境变量
+- 下载使用系统 `curl`，因此软件包依赖 `curl`
+- 署名以小字显示在雷达右下角；Esri、OSM、高德的数据各有自己的署名和使用条款
+- 下载失败时继续使用旧图或纯黑背景；失败的地图 key 会退避 60 秒再试
+- CARTO 的公开瓦片现在需要 API key，无 key 会得到水印图；无 key 的国际默认源请用
+  `esri_dark`
 
 观测点位置可以来自 GPS（gpsd 的 2947 端口，或 `/dev/serial0`、`/dev/ttyAMA0`、
 `/dev/ttyS0`、`/dev/ttyUSB0`、`/dev/ttyACM0` 上的 NMEA 数据）。会记住最后一次
@@ -462,7 +527,7 @@ ADSB 解码使用随包安装的 `readsb`（带 RTL-SDR 后端，位于
 
 ## 宽带频谱页
 
-`Tab` 打开页面菜单（SDR / 频谱 / ADSB）。频谱页是一个 qspectrumanalyzer 风格的
+`Tab` 打开页面菜单（SDR / 频谱 / ADSB，第二行还有 RADAR 快捷入口）。频谱页是一个 qspectrumanalyzer 风格的
 扫描式频谱仪：把 RTL-SDR 在用户指定的起止频率之间反复调谐，把每一片拼成一条宽
 频谱，下面配瀑布。RTL-SDR V4 的范围是 24–1766 MHz。
 

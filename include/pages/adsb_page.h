@@ -13,6 +13,7 @@
 #include "adsb/readsb_controller.h"
 #include "adsb/readsb_json_parser.h"
 #include "adsb/adsb_config.h"
+#include "adsb/map_background.h"
 #include <vector>
 #include <map>
 #include <memory>
@@ -31,9 +32,12 @@
  * - Detail view for selected aircraft
  * - Radar view for spatial visualization
  */
+class InputHandler;
+
 class ADSBPage : public IPage {
 public:
-    ADSBPage(Framebuffer& fb, SDRController& sdr, ADSBUIRenderer& ui, RadarUIRenderer& radar_ui);
+    ADSBPage(Framebuffer& fb, SDRController& sdr, InputHandler& input,
+             ADSBUIRenderer& ui, RadarUIRenderer& radar_ui);
     ~ADSBPage();
 
     // IPage interface implementation
@@ -44,6 +48,7 @@ public:
     void update(float delta_time) override;
     bool handleInput(AppKeyCode key) override;
     void onVolumeChanged(int percent) override;
+    void onShortcut(const char* id) override;
     const char* getName() const override { return "ADSB"; }
     const char* getDescription() const override { return "ADSB Aircraft Tracker"; }
 
@@ -51,6 +56,7 @@ private:
     // References to shared services
     Framebuffer& fb_;
     SDRController& sdr_;
+    InputHandler& input_;
     ADSBUIRenderer& ui_;
     RadarUIRenderer& radar_ui_;
 
@@ -70,6 +76,9 @@ private:
     int scroll_offset_;
     int detail_scroll_offset_;  // Scroll offset for detail view
     uint32_t selected_icao_;  // ICAO address of selected aircraft in detail view
+    bool pfd_square_ = false; // PFD attitude shape: false = round, true = square
+    int radar_theme_ = 0;     // 0 = green scope, 1 = red tech scope
+    bool list_top_jump_ = false;  // long F/up already jumped to the top
 
     // Radar state
     float sweep_angle_;           // Current sweep angle (0-360°)
@@ -85,6 +94,13 @@ private:
     bool imu_enabled_;            // Poll the compass at all
     bool heading_up_;             // Rotate the scope so the heading is at the top
     float radar_rotation_;        // Smoothed rotation currently drawn
+    float radar_zoom_;            // Animated scope scale (1.0 = right panel)
+    float radar_zoom_target_;     // Scale requested by sym+T / sym+R
+    float radar_zoom_velocity_;   // Spring velocity for the bounce
+    float radar_view_age_;        // Seconds since the radar view was opened
+
+    // Optional raster map under the scope (CARTO dark_nolabels by default).
+    MapBackground map_bg_;
 
     // UI sounds
     BeepPlayer beeps_;
@@ -135,6 +151,18 @@ private:
     std::string volume_toast_;
     std::chrono::steady_clock::time_point volume_toast_until_{};
     time_t last_json_read_;
+    time_t last_parse_time_ = 0;   // previous aircraft.json parse (bank estimate)
+    time_t last_feed_restart_ = 0; // throttle readsb restarts on a stale feed
+
+    // Estimated bank angle from the track change rate, kept per ICAO so it
+    // survives the parser rebuilding the aircraft table every second.
+    std::map<uint32_t, float> bank_deg_;
+    std::map<uint32_t, int> prev_heading_;
+    std::map<uint32_t, float> alt_display_;   // smoothed PFD altitude
+
+    // Variometer cue for the PFD: a continuous tone whose pitch follows
+    // the vertical speed and whose direction follows the sign.
+    uint32_t vario_icao_ = 0;
 
     // Configuration
     ADSBConfig config_;
@@ -145,6 +173,8 @@ private:
     void removeStaleAircraft();
     void sortAircraftList();
     void calculateDistance(AircraftState& aircraft);
+    void updateBankEstimate(AircraftState& aircraft, float delta_seconds);
+    void updateVarioSound();
     float calculateMaxRange();
     void renderCurrentView();
     void handleListInput(AppKeyCode key);
@@ -154,6 +184,7 @@ private:
 
     // Compass helpers
     void updateRadarRotation(float delta_time);
+    void updateRadarZoom(float delta_time);
     void loadImuConfig();
     void saveImuConfig();
 
@@ -162,6 +193,7 @@ private:
     void renderSettingsMenu();
     void loadConfig();
     void saveConfig();
+    void cycleMapProvider();
 
     // Test data generation (for Phase 1)
     void generateTestData();

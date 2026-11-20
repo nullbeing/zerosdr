@@ -79,9 +79,20 @@ private:
 #define COLOR_ADSB_STATUSBAR_BG   0x1B53  // #3365A6 蓝色状态栏背景
 #define COLOR_ADSB_STATUSBAR_TEXT 0xFEE7  // #FDE84F 黄色状态栏文字
 
-// PFD artificial horizon colors
-#define COLOR_SKY_BLUE    0x54BF  // #5599FF bright sky blue
-#define COLOR_EARTH_BROWN 0xCC60  // #C98C00 earth brown/tan
+// PFD instrument palette (attitude indicator, tapes, readouts)
+#define COLOR_PFD_SKY_TOP     0x1A71  // #1E4E8C deep sky, top of the ball
+#define COLOR_PFD_SKY_LOW     0x5D5D  // #5FA8E8 pale sky at the horizon
+#define COLOR_PFD_GROUND_TOP  0x9B45  // #9C6B2F tan ground at the horizon
+#define COLOR_PFD_GROUND_LOW  0x59E2  // #5C3C17 dark ground at the bottom
+#define COLOR_PFD_BEZEL       0x31E9  // #343C4C instrument bezel
+#define COLOR_PFD_BEZEL_HI    0x6BD2  // #6E7A90 bezel highlight
+#define COLOR_PFD_PANEL       0x0862  // #0A0E16 instrument panel face
+#define COLOR_PFD_TAPE_BG     0x0021  // #05070C tape background
+#define COLOR_PFD_TAPE_LINE   0x2989  // #2A3348 tape frame
+#define COLOR_PFD_TAPE_TICK   0x8CB5  // #8894AC tape ticks and labels
+#define COLOR_PFD_LADDER      0xDF1E  // #D8E0F0 pitch ladder
+#define COLOR_PFD_SEG_ON      0xFE09  // #FFC24A lit seven-segment digits
+#define COLOR_PFD_SEG_DIM     0x8B44  // #8C6A24 neighbour digits on a wheel
 
 // Radar page colors
 #define COLOR_RADAR_BG        0x0841  // #081020 Dark blue-black background

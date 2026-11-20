@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "imu_compass.h"
 
 #include <cmath>
@@ -100,15 +101,36 @@ bool ImuCompass::open() {
 
     accel_scale_ = accel_scale;
     magn_scale_ = magn_scale;
+
+    // The gyroscope lives in the same BMI270 IIO device as the accelerometer.
+    gyro_available_ = false;
+    gyro_scale_ = 0.0f;
+    if (readFloat(accel_dir_ + "/in_anglvel_scale", gyro_scale_) &&
+        gyro_scale_ > 0.0f) {
+        float gx = 0.0f, gy = 0.0f, gz = 0.0f;
+        if (readVector(accel_dir_, "in_anglvel", gyro_scale_, gx, gy, gz)) {
+            gyro_available_ = true;
+        }
+    }
+
     device_name_ = accel_name + " + " + magn_name;
     available_ = true;
     has_heading_ = false;
     ema_valid_ = false;
     read_failures_ = 0;
-    sample_timer_ = kSamplePeriod;  // take the first sample next update()
+    sample_timer_ = kSamplePeriod;  // take the first mag sample next update()
+
+    gyro_bias_ = 0.0f;
+    gyro_bias_sum_ = 0.0f;
+    gyro_bias_samples_ = 0;
+    gyro_bias_valid_ = false;
+    gyro_heading_ = 0.0f;
+    gyro_heading_valid_ = false;
+    mag_heading_ = 0.0f;
 
     std::cout << "ImuCompass: using " << device_name_ << " ("
-              << accel_dir_ << ", " << magn_dir_ << ")" << std::endl;
+              << accel_dir_ << ", " << magn_dir_ << ")"
+              << (gyro_available_ ? ", gyro" : ", no gyro") << std::endl;
     return true;
 }
 
@@ -119,52 +141,103 @@ void ImuCompass::close() {
     has_heading_ = false;
     ema_valid_ = false;
     read_failures_ = 0;
+    gyro_available_ = false;
+    gyro_bias_valid_ = false;
+    gyro_heading_valid_ = false;
 }
 
 void ImuCompass::update(float delta_time) {
-    if (!available_) return;
-    if (delta_time <= 0.0f) return;
+    if (!available_ || delta_time <= 0.0f) return;
 
-    sample_timer_ += delta_time;
-    if (sample_timer_ < kSamplePeriod) return;
-    sample_timer_ = 0.0f;
-
-    float ax = 0.0f, ay = 0.0f, az = 0.0f;
-    float mx = 0.0f, my = 0.0f, mz = 0.0f;
-    if (!readVector(accel_dir_, "in_accel", accel_scale_, ax, ay, az) ||
-        !readVector(magn_dir_, "in_magn", magn_scale_, mx, my, mz)) {
+    auto fail_read = [this]() {
         if (++read_failures_ > 40) {
             std::cerr << "ImuCompass: lost " << device_name_ << std::endl;
             available_ = false;
             has_heading_ = false;
         }
+    };
+
+    // Gravity vector, every frame. The gyro yaw is the component around this
+    // axis, so the compass keeps working when the board is held tilted.
+    float ax = 0.0f, ay = 0.0f, az = 0.0f;
+    if (!readVector(accel_dir_, "in_accel", accel_scale_, ax, ay, az)) {
+        fail_read();
+        return;
+    }
+    ax /= kGravity;
+    ay /= kGravity;
+    az /= kGravity;
+    const float accel_norm = std::sqrt(ax * ax + ay * ay + az * az);
+    if (accel_norm < 0.6f || accel_norm > 1.4f) {
+        return;  // free fall or heavy shaking
+    }
+    const float axn = ax / accel_norm;
+    const float ayn = ay / accel_norm;
+    const float azn = az / accel_norm;
+
+    // The BMM150 sits next to the speaker magnet: its raw field is several
+    // gauss and barely rotates with the board. The BMI270 gyro gives a clean
+    // short-term yaw, and the magnetometer only corrects it when the field
+    // magnitude looks like Earth's (~0.2-1.2 gauss).
+    if (gyro_available_) {
+        float gx = 0.0f, gy = 0.0f, gz = 0.0f;
+        if (readVector(accel_dir_, "in_anglvel", gyro_scale_,
+                       gx, gy, gz)) {
+            const float projected = gx * axn + gy * ayn + gz * azn;
+
+            if (!gyro_bias_valid_) {
+                gyro_bias_sum_ += projected;
+                if (++gyro_bias_samples_ >= 10) {
+                    gyro_bias_ = gyro_bias_sum_ / gyro_bias_samples_;
+                    gyro_bias_valid_ = true;
+                }
+            } else if (std::fabs(projected) < 0.06f) {
+                // Slow bias tracking only while nearly stationary.
+                gyro_bias_ += 0.002f * (projected - gyro_bias_);
+            }
+
+            if (gyro_bias_valid_) {
+                float rate = -(projected - gyro_bias_);
+                if (invert_) rate = -rate;
+                const float dt = std::min(delta_time, 0.10f);
+                gyro_heading_ += rate * dt * kRadToDeg;
+                gyro_heading_ = std::fmod(gyro_heading_, 360.0f);
+                if (gyro_heading_ < 0.0f) gyro_heading_ += 360.0f;
+                gyro_heading_valid_ = true;
+            }
+        } else {
+            gyro_available_ = false;
+        }
+    }
+
+    if (gyro_heading_valid_) {
+        heading_ = gyro_heading_ + offset_deg_;
+        heading_ = std::fmod(heading_, 360.0f);
+        if (heading_ < 0.0f) heading_ += 360.0f;
+        raw_heading_ = gyro_heading_;
+        has_heading_ = true;
+    }
+
+    // The magnetometer is only needed at 20 Hz.
+    sample_timer_ += delta_time;
+    if (sample_timer_ < kSamplePeriod) return;
+    sample_timer_ = 0.0f;
+
+    float mx = 0.0f, my = 0.0f, mz = 0.0f;
+    if (!readVector(magn_dir_, "in_magn", magn_scale_, mx, my, mz)) {
+        fail_read();
         return;
     }
     read_failures_ = 0;
 
-    // Accelerometer in g (the driver reports m/s^2).
-    ax /= kGravity;
-    ay /= kGravity;
-    az /= kGravity;
-
-    const float accel_norm = std::sqrt(ax * ax + ay * ay + az * az);
-    if (accel_norm < 0.6f || accel_norm > 1.4f) {
-        // Not a usable gravity reference (free fall or heavy shaking).
-        return;
-    }
-
-    field_strength_ =
-        std::sqrt(mx * mx + my * my + mz * mz);
+    field_strength_ = std::sqrt(mx * mx + my * my + mz * mz);
     if (field_strength_ < 0.05f) {
-        // No usable field; keep the last heading if there is one.
-        return;
+        return;  // no usable field; keep the last heading
     }
 
-    // Roll and pitch from the gravity vector.
     const float roll = std::atan2(ay, az);
-    const float pitch = std::atan2(-ax, std::sqrt(ay * ay + az * az));
-
-    // Rotate the magnetometer reading into the horizontal plane.
+    const float pitch =
+        std::atan2(-ax, std::sqrt(ay * ay + az * az));
     const float sin_roll = std::sin(roll);
     const float cos_roll = std::cos(roll);
     const float sin_pitch = std::sin(pitch);
@@ -176,13 +249,41 @@ void ImuCompass::update(float delta_time) {
 
     float degrees = std::atan2(-mag_y, mag_x) * kRadToDeg;
     if (invert_) degrees = -degrees;
-    degrees += offset_deg_;
     degrees = std::fmod(degrees, 360.0f);
     if (degrees < 0.0f) degrees += 360.0f;
+    mag_heading_ = degrees;
 
-    raw_heading_ = degrees;
+    const bool mag_trusted =
+        field_strength_ >= 0.20f && field_strength_ <= 1.2f;
 
-    // Smooth sin/cos separately so 359° -> 1° does not sweep the long way.
+    if (gyro_available_) {
+        if (!gyro_heading_valid_) {
+            // Seed the relative heading from the first field sample so the
+            // display starts at a sensible bearing instead of 0. The 0 key
+            // aligns it to true north.
+            gyro_heading_ = degrees;
+            gyro_heading_valid_ = true;
+        } else if (mag_trusted) {
+            float diff = degrees - gyro_heading_;
+            while (diff > 180.0f) diff -= 360.0f;
+            while (diff < -180.0f) diff += 360.0f;
+            gyro_heading_ += diff * 0.02f;
+            gyro_heading_ = std::fmod(gyro_heading_, 360.0f);
+            if (gyro_heading_ < 0.0f) gyro_heading_ += 360.0f;
+        }
+        heading_ = gyro_heading_ + offset_deg_;
+        heading_ = std::fmod(heading_, 360.0f);
+        if (heading_ < 0.0f) heading_ += 360.0f;
+        raw_heading_ = gyro_heading_;
+        has_heading_ = true;
+        return;
+    }
+
+    // Magnetometer-only fallback (boards without a gyro, or gyro failure).
+    raw_heading_ = degrees + offset_deg_;
+    raw_heading_ = std::fmod(raw_heading_, 360.0f);
+    if (raw_heading_ < 0.0f) raw_heading_ += 360.0f;
+
     const float rad = degrees / kRadToDeg;
     const float s = std::sin(rad);
     const float c = std::cos(rad);
@@ -197,6 +298,8 @@ void ImuCompass::update(float delta_time) {
 
     float smoothed = std::atan2(ema_sin_, ema_cos_) * kRadToDeg;
     if (smoothed < 0.0f) smoothed += 360.0f;
-    heading_ = smoothed;
+    heading_ = smoothed + offset_deg_;
+    heading_ = std::fmod(heading_, 360.0f);
+    if (heading_ < 0.0f) heading_ += 360.0f;
     has_heading_ = true;
 }

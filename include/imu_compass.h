@@ -80,6 +80,20 @@ private:
     float accel_scale_ = 0.0f;
     float magn_scale_ = 0.0f;
 
+    // BMI270 gyroscope. The magnetometer sits next to the speaker magnet on
+    // this board; its raw field is dominated by a fixed offset, so the gyro
+    // carries short-term yaw and the magnetometer is only a slow correction
+    // when its field strength looks like Earth's.
+    bool gyro_available_ = false;
+    float gyro_scale_ = 0.0f;
+    float gyro_bias_ = 0.0f;
+    float gyro_bias_sum_ = 0.0f;
+    int gyro_bias_samples_ = 0;
+    bool gyro_bias_valid_ = false;
+    float gyro_heading_ = 0.0f;
+    bool gyro_heading_valid_ = false;
+    float mag_heading_ = 0.0f;
+
     float heading_ = 0.0f;
     float raw_heading_ = 0.0f;
     float field_strength_ = 0.0f;

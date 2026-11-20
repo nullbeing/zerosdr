@@ -95,6 +95,19 @@ void AppConfig::setDefaults() {
     if (!imu.contains("heading_up")) imu["heading_up"] = true;
     if (!imu.contains("offset_deg")) imu["offset_deg"] = 0.0;
     if (!imu.contains("invert")) imu["invert"] = false;
+
+    nlohmann::json& radar = section("radar");
+    if (!radar.contains("theme")) radar["theme"] = "green";
+
+    nlohmann::json& map = section("map");
+    if (!map.contains("enabled")) map["enabled"] = true;
+    if (!map.contains("provider")) map["provider"] = "esri_dark";
+    if (!map.contains("url_template")) map["url_template"] = "";
+    if (!map.contains("attribution")) map["attribution"] = "";
+    if (!map.contains("proxy")) map["proxy"] = "";
+    if (!map.contains("dim")) map["dim"] = 0.90;
+    if (!map.contains("cache_hours")) map["cache_hours"] = 168;
+    if (!map.contains("full_screen")) map["full_screen"] = true;
 }
 
 void AppConfig::migrateLegacyFiles() {

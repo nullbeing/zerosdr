@@ -50,11 +50,13 @@ struct AircraftState {
     // Derived data
     float distance;              // Distance from observer (km)
     float bearing;               // Bearing from observer (degrees)
+    float bank;                  // Estimated bank angle (deg, + = right bank)
+    float altitude_display;      // Smoothed altitude for the PFD drum
 
     AircraftState() : icao_addr(0), latitude(0), longitude(0), altitude(0),
                       position_valid(false), speed(0), heading(0), vertical_rate(0),
                       velocity_valid(false), last_seen(0), message_count(0),
-                      distance(0), bearing(0) {
+                      distance(0), bearing(0), bank(0), altitude_display(0) {
         callsign[0] = '\0';
     }
 };

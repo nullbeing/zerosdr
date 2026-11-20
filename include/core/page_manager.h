@@ -93,8 +93,13 @@ private:
 
     // Tab opens a translucent page menu. The page frame is frozen while the
     // menu is up; arrows/Tab move the highlight, Enter switches, Esc closes.
+    struct PageMenuEntry {
+        int page_index;
+        bool radar_shortcut;
+    };
     bool page_menu_open_ = false;
-    size_t page_menu_index_ = 0;
+    std::vector<PageMenuEntry> page_menu_entries_;
+    size_t page_menu_selection_ = 0;
     std::vector<uint16_t> page_menu_snapshot_;
 
     // fn+D / fn+S: give the launcher's own binding a moment to take effect;
@@ -129,6 +134,7 @@ private:
     void handlePageMenuInput(AppKeyCode key);
     void drawPageMenu();
     void drawPageIcon(int page_index, int x, int y, uint16_t color);
+    void drawRadarIcon(int cx, int cy, uint16_t color);
     void restoreSnapshot(const std::vector<uint16_t>& snapshot);
 };
 

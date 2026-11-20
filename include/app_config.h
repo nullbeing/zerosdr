@@ -14,6 +14,7 @@
 //   spectrum - configured, start_hz, stop_hz, max_hold_decay_db_s
 //   adsb     - observer_latitude, observer_longitude, manual_override
 //   imu      - enabled, heading_up, offset_deg, invert (radar compass)
+//   map      - enabled, provider, url_template, proxy, dim, cache_hours
 //
 // On first load the legacy sdr_settings.json / spectrum_range.txt /
 // adsb_config.json / guide.json files are imported once.

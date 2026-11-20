@@ -1,3 +1,19 @@
+zerosdr (0.3.9) trixie; urgency=medium
+
+  * ADSB radar: map background with Esri / AMap / OSM providers (dark by
+    default for AMap and OSM), proxy support, cached patches and a RADAR
+    shortcut in the page menu
+  * ADSB radar: R/T zoom, gyro heading-up compass, translucent panels and
+    automatic recovery when readsb stops updating aircraft.json
+  * ADSB detail: full-height PFD with a larger attitude ball / rounded
+    square option (M), pitch ladder, bank pointer, scrolling speed and
+    altitude tapes, independent altitude wheels and an audio variometer
+  * ADSB list: nearest-first order and long-press F to jump to the top
+  * ADSB settings: map source in the L menu and in the H overlay
+  * First-run guide: mention M for the SDR / radar colour theme
+
+ -- Weiming Feng <bestedwin@gmail.com>  Fri, 20 Nov 2026 14:56:00 +0800
+
 zerosdr (0.3.8) trixie; urgency=medium
 
   * Tab now opens a translucent page menu (SDR / Spectrum / ADSB) instead of

@@ -393,7 +393,33 @@ void PageManager::restoreSnapshot(const std::vector<uint16_t>& snapshot) {
 
 void PageManager::openPageMenu() {
     if (pages_.empty()) return;
-    page_menu_index_ = current_page_index_;
+
+    page_menu_entries_.clear();
+    for (int i = 0; i < (int)pages_.size(); ++i) {
+        page_menu_entries_.push_back({i, false});
+    }
+
+    // Second row: a direct radar shortcut when the ADSB page exists.
+    int adsb_index = -1;
+    for (int i = 0; i < (int)pages_.size(); ++i) {
+        if (std::strcmp(pages_[i]->getName(), "ADSB") == 0) {
+            adsb_index = i;
+            break;
+        }
+    }
+    if (adsb_index >= 0) {
+        page_menu_entries_.push_back({adsb_index, true});
+    }
+
+    page_menu_selection_ = 0;
+    for (size_t i = 0; i < page_menu_entries_.size(); ++i) {
+        if (!page_menu_entries_[i].radar_shortcut &&
+            page_menu_entries_[i].page_index == (int)current_page_index_) {
+            page_menu_selection_ = i;
+            break;
+        }
+    }
+
     page_menu_snapshot_.resize(fb_.pixelCount());
     std::memcpy(page_menu_snapshot_.data(), fb_.pixels(),
                 page_menu_snapshot_.size() * sizeof(uint16_t));
@@ -411,33 +437,57 @@ void PageManager::closePageMenu(bool restore) {
 }
 
 void PageManager::handlePageMenuInput(AppKeyCode key) {
-    const size_t count = pages_.size();
+    const size_t count = page_menu_entries_.size();
     if (count == 0) {
         closePageMenu(false);
         return;
     }
+    const size_t page_count = pages_.size();
+    const bool has_shortcut = (count > page_count);
 
     switch (key) {
         case APPKEY_TAB:
         case APPKEY_P:
         case APPKEY_RIGHT:
-            page_menu_index_ = (page_menu_index_ + 1) % count;
+            page_menu_selection_ = (page_menu_selection_ + 1) % count;
             break;
 
         case APPKEY_LEFT:
-            page_menu_index_ = (page_menu_index_ + count - 1) % count;
+            page_menu_selection_ = (page_menu_selection_ + count - 1) % count;
             break;
 
-        case APPKEY_ENTER:
-            if (page_menu_index_ == current_page_index_) {
-                closePageMenu(true);
-            } else {
-                const size_t target = page_menu_index_;
-                page_menu_open_ = false;
-                page_menu_snapshot_.clear();
-                transitionToPage(target);
+        case APPKEY_DOWN:
+            // Row 0 (pages) -> row 1 (radar shortcut).
+            if (has_shortcut && page_menu_selection_ < page_count) {
+                page_menu_selection_ = page_count;
             }
             break;
+
+        case APPKEY_UP:
+            // Row 1 -> the page above the shortcut.
+            if (has_shortcut && page_menu_selection_ >= page_count) {
+                page_menu_selection_ = page_count - 1;
+            }
+            break;
+
+        case APPKEY_ENTER: {
+            const PageMenuEntry entry = page_menu_entries_[page_menu_selection_];
+            if (!entry.radar_shortcut &&
+                entry.page_index == (int)current_page_index_) {
+                closePageMenu(true);
+                break;
+            }
+
+            page_menu_open_ = false;
+            page_menu_snapshot_.clear();
+            if (entry.page_index != (int)current_page_index_) {
+                transitionToPage((size_t)entry.page_index);
+            }
+            if (entry.radar_shortcut) {
+                pages_[(size_t)entry.page_index]->onShortcut("radar");
+            }
+            break;
+        }
 
         case APPKEY_ESC:
             closePageMenu(true);
@@ -486,6 +536,16 @@ void PageManager::drawPageIcon(int page_index, int x, int y,
     }
 }
 
+void PageManager::drawRadarIcon(int cx, int cy, uint16_t color) {
+    drawCircleOutline(cx, cy, 8, color);
+    // Sweep line and a couple of blips.
+    fb_.drawLine(cx, cy, cx + 6, cy - 6, color);
+    fb_.drawLine(cx, cy, cx + 3, cy - 7, color);
+    fb_.drawPixel(cx - 4, cy + 2, color);
+    fb_.drawPixel(cx + 2, cy + 4, color);
+    fb_.drawPixel(cx, cy, color);
+}
+
 void PageManager::drawPageMenu() {
     const int w = fb_.getWidth();
     const int h = fb_.getHeight();
@@ -498,20 +558,24 @@ void PageManager::drawPageMenu() {
         }
     }
 
-    const int count = (int)pages_.size();
+    const int page_count = (int)pages_.size();
+    const bool has_shortcut =
+        page_menu_entries_.size() > (size_t)page_count;
     const int tile_w = 70;
     const int tile_h = 46;
     const int gap = 6;
-    const int panel_w = count * tile_w + (count - 1) * gap + 18;
-    const int panel_h = 74;
+    const int panel_w = page_count * tile_w + (page_count - 1) * gap + 18;
+    const int panel_h = has_shortcut ? 122 : 74;
     const int px = (w - panel_w) / 2;
     const int py = (h - panel_h) / 2;
     drawRoundedPanel(px, py, panel_w, panel_h, 10, COLOR_DIALOG_BG, 0.86f);
 
     int x = px + 9;
     const int tile_y = py + 6;
-    for (int i = 0; i < count; ++i) {
-        const bool selected = (i == (int)page_menu_index_);
+    for (int i = 0; i < page_count; ++i) {
+        const bool selected =
+            (page_menu_entries_.size() > (size_t)i &&
+             page_menu_selection_ == (size_t)i);
         const bool current = (i == (int)current_page_index_);
 
         if (selected) {
@@ -536,9 +600,32 @@ void PageManager::drawPageMenu() {
         x += tile_w + gap;
     }
 
-    static const char* hint = "<> SELECT   ENTER OPEN   ESC CLOSE";
+    // Second row: radar shortcut.
+    if (has_shortcut) {
+        const bool selected = (page_menu_selection_ >= (size_t)page_count);
+        const int rx = px + (panel_w - tile_w) / 2;
+        const int ry = tile_y + tile_h + 6;
+
+        if (selected) {
+            drawRoundedPanel(rx, ry, tile_w, tile_h, 7,
+                             COLOR_SELECTED, 0.95f);
+            fb_.fillRect(rx + 6, ry, tile_w - 12, 1, COLOR_SPECTRUM);
+        }
+
+        const uint16_t icon_color =
+            selected ? COLOR_SPECTRUM : COLOR_TEXT_DIM;
+        drawRadarIcon(rx + tile_w / 2, ry + 14, icon_color);
+
+        const char* label = "RADAR";
+        const int label_w = (int)std::strlen(label) * FONT_6X8_WIDTH;
+        drawText6x8(rx + (tile_w - label_w) / 2, ry + 30, label,
+                    selected ? COLOR_WHITE : COLOR_TEXT_DIM);
+    }
+
+    const char* hint = "<> SELECT  UP/DOWN ROW  ENTER  ESC";
     const int hint_w = (int)std::strlen(hint) * FONT_6X8_WIDTH;
-    drawText6x8((w - hint_w) / 2, py + panel_h - 14, hint, COLOR_TEXT_DIM);
+    drawText6x8((w - hint_w) / 2, py + panel_h - 14, hint,
+                COLOR_TEXT_DIM);
 }
 
 float PageManager::calculateDeltaTime() {

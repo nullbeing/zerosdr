@@ -57,6 +57,12 @@ public:
     virtual void onVolumeChanged(int percent) { (void)percent; }
 
     /**
+     * Optional shortcut requested from the page menu (e.g. "radar").
+     * Pages that do not support shortcuts keep the default no-op.
+     */
+    virtual void onShortcut(const char* id) { (void)id; }
+
+    /**
      * Get the page name (for display and identification)
      * @return Page name string
      */

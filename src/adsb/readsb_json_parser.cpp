@@ -110,8 +110,18 @@ bool READSBJSONParser::parseFile(const std::string& json_path,
         return false;
     }
 
-    // Get current time for calculating last_seen
+    // Use the feed's own timestamp for last_seen. If readsb stops updating
+    // the file, this makes the aircraft age out instead of staying young
+    // forever because the wall clock keeps moving.
     time_t now = time(nullptr);
+    const char* now_field = strstr(json, "\"now\"");
+    if (now_field) {
+        const char* now_colon = strchr(now_field, ':');
+        if (now_colon) {
+            const double feed_now = atof(now_colon + 1);
+            if (feed_now > 1.0e9) now = (time_t)feed_now;
+        }
+    }
 
     // Clear existing database
     aircraft_db.clear();

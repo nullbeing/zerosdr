@@ -141,20 +141,21 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
 
         if (page == 0) {
             text.draw(fb, 12, 10, "WELCOME TO zeroSDR", COLOR_YELLOW, 16);
-            int y = 40;
+            int y = 36;
             const char* rows[][2] = {
                 {"H", "key list + settings"},
                 {"TAB", "OPEN PAGE MENU"},
                 {"ENTER", "ADSB: list > detail > radar"},
+                {"M", "SDR / radar theme"},
                 {"FN+D/S", "system volume"},
                 {"< >", "change guide page"},
             };
             for (auto& r : rows) {
                 text.draw(fb, 16, y, r[0], COLOR_YELLOW, 12);
                 text.draw(fb, 90, y, r[1], COLOR_TEXT_BRIGHT, 12);
-                y += 20;
+                y += 18;
             }
-            text.draw(fb, 12, 140, "ENTER: next page    ESC: skip", COLOR_TEXT_DIM, 12);
+            text.draw(fb, 12, 148, "ENTER: next page    ESC: skip", COLOR_TEXT_DIM, 12);
         } else if (page == 1) {
             text.draw(fb, 12, 10, "WIDEBAND SPECTRUM", COLOR_YELLOW, 16);
             int y = 42;

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(zeroSDR VERSION 0.3.8 LANGUAGES C CXX)
+project(zeroSDR VERSION 0.3.9 LANGUAGES C CXX)
 
 # Default to an optimized build. Without this, a plain `cmake ..` produces
 # an unoptimized binary that cannot keep up with real-time audio on the
@@ -93,6 +93,7 @@ set(SOURCES
     src/adsb/readsb_controller.cpp
     src/adsb/readsb_json_parser.cpp
     src/adsb/adsb_config.cpp
+    src/adsb/map_background.cpp
 
     # UI rendering
     src/ui/base_ui_renderer.cpp

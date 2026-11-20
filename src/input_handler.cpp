@@ -319,6 +319,8 @@ AppKeyCode InputHandler::translateCardputerZero(int linux_keycode,
         // use numpad/odd codes (T=KP8, Y=KP9, U=KPMINUS, ...).
         case KEY_KP7:                 // sym + R -> "-"
             return APPKEY_MINUS;
+        case KEY_KP8:                 // sym + T -> "+"
+            return APPKEY_PLUS;
 
         // Symbol-layer aliases. The TCA8418 sends these raw keycodes for the
         // blue sym layer instead of a real KEY_DOT / Shift+key combination.

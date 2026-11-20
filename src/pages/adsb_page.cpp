@@ -1,4 +1,5 @@
 #include "pages/adsb_page.h"
+#include "input_handler.h"
 #include "app_config.h"
 #include "system_volume.h"
 #include "screenshot.h"
@@ -9,6 +10,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <unistd.h>
+#include <sys/stat.h>
 
 namespace {
 // Prefer the decoder bundled in the package (built with the RTL-SDR backend),
@@ -26,8 +28,9 @@ std::string findReadsbPath() {
 }
 }  // namespace
 
-ADSBPage::ADSBPage(Framebuffer& fb, SDRController& sdr, ADSBUIRenderer& ui, RadarUIRenderer& radar_ui)
-    : fb_(fb), sdr_(sdr), ui_(ui), radar_ui_(radar_ui),
+ADSBPage::ADSBPage(Framebuffer& fb, SDRController& sdr, InputHandler& input,
+                   ADSBUIRenderer& ui, RadarUIRenderer& radar_ui)
+    : fb_(fb), sdr_(sdr), input_(input), ui_(ui), radar_ui_(radar_ui),
       view_mode_(VIEW_LIST),
       selected_index_(0),
       scroll_offset_(0),
@@ -42,6 +45,10 @@ ADSBPage::ADSBPage(Framebuffer& fb, SDRController& sdr, ADSBUIRenderer& ui, Rada
       imu_enabled_(true),
       heading_up_(true),
       radar_rotation_(0.0f),
+      radar_zoom_(1.0f),
+      radar_zoom_target_(1.0f),
+      radar_zoom_velocity_(0.0f),
+      radar_view_age_(0.0f),
       settings_selected_item_(0),
       editing_lat_(false),
       editing_lon_(false),
@@ -67,10 +74,17 @@ bool ADSBPage::init() {
     std::cout << "ADSBPage: Initializing..." << std::endl;
     // Load configuration
     loadConfig();
+    map_bg_.loadConfig();
 
     // Compass: BMI270 + BMM150 on boards that have them. Missing hardware
     // is not an error - the radar simply stays north-up.
     imu_.open();
+
+    const std::string radar_theme = AppConfig::instance().data()
+                                        .value("radar", nlohmann::json::object())
+                                        .value("theme", "green");
+    radar_theme_ = (radar_theme == "red") ? 1 : 0;
+    radar_ui_.setTheme(radar_theme_);
     return true;
 }
 
@@ -94,9 +108,11 @@ void ADSBPage::onEnter() {
     // If so, reuse it instead of restarting
     const std::string readsb_path = findReadsbPath();
     if (!readsb_) {
+        // Per-uid output directory: a root-run test or another user must not
+        // leave a directory the normal pi session cannot write to.
         readsb_ = std::make_unique<READSBController>(
             readsb_path,
-            "/tmp/readsb/"
+            "/tmp/zerosdr-readsb-" + std::to_string((long)getuid()) + "/"
         );
     }
 
@@ -182,8 +198,14 @@ void ADSBPage::update(float delta_time) {
         }
     }
 
+    // Keep the gyro heading integrated in every ADSB view, not only while
+    // the radar is visible; otherwise a rotation made in the list would be
+    // lost by the time the scope is opened.
+    if (imu_enabled_) imu_.update(delta_time);
+
     // Update radar sweep angle if in radar view
     if (view_mode_ == VIEW_RADAR) {
+        radar_view_age_ += delta_time;
         sweep_angle_ += sweep_speed_ * delta_time;
         bool wrapped = false;
         if (sweep_angle_ >= 360.0f) {
@@ -203,8 +225,17 @@ void ADSBPage::update(float delta_time) {
         }
 
         // Compass heading and the smoothed rose rotation.
-        if (imu_enabled_) imu_.update(delta_time);
         updateRadarRotation(delta_time);
+        updateRadarZoom(delta_time);
+
+        // Map background: the worker only starts a download when the
+        // position or range zoom changes, so this is cheap every frame.
+        // Wait a few seconds so the first request already sees the live
+        // traffic range instead of fetching a 10 km patch first.
+        if (observer_position_set_ && radar_view_age_ >= 3.0f) {
+            map_bg_.request(observer_lat_, observer_lon_,
+                            calculateMaxRange());
+        }
 
         // Update blink timer (blink every 0.5 seconds)
         blink_timer_ += delta_time;
@@ -217,7 +248,37 @@ void ADSBPage::update(float delta_time) {
     // Read aircraft.json every second
     if (now != last_json_read_) {
         if (readsb_ && readsb_->isRunning()) {
-            if (json_parser_.parseFile(json_path_, aircraft_db_)) {
+            // A stale file means readsb stopped producing samples (USB wedge,
+            // unwritable output directory, ...). Do not keep showing frozen
+            // numbers: restart readsb occasionally and drop the old table.
+            bool feed_fresh = true;
+            struct stat st;
+            if (!json_path_.empty() &&
+                stat(json_path_.c_str(), &st) == 0) {
+                const time_t age = now - st.st_mtime;
+                feed_fresh = (age <= 5);
+                if (!feed_fresh && age > 10) {
+                    if (now - last_feed_restart_ >= 30) {
+                        std::cout << "ADSBPage: aircraft.json is "
+                                  << age << "s old, restarting readsb"
+                                  << std::endl;
+                        readsb_->stop();
+                        const int gain_value =
+                            (gain_ >= 0) ? (gain_ / 10) : -1;
+                        readsb_->start(gain_value);
+                        last_feed_restart_ = now;
+                    }
+                    aircraft_db_.clear();
+                    alt_display_.clear();
+                    bank_deg_.clear();
+                    prev_heading_.clear();
+                    beeps_.stopTone();
+                    vario_icao_ = 0;
+                }
+            }
+
+            if (feed_fresh &&
+                json_parser_.parseFile(json_path_, aircraft_db_)) {
                 last_json_read_ = now;
 
                 // Chime when a new ICAO address shows up.
@@ -233,10 +294,19 @@ void ADSBPage::update(float delta_time) {
                     beeps_.play(1600.0f, 55, 0.16f);
                 }
 
-                // Calculate distance and accumulate total messages
+                // Calculate distance and accumulate total messages. The
+                // bank angle is estimated from the track change rate so the
+                // PFD bank pointer follows real turns.
+                const float parse_dt =
+                    (last_parse_time_ > 0 && now > last_parse_time_)
+                        ? (float)(now - last_parse_time_)
+                        : 1.0f;
+                last_parse_time_ = now;
+
                 uint32_t new_total = 0;
                 for (auto& pair : aircraft_db_) {
                     calculateDistance(pair.second);
+                    updateBankEstimate(pair.second, parse_dt);
                     new_total += pair.second.message_count;
                 }
 
@@ -257,13 +327,58 @@ void ADSBPage::update(float delta_time) {
     // Remove stale aircraft (>60s since last message)
     removeStaleAircraft();
 
+    // Smooth the altitude shown by the PFD drum. The JSON only updates once
+    // per second, so the display eases towards the new value and the last
+    // two digits roll in the direction of travel.
+    const float alt_alpha = std::min(1.0f, delta_time * 4.0f);
+    for (auto& pair : aircraft_db_) {
+        AircraftState& ac = pair.second;
+        auto it = alt_display_.find(ac.icao_addr);
+        if (it == alt_display_.end()) {
+            alt_display_[ac.icao_addr] = (float)ac.altitude;
+            ac.altitude_display = (float)ac.altitude;
+        } else if (ac.position_valid && ac.altitude > 0) {
+            float& shown = it->second;
+            const float target = (float)ac.altitude;
+            if (std::fabs(target - shown) < 0.5f) {
+                shown = target;
+            } else {
+                shown += (target - shown) * alt_alpha;
+            }
+            ac.altitude_display = shown;
+        }
+    }
+
     // Update aircraft list for display
     updateAircraftList();
+    updateVarioSound();
+
+    // Long hold on F (the up arrow) jumps straight to the top of the list.
+    if (view_mode_ == VIEW_LIST) {
+        if (input_.getHoldDuration(APPKEY_UP) >= 600) {
+            if (!list_top_jump_) {
+                list_top_jump_ = true;
+                selected_index_ = 0;
+                scroll_offset_ = 0;
+                beeps_.play(1568.0f, 30, 0.08f);
+                std::cout << "ADSBPage: Long F/up jump to top" << std::endl;
+            }
+        } else {
+            list_top_jump_ = false;
+        }
+    }
 
     // Render current view
     renderCurrentView();
     if (!help_visible_) drawVolumeToast();
     fb_.update();
+}
+
+void ADSBPage::onShortcut(const char* id) {
+    if (id && std::strcmp(id, "radar") == 0) {
+        std::cout << "ADSBPage: Radar shortcut" << std::endl;
+        openRadarView();
+    }
 }
 
 void ADSBPage::onVolumeChanged(int percent) {
@@ -295,6 +410,7 @@ void ADSBPage::openRadarView() {
         view_mode_ = VIEW_RADAR;
         sweep_angle_ = 0.0f;
         last_sweep_sector_ = -1;
+        radar_view_age_ = 0.0f;
         std::cout << "ADSBPage: Switching to radar view" << std::endl;
     } else {
         settings_return_view_ = VIEW_RADAR;
@@ -349,7 +465,7 @@ void ADSBPage::handleListInput(AppKeyCode key) {
                 selected_index_++;
                 beeps_.play(1000.0f, 15, 0.06f);
                 // Adjust scroll if needed
-                int max_visible = 10;  // MAX_VISIBLE_ROWS from renderer
+                int max_visible = 6;  // MAX_VISIBLE_ROWS from renderer
                 if (selected_index_ >= scroll_offset_ + max_visible) {
                     scroll_offset_ = selected_index_ - max_visible + 1;
                 }
@@ -365,27 +481,13 @@ void ADSBPage::handleListInput(AppKeyCode key) {
 
         case APPKEY_RIGHT:
             selected_index_ = std::min((int)aircraft_list_.size() - 1, selected_index_ + 5);
-            scroll_offset_ = std::min((int)aircraft_list_.size() - 10, scroll_offset_ + 5);
+            scroll_offset_ = std::min((int)aircraft_list_.size() - 6, scroll_offset_ + 5);
             if (scroll_offset_ < 0) scroll_offset_ = 0;
             beeps_.play(1320.0f, 15, 0.06f);
             break;
 
         case APPKEY_ENTER:
-            if (!aircraft_list_.empty() && selected_index_ >= 0 &&
-                selected_index_ < (int)aircraft_list_.size()) {
-                view_mode_ = VIEW_DETAIL;
-                selected_icao_ = aircraft_list_[selected_index_].icao_addr;
-                detail_scroll_offset_ = 0;
-                std::cout << "ADSBPage: Switching to detail view for aircraft "
-                          << std::hex << selected_icao_ << std::dec << std::endl;
-            } else {
-                // Nothing selected: Enter continues the page cycle.
-                openRadarView();
-            }
-            break;
-
-        case APPKEY_R:
-            // Direct shortcut to the radar view.
+            // Enter continues the view cycle: list -> radar -> detail -> list.
             openRadarView();
             break;
 
@@ -458,6 +560,14 @@ void ADSBPage::handleDetailInput(AppKeyCode key) {
             detail_scroll_offset_ += 15;  // Scroll down by one line
             break;
 
+        case APPKEY_M:
+            pfd_square_ = !pfd_square_;
+            beeps_.play(pfd_square_ ? 1320.0f : 880.0f, 30, 0.08f);
+            std::cout << "ADSBPage: PFD shape "
+                      << (pfd_square_ ? "rounded square" : "round")
+                      << std::endl;
+            break;
+
         case APPKEY_LEFT:
             // Switch to previous aircraft
             if (!aircraft_list_.empty()) {
@@ -519,8 +629,10 @@ void ADSBPage::handleDetailInput(AppKeyCode key) {
             break;
 
         case APPKEY_ENTER:
-            // Continue the page cycle: detail -> radar.
-            openRadarView();
+            // Continue the view cycle: detail -> list.
+            view_mode_ = VIEW_LIST;
+            std::cout << "ADSBPage: Returning to list view from detail"
+                      << std::endl;
             break;
 
 
@@ -550,14 +662,29 @@ void ADSBPage::handleDetailInput(AppKeyCode key) {
 }
 
 void ADSBPage::updateAircraftList() {
+    // Keep the cursor on the same aircraft when the order changes: the radar
+    // sorts by distance, so one new nearby target shifts every index.
+    const bool have_cursor = !aircraft_list_.empty() && selected_index_ >= 0 &&
+                             selected_index_ < (int)aircraft_list_.size();
+    const uint32_t cursor_icao =
+        have_cursor ? aircraft_list_[selected_index_].icao_addr : 0;
+
     // Convert map to sorted vector for display
     aircraft_list_.clear();
     for (auto& pair : aircraft_db_) {
         aircraft_list_.push_back(pair.second);
     }
 
-    // Sort by last seen (most recent first)
     sortAircraftList();
+
+    if (have_cursor) {
+        for (size_t i = 0; i < aircraft_list_.size(); ++i) {
+            if (aircraft_list_[i].icao_addr == cursor_icao) {
+                selected_index_ = (int)i;
+                break;
+            }
+        }
+    }
 
     // Ensure selected index is valid
     if (selected_index_ >= (int)aircraft_list_.size()) {
@@ -566,6 +693,17 @@ void ADSBPage::updateAircraftList() {
     if (scroll_offset_ >= (int)aircraft_list_.size()) {
         scroll_offset_ = std::max(0, (int)aircraft_list_.size() - 10);
     }
+
+    // Keep the highlighted row inside the visible rows. The radar panel has
+    // one row less than the full-screen list because of its header line.
+    const int max_visible = (view_mode_ == VIEW_RADAR) ? 8 : 6;
+    if (selected_index_ < scroll_offset_) scroll_offset_ = selected_index_;
+    if (selected_index_ >= scroll_offset_ + max_visible) {
+        scroll_offset_ = selected_index_ - max_visible + 1;
+    }
+    const int max_scroll = std::max(0, (int)aircraft_list_.size() - max_visible);
+    if (scroll_offset_ > max_scroll) scroll_offset_ = max_scroll;
+    if (scroll_offset_ < 0) scroll_offset_ = 0;
 }
 
 void ADSBPage::removeStaleAircraft() {
@@ -573,6 +711,9 @@ void ADSBPage::removeStaleAircraft() {
     auto it = aircraft_db_.begin();
     while (it != aircraft_db_.end()) {
         if (now - it->second.last_seen > 60) {  // 60 second timeout
+            bank_deg_.erase(it->second.icao_addr);
+            prev_heading_.erase(it->second.icao_addr);
+            alt_display_.erase(it->second.icao_addr);
             it = aircraft_db_.erase(it);
         } else {
             ++it;
@@ -581,11 +722,108 @@ void ADSBPage::removeStaleAircraft() {
 }
 
 void ADSBPage::sortAircraftList() {
-    // Sort by last seen (most recent first)
-    std::sort(aircraft_list_.begin(), aircraft_list_.end(),
-              [](const AircraftState& a, const AircraftState& b) {
-                  return a.last_seen > b.last_seen;
-              });
+    // Nearest first, in every ADSB view: the list, the radar panel and the
+    // detail paging all use this order. Aircraft without a position have no
+    // distance yet and sink to the bottom, newest first, so they never push a
+    // real target off the visible rows.
+    std::stable_sort(aircraft_list_.begin(), aircraft_list_.end(),
+                     [](const AircraftState& a, const AircraftState& b) {
+                         const bool a_pos = a.position_valid && a.distance > 0.0f;
+                         const bool b_pos = b.position_valid && b.distance > 0.0f;
+                         if (a_pos != b_pos) return a_pos;
+                         if (a_pos && b_pos &&
+                             std::fabs(a.distance - b.distance) > 0.01f) {
+                             return a.distance < b.distance;
+                         }
+                         return a.last_seen > b.last_seen;
+                     });
+}
+
+void ADSBPage::updateVarioSound() {
+    // Variometer dots only while the altitude readout is actually rolling:
+    // the smoothed altitude has to be catching up with a new sample. The
+    // audio thread stays alive while the aircraft has altitude and a vertical
+    // speed, but the pulse amplitude is zero once the digits settle.
+    if (view_mode_ != VIEW_DETAIL || help_visible_) {
+        beeps_.stopTone();
+        vario_icao_ = 0;
+        return;
+    }
+
+    auto it = aircraft_db_.find(selected_icao_);
+    if (it == aircraft_db_.end() || !it->second.velocity_valid ||
+        !it->second.position_valid || it->second.altitude <= 0) {
+        // No altitude data means no altitude readout on the PFD; stay silent.
+        beeps_.stopTone();
+        return;
+    }
+
+    const int vs = it->second.vertical_rate;
+    const int magnitude = std::abs(vs);
+    if (magnitude < 100) {  // level flight is silent
+        beeps_.stopTone();
+        return;
+    }
+
+    auto alt_it = alt_display_.find(selected_icao_);
+    if (alt_it == alt_display_.end()) {
+        beeps_.stopTone();
+        return;
+    }
+
+    const float target = (float)it->second.altitude;
+    const bool rolling = std::fabs(target - alt_it->second) > 0.5f;
+
+    const float t = std::min(1.0f, (float)(magnitude - 100) / 2900.0f);
+
+    // Dense dots: about 220 ms apart at 100 fpm, 40 ms at 3000+ fpm.
+    const int period_ms = (int)std::lround(220.0f - t * 180.0f);
+    const int on_ms = 12;
+
+    // Rising pitch for a climb, falling pitch for a descent.
+    const float freq = (vs > 0) ? (1000.0f + t * 600.0f)
+                                : (800.0f - t * 300.0f);
+    const float amp = rolling ? (0.22f + t * 0.06f) : 0.0f;
+
+    beeps_.setPulse(freq, period_ms, on_ms, amp);
+
+    if (vario_icao_ != selected_icao_) {
+        vario_icao_ = selected_icao_;
+        std::cout << "ADSBPage: Vario " << (vs > 0 ? "climb " : "descent ")
+                  << magnitude << " fpm, dots every " << period_ms << " ms"
+                  << std::endl;
+    }
+}
+
+void ADSBPage::updateBankEstimate(AircraftState& aircraft,
+                                  float delta_seconds) {
+    // Standard coordinated turn: tan(bank) = v * omega / g. The track is
+    // reported once per second, so the delta is a coarse but usable turn
+    // rate. The estimate is smoothed per ICAO and decays to wings level
+    // when the aircraft stops turning (or stops reporting a track).
+    float target = 0.0f;
+    auto prev = prev_heading_.find(aircraft.icao_addr);
+    if (prev != prev_heading_.end() && aircraft.velocity_valid &&
+        aircraft.speed > 60 && delta_seconds >= 1.0f) {
+        float dh = (float)aircraft.heading - (float)prev->second;
+        while (dh > 180.0f) dh -= 360.0f;
+        while (dh < -180.0f) dh += 360.0f;
+
+        const float turn_rate = dh / delta_seconds;  // deg/s
+        if (std::fabs(turn_rate) >= 0.5f) {
+            const float omega = turn_rate * (float)M_PI / 180.0f;
+            const float v = (float)aircraft.speed * 0.514444f;  // m/s
+            target = std::atan2(v * omega, 9.80665f) * 180.0f / (float)M_PI;
+            target = std::max(-45.0f, std::min(45.0f, target));
+        }
+    }
+
+    prev_heading_[aircraft.icao_addr] = aircraft.heading;
+
+    float& bank = bank_deg_[aircraft.icao_addr];
+    bank += (target - bank) * 0.35f;
+    if (std::fabs(bank) < 0.3f) bank = 0.0f;
+    aircraft.bank = bank;
 }
 
 void ADSBPage::calculateDistance(AircraftState& aircraft) {
@@ -643,7 +881,8 @@ void ADSBPage::renderCurrentView() {
                                     aircraft_list_.size(),
                                     total_messages_,
                                     message_rate_,
-                                    gain_db);
+                                    gain_db,
+                                    pfd_square_);
         } else {
             // Aircraft no longer exists, return to list view
             view_mode_ = VIEW_LIST;
@@ -654,19 +893,32 @@ void ADSBPage::renderCurrentView() {
         float max_range = calculateMaxRange();
 
         // Clear screen
-        fb_.clear(COLOR_RADAR_BG);
+        fb_.clear(radar_ui_.backgroundColor());
 
-        // Render status bar
-        const bool compass_active = imu_enabled_ && imu_.hasHeading();
-        radar_ui_.renderStatusBar(aircraft_list_.size(), max_range,
-                                  compass_active, imu_.heading(),
-                                  heading_up_ && compass_active);
-
-        // Render radar display with split layout
+        // Layer order: full-screen map, status-bar plate, radar scope/list,
+        // then the status text. The scope stays above the top bar while the
+        // map fills the whole display underneath the panels.
+        radar_ui_.drawMapBackground(map_bg_, max_range, radar_zoom_,
+                                    radar_rotation_);
+        radar_ui_.renderStatusBackground(radar_zoom_);
         radar_ui_.renderRadarDisplay(aircraft_list_, sweep_angle_, max_range,
                                      observer_lat_, observer_lon_,
                                      selected_index_, scroll_offset_,
-                                     blink_state_, radar_rotation_);
+                                     blink_state_, radar_rotation_, radar_zoom_,
+                                     false);
+
+        const bool compass_active = imu_enabled_ && imu_.hasHeading();
+        radar_ui_.renderStatusText(aircraft_list_.size(), max_range,
+                                   compass_active, imu_.heading(),
+                                   heading_up_ && compass_active, radar_zoom_);
+
+        // Small map attribution at the bottom-right of the scope.
+        if (map_bg_.hasImage()) {
+            const char* attr = map_bg_.attribution();
+            int x = 316 - (int)strlen(attr) * 6;
+            if (x < 130) x = 130;
+            radar_ui_.renderText(x, 161, attr, radar_ui_.textColor());
+        }
 
     } else if (view_mode_ == VIEW_SETTINGS) {
         // Render settings menu
@@ -686,7 +938,8 @@ void ADSBPage::renderCurrentView() {
                                                                       : "NOT SET"));
             ui_.renderSettingsOverview(observer_lat_, observer_lon_,
                                        observer_position_set_,
-                                       help_setting_index_, source);
+                                       help_setting_index_, source,
+                                       map_bg_.providerLabel());
         }
     }
 }
@@ -839,6 +1092,31 @@ void ADSBPage::updateRadarRotation(float delta_time) {
     if (radar_rotation_ >= 360.0f) radar_rotation_ -= 360.0f;
 }
 
+void ADSBPage::updateRadarZoom(float delta_time) {
+    // Slightly under-damped spring: the scope overshoots a little and settles.
+    // Small fixed sub-steps keep it stable when a render frame runs long on
+    // the Pi Zero.
+    constexpr float kStiffness = 190.0f;
+    constexpr float kDamping = 13.0f;
+    constexpr float kMaxStep = 0.01f;
+
+    float remaining = std::max(0.0f, delta_time);
+    while (remaining > 0.0f) {
+        const float h = std::min(remaining, kMaxStep);
+        const float accel = kStiffness * (radar_zoom_target_ - radar_zoom_) -
+                            kDamping * radar_zoom_velocity_;
+        radar_zoom_velocity_ += accel * h;
+        radar_zoom_ += radar_zoom_velocity_ * h;
+        remaining -= h;
+    }
+
+    if (std::fabs(radar_zoom_target_ - radar_zoom_) < 0.001f &&
+        std::fabs(radar_zoom_velocity_) < 0.01f) {
+        radar_zoom_ = radar_zoom_target_;
+        radar_zoom_velocity_ = 0.0f;
+    }
+}
+
 void ADSBPage::saveConfig() {
     config_.setObserverPosition(observer_lat_, observer_lon_);
     if (config_.save(config_path_)) {
@@ -847,6 +1125,28 @@ void ADSBPage::saveConfig() {
     } else {
         std::cerr << "ADSBPage: Failed to save configuration" << std::endl;
     }
+}
+
+void ADSBPage::cycleMapProvider() {
+    // Map source: ESRI Dark -> Gaode/AMAP -> OSM -> ESRI Dark.
+    auto& root = AppConfig::instance().data();
+    if (!root.contains("map") || !root["map"].is_object()) {
+        root["map"] = nlohmann::json::object();
+    }
+    std::string provider = root["map"].value("provider", "esri_dark");
+    if (provider == "esri_dark") {
+        provider = "amap";
+    } else if (provider == "amap") {
+        provider = "osm";
+    } else {
+        provider = "esri_dark";
+    }
+    root["map"]["provider"] = provider;
+    root["map"]["enabled"] = true;
+    AppConfig::instance().save();
+    map_bg_.reload();
+    beeps_.play(1320.0f, 20, 0.07f);
+    std::cout << "ADSBPage: Map source -> " << provider << std::endl;
 }
 
 void ADSBPage::renderSettingsMenu() {
@@ -887,17 +1187,27 @@ void ADSBPage::renderSettingsMenu() {
                    false);
     y += line_height;
 
-    y += 10;  // Extra spacing
-
-    // Save button
-    ui_.renderText(20, y, (settings_selected_item_ == 2) ? "> Save" : "  Save",
+    // Map provider. Enter cycles through the supported sources.
+    char map_label[64];
+    snprintf(map_label, sizeof(map_label), "%s Map source: %s",
+             (settings_selected_item_ == 2) ? ">" : " ",
+             map_bg_.providerLabel());
+    ui_.renderText(20, y, map_label,
                    (settings_selected_item_ == 2) ? COLOR_TEXT_BRIGHT : COLOR_TEXT,
                    false);
     y += line_height;
 
-    // Cancel button
-    ui_.renderText(20, y, (settings_selected_item_ == 3) ? "> Cancel" : "  Cancel",
+    y += 10;  // Extra spacing
+
+    // Save button
+    ui_.renderText(20, y, (settings_selected_item_ == 3) ? "> Save" : "  Save",
                    (settings_selected_item_ == 3) ? COLOR_TEXT_BRIGHT : COLOR_TEXT,
+                   false);
+    y += line_height;
+
+    // Cancel button
+    ui_.renderText(20, y, (settings_selected_item_ == 4) ? "> Cancel" : "  Cancel",
+                   (settings_selected_item_ == 4) ? COLOR_TEXT_BRIGHT : COLOR_TEXT,
                    false);
 
     // Help text
@@ -989,7 +1299,7 @@ void ADSBPage::handleSettingsInput(AppKeyCode key) {
             break;
 
         case APPKEY_DOWN:
-            if (settings_selected_item_ < 3) {
+            if (settings_selected_item_ < 4) {
                 settings_selected_item_++;
             }
             break;
@@ -1008,6 +1318,8 @@ void ADSBPage::handleSettingsInput(AppKeyCode key) {
                     lon_input_ = std::to_string(observer_lon_);
                 }
             } else if (settings_selected_item_ == 2) {
+                cycleMapProvider();
+            } else if (settings_selected_item_ == 3) {
                 // Save (ignore incomplete or out-of-range input)
                 double lat = 0.0;
                 double lon = 0.0;
@@ -1025,9 +1337,9 @@ void ADSBPage::handleSettingsInput(AppKeyCode key) {
                 lat_input_.clear();
                 lon_input_.clear();
                 settings_selected_item_ = 0;
-            } else if (settings_selected_item_ == 3) {
+            } else if (settings_selected_item_ == 4) {
                 // Cancel
-                view_mode_ = VIEW_DETAIL;
+                view_mode_ = settings_return_view_;
                 lat_input_.clear();
                 lon_input_.clear();
                 settings_selected_item_ = 0;
@@ -1087,10 +1399,21 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
             break;
 
         case APPKEY_ENTER:
-        case APPKEY_R:
-            // Enter continues the cycle: radar -> list.
-            view_mode_ = VIEW_LIST;
-            std::cout << "ADSBPage: Returning to list view from radar" << std::endl;
+            // Continue the view cycle: radar -> detail. Without a target the
+            // cycle falls through to the list.
+            if (!aircraft_list_.empty() && selected_index_ >= 0 &&
+                selected_index_ < (int)aircraft_list_.size()) {
+                selected_icao_ = aircraft_list_[selected_index_].icao_addr;
+                detail_scroll_offset_ = 0;
+                view_mode_ = VIEW_DETAIL;
+                std::cout << "ADSBPage: Switching to detail view for aircraft "
+                          << std::hex << selected_icao_ << std::dec
+                          << std::endl;
+            } else {
+                view_mode_ = VIEW_LIST;
+                std::cout << "ADSBPage: Returning to list view from radar"
+                          << std::endl;
+            }
             break;
 
         case APPKEY_L:
@@ -1101,6 +1424,22 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
             lat_input_.clear();
             lon_input_.clear();
             std::cout << "ADSBPage: Opening settings menu from radar" << std::endl;
+            break;
+
+        case APPKEY_M:
+            radar_theme_ = (radar_theme_ + 1) % 2;
+            radar_ui_.setTheme(radar_theme_);
+            {
+                auto& root = AppConfig::instance().data();
+                if (!root.contains("radar") || !root["radar"].is_object()) {
+                    root["radar"] = nlohmann::json::object();
+                }
+                root["radar"]["theme"] = radar_theme_ ? "red" : "green";
+                AppConfig::instance().save();
+            }
+            beeps_.play(radar_theme_ ? 1320.0f : 880.0f, 30, 0.08f);
+            std::cout << "ADSBPage: Radar theme "
+                      << (radar_theme_ ? "red" : "green") << std::endl;
             break;
 
         case APPKEY_I:
@@ -1161,20 +1500,22 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
             }
             break;
 
+        case APPKEY_T:
         case APPKEY_PLUS:
-            if (gain_ >= 0 && gain_ < 490) {
-                gain_ += 10;
-                sdr_.setGain(gain_);
-                std::cout << "ADSBPage: Gain = " << gain_/10 << " dB" << std::endl;
-            }
+            // T: grow the scope toward a full-screen background.
+            radar_zoom_target_ = std::min(3.2f, radar_zoom_target_ * 1.28f);
+            beeps_.play(1568.0f, 15, 0.06f);
+            std::cout << "ADSBPage: Radar zoom target "
+                      << radar_zoom_target_ << "x" << std::endl;
             break;
 
+        case APPKEY_R:
         case APPKEY_MINUS:
-            if (gain_ >= 0 && gain_ > 0) {
-                gain_ -= 10;
-                sdr_.setGain(gain_);
-                std::cout << "ADSBPage: Gain = " << gain_/10 << " dB" << std::endl;
-            }
+            // R: shrink the scope back toward the right panel.
+            radar_zoom_target_ = std::max(0.60f, radar_zoom_target_ / 1.28f);
+            beeps_.play(1046.0f, 15, 0.06f);
+            std::cout << "ADSBPage: Radar zoom target "
+                      << radar_zoom_target_ << "x" << std::endl;
             break;
 
         default:
@@ -1197,9 +1538,9 @@ void ADSBPage::handleHelpInput(AppKeyCode key) {
         return;
     }
     if (key == APPKEY_UP) {
-        help_setting_index_ = (help_setting_index_ + 2) % 3;
+        help_setting_index_ = (help_setting_index_ + 3) % 4;
     } else if (key == APPKEY_DOWN) {
-        help_setting_index_ = (help_setting_index_ + 1) % 3;
+        help_setting_index_ = (help_setting_index_ + 1) % 4;
     } else if (key == APPKEY_ENTER) {
         if (help_setting_index_ <= 1) {
             // Hand over to the existing position editor.
@@ -1220,6 +1561,8 @@ void ADSBPage::handleHelpInput(AppKeyCode key) {
                     lon_input_ = std::to_string(observer_lon_);
                 }
             }
+        } else if (help_setting_index_ == 2) {
+            cycleMapProvider();
         } else {
             observer_lat_ = 0.0;
             observer_lon_ = 0.0;
