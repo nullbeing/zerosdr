@@ -353,12 +353,9 @@ void SDRUIRenderer::drawSpectrumGraph(const std::vector<float>& mag, int x, int 
 void SDRUIRenderer::drawFreqAxis(uint32_t center_freq, uint32_t span, int y, int h) {
     // Clear axis area completely first
     fb_.fillRect(0, y, 320, h, COLOR_BG_DARK);
+    fb_.fillRect(0, y, 320, h, 0x0841);  // deep blue-grey
 
-    // Background for axis area
-    fb_.fillRect(0, y, 320, h, 0x0841); // 极深灰蓝
-
-    // Draw 5 tick marks: left-edge, 1/4, center, 3/4, right-edge
-    // Frequencies at each tick
+    // Five ticks: left edge, 1/4, center, 3/4, right edge.
     uint32_t freqs[5] = {
         center_freq - span / 2,
         center_freq - span / 4,
@@ -366,36 +363,49 @@ void SDRUIRenderer::drawFreqAxis(uint32_t center_freq, uint32_t span, int y, int
         center_freq + span / 4,
         center_freq + span / 2,
     };
-    int tick_x[5] = { 0, 80, 160, 240, 319 };
+    int tick_x[5] = {0, 80, 160, 240, 319};
 
-    char buf[16];
-    for (int i = 0; i < 5; i++) {
-        int tx = tick_x[i];
+    // Pre-format the labels and their clamped positions. On a small screen
+    // the edge labels can collide with the quarter labels, so detect that
+    // and fall back to three labels (left / centre / right).
+    char labels[5][16];
+    int label_w[5];
+    int label_x[5];
+    for (int i = 0; i < 5; ++i) {
+        formatFrequency(freqs[i], labels[i], sizeof(labels[i]));
+        label_w[i] = (int)strlen(labels[i]) * 7;
+        label_x[i] = tick_x[i] - label_w[i] / 2;
+        if (label_x[i] < 0) label_x[i] = 0;
+        if (label_x[i] + label_w[i] > 320) {
+            label_x[i] = 320 - label_w[i];
+        }
+    }
 
-        // Tick mark (short vertical line)
+    bool crowded = false;
+    for (int i = 0; i < 4; ++i) {
+        if (label_x[i] + label_w[i] + 2 > label_x[i + 1]) {
+            crowded = true;
+            break;
+        }
+    }
+
+    for (int i = 0; i < 5; ++i) {
+        const int tx = tick_x[i];
+
+        // Tick mark (short vertical line); the centre tick is red and taller.
         fb_.drawPixel(tx, y + 1, COLOR_TEXT_DIM);
         fb_.drawPixel(tx, y + 2, COLOR_TEXT_DIM);
-
-        // Center tick is red and taller
         if (i == 2) {
             fb_.drawPixel(tx, y + 1, COLOR_RED);
             fb_.drawPixel(tx, y + 2, COLOR_RED);
             fb_.drawPixel(tx, y + 3, COLOR_RED);
         }
 
-        // Frequency label
-        formatFrequency(freqs[i], buf, sizeof(buf));
-        int label_len = 0;
-        while (buf[label_len]) label_len++;
-        int label_w = label_len * 7;
+        // When crowded, keep only the left/centre/right labels.
+        if (crowded && (i == 1 || i == 3)) continue;
 
-        // Clamp label position to screen
-        int lx = tx - label_w / 2;
-        if (lx < 0) lx = 0;
-        if (lx + label_w > 320) lx = 320 - label_w;
-
-        uint16_t color = (i == 2) ? COLOR_TEXT_BRIGHT : COLOR_TEXT_DIM;
-        drawText(lx, y + 4, buf, color);
+        const uint16_t color = (i == 2) ? COLOR_TEXT_BRIGHT : COLOR_TEXT_DIM;
+        drawText(label_x[i], y + 4, labels[i], color);
     }
 }
 
