@@ -24,6 +24,11 @@ framebuffer，音频解调（FM / NFM / AM / USB / LSB）通过 ALSA 输出。
 | ![ADSB 详情](images/detail.png) | ![按键说明](images/sdr.png) |
 | 飞机详情页（PFD） | 实时频谱、瀑布与状态栏 |
 
+![ADSB 雷达、PFD 与设置](images/adsb-showcase.png)
+
+*ADSB 雷达地图与红色主题、Tab 菜单里的 RADAR 快捷入口、圆球 / 圆角方形 PFD，
+以及 `H` 设置里的地图源选择。*
+
 ## 功能
 
 - 320×170 framebuffer 上的实时频谱与瀑布

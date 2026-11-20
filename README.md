@@ -25,6 +25,12 @@ and demodulates FM / NFM / AM / USB / LSB audio through ALSA.
 | ![ADSB detail](images/detail.png) | ![On-screen keys](images/sdr.png) |
 | Aircraft detail view with the flight display | Real-time spectrum, waterfall and the status bar |
 
+![ADSB radar, PFD and settings](images/adsb-showcase.png)
+
+*ADSB radar with a map and the red tech theme, the RADAR shortcut in the
+page menu, the round / rounded-square PFD and the map source in the `H`
+settings.*
+
 ## Features
 
 - Real-time spectrum and waterfall on a 320x170 framebuffer
