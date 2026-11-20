@@ -16,13 +16,8 @@ framebuffer，音频解调（FM / NFM / AM / USB / LSB）通过 ALSA 输出。
 
 | | |
 |:---:|:---:|
-| ![频谱页](images/spectrum.png) | ![ADSB 雷达](images/radar.png) |
-| 宽带频谱页：460–490 MHz 扫描 + 峰值保持 | ADSB 雷达视图：距离环与呼号大字 |
-
-| | |
-|:---:|:---:|
-| ![ADSB 详情](images/detail.png) | ![按键说明](images/sdr.png) |
-| 飞机详情页（PFD） | 实时频谱、瀑布与状态栏 |
+| ![宽带频谱页](images/spectrum.png) | ![SDR 页面](images/sdr.png) |
+| 宽带频谱页：460–480 MHz 扫描 + 峰值保持 | SDR 页面：103.6 MHz FM 频谱与瀑布 |
 
 ![ADSB 雷达、PFD 与设置](images/adsb-showcase.png)
 

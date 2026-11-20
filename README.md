@@ -17,13 +17,8 @@ and demodulates FM / NFM / AM / USB / LSB audio through ALSA.
 
 | | |
 |:---:|:---:|
-| ![Spectrum page](images/spectrum.png) | ![ADSB radar](images/radar.png) |
-| Wideband spectrum page: swept 460–490 MHz with max hold | ADSB radar view with range rings and a callsign plate |
-
-| | |
-|:---:|:---:|
-| ![ADSB detail](images/detail.png) | ![On-screen keys](images/sdr.png) |
-| Aircraft detail view with the flight display | Real-time spectrum, waterfall and the status bar |
+| ![Wideband spectrum page](images/spectrum.png) | ![SDR page](images/sdr.png) |
+| Wideband spectrum page: 460–480 MHz sweep with max hold | SDR page: 103.6 MHz FM with spectrum and waterfall |
 
 ![ADSB radar, PFD and settings](images/adsb-showcase.png)
 
