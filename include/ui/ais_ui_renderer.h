@@ -28,6 +28,12 @@ public:
                        float messages_per_second, int gain_tenths, bool agc,
                        size_t vessels);
 
+    void renderPlot(const std::vector<ais::VesselState>& vessels,
+                    int selected_index, float range_nm, bool station_valid,
+                    double station_latitude, double station_longitude,
+                    uint64_t total_messages, float messages_per_second,
+                    int gain_tenths, bool agc);
+
     void renderHelp();
 
     void drawChar(int x, int y, char c, uint16_t color) override;

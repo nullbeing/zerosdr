@@ -31,11 +31,12 @@ public:
     const char* getDescription() const override { return "AIS Vessel Tracker"; }
 
 private:
-    enum class View { List, Console };
+    enum class View { List, Plot, Console };
 
     void startDecodeThread();
     void stopDecodeThread();
     void loadStation();
+    void selectTarget(int direction);
     void render();
     void updateRate();
 
@@ -57,6 +58,7 @@ private:
     int scroll_offset_ = 0;
     int console_scroll_ = 0;
     bool help_visible_ = false;
+    float plot_range_nm_ = 8.0f;
 
     int gain_tenths_ = 496;  // 49.6 dB, the V4's maximum; AIS is weak here
     bool agc_ = false;

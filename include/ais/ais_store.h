@@ -7,6 +7,7 @@
 #include <ctime>
 #include <deque>
 #include <map>
+#include <utility>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -40,6 +41,9 @@ struct VesselState {
     time_t last_static = 0;
     uint32_t messages = 0;
     bool stale = false;
+
+    // Last reported positions, oldest first. Used by the plot view.
+    std::deque<std::pair<double, double>> trail;
 };
 
 struct AisLogEntry {
@@ -57,6 +61,9 @@ public:
 
     /** Observer position for distance/bearing, in decimal degrees. */
     void setStation(double latitude, double longitude, bool valid);
+    bool hasStation() const;
+    double stationLatitude() const;
+    double stationLongitude() const;
 
     std::vector<VesselState> snapshot();
     std::vector<AisLogEntry> logSnapshot() const;

@@ -3,6 +3,7 @@
 #include "font.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -44,6 +45,74 @@ void formatAge(time_t now, time_t seen, char* out, size_t size) {
     } else {
         std::snprintf(out, size, "%2ldh", age / 3600);
     }
+}
+
+}  // namespace
+
+namespace {
+
+constexpr double kPi = 3.14159265358979323846;
+constexpr double kEarthRadiusNm = 3440.065;
+
+void drawCircleOutline(Framebuffer& fb, int cx, int cy, int radius,
+                       uint16_t color) {
+    int x = radius;
+    int y = 0;
+    int error = 1 - radius;
+    while (x >= y) {
+        fb.drawPixel(cx + x, cy + y, color);
+        fb.drawPixel(cx + y, cy + x, color);
+        fb.drawPixel(cx - y, cy + x, color);
+        fb.drawPixel(cx - x, cy + y, color);
+        fb.drawPixel(cx - x, cy - y, color);
+        fb.drawPixel(cx - y, cy - x, color);
+        fb.drawPixel(cx + y, cy - x, color);
+        fb.drawPixel(cx + x, cy - y, color);
+        ++y;
+        if (error < 0) {
+            error += 2 * y + 1;
+        } else {
+            --x;
+            error += 2 * (y - x) + 1;
+        }
+    }
+}
+
+float distanceNm(double lat1, double lon1, double lat2, double lon2) {
+    const double dlat = (lat2 - lat1) * kPi / 180.0;
+    const double dlon = (lon2 - lon1) * kPi / 180.0;
+    const double a = std::sin(dlat / 2.0) * std::sin(dlat / 2.0) +
+                     std::cos(lat1 * kPi / 180.0) *
+                         std::cos(lat2 * kPi / 180.0) *
+                         std::sin(dlon / 2.0) * std::sin(dlon / 2.0);
+    return static_cast<float>(2.0 * kEarthRadiusNm *
+                              std::asin(std::min(1.0, std::sqrt(a))));
+}
+
+float bearingDeg(double lat1, double lon1, double lat2, double lon2) {
+    const double phi1 = lat1 * kPi / 180.0;
+    const double phi2 = lat2 * kPi / 180.0;
+    const double dlon = (lon2 - lon1) * kPi / 180.0;
+    const double y = std::sin(dlon) * std::cos(phi2);
+    const double x = std::cos(phi1) * std::sin(phi2) -
+                     std::sin(phi1) * std::cos(phi2) * std::cos(dlon);
+    double degrees = std::atan2(y, x) * 180.0 / kPi;
+    if (degrees < 0.0) degrees += 360.0;
+    return static_cast<float>(degrees);
+}
+
+void drawTargetTriangle(Framebuffer& fb, int cx, int cy, float heading,
+                        uint16_t color, int size) {
+    const float angle = heading * static_cast<float>(kPi) / 180.0f;
+    const int nose_x = cx + static_cast<int>(std::lround(std::sin(angle) * size));
+    const int nose_y = cy - static_cast<int>(std::lround(std::cos(angle) * size));
+    const int left_x = cx + static_cast<int>(std::lround(std::sin(angle + 2.4f) * size));
+    const int left_y = cy - static_cast<int>(std::lround(std::cos(angle + 2.4f) * size));
+    const int right_x = cx + static_cast<int>(std::lround(std::sin(angle - 2.4f) * size));
+    const int right_y = cy - static_cast<int>(std::lround(std::cos(angle - 2.4f) * size));
+    fb.drawLine(nose_x, nose_y, left_x, left_y, color);
+    fb.drawLine(left_x, left_y, right_x, right_y, color);
+    fb.drawLine(right_x, right_y, nose_x, nose_y, color);
 }
 
 }  // namespace
@@ -276,6 +345,186 @@ void AisUIRenderer::renderConsole(
                   theme_.accent);
 }
 
+void AisUIRenderer::renderPlot(
+    const std::vector<ais::VesselState>& vessels, int selected_index,
+    float range_nm, bool station_valid, double station_latitude,
+    double station_longitude, uint64_t total_messages,
+    float messages_per_second, int gain_tenths, bool agc) {
+    fb_.fillRect(0, 0, kScreenWidth, 170, theme_.bg);
+    renderStatusBar(total_messages, messages_per_second, gain_tenths, agc,
+                    vessels.size());
+
+    char buffer[64];
+    std::snprintf(buffer, sizeof(buffer), "R %.0fNM", range_nm);
+    drawText(200, 2, buffer, theme_.dim);
+
+    constexpr int cx = 160;
+    constexpr int cy = 86;
+    constexpr int radius = 64;
+
+    for (int ring = 1; ring <= 4; ++ring) {
+        drawCircleOutline(fb_, cx, cy, radius * ring / 4,
+                          ring == 4 ? theme_.dim : theme_.grid);
+    }
+    fb_.drawLine(cx - radius, cy, cx + radius, cy, theme_.grid);
+    fb_.drawLine(cx, cy - radius, cx, cy + radius, theme_.grid);
+
+    for (int degrees = 0; degrees < 360; degrees += 30) {
+        const float angle = degrees * static_cast<float>(kPi) / 180.0f;
+        const int inner = (degrees % 90 == 0) ? radius - 6 : radius - 3;
+        const int x1 = cx + static_cast<int>(std::lround(std::sin(angle) * inner));
+        const int y1 = cy - static_cast<int>(std::lround(std::cos(angle) * inner));
+        const int x2 = cx + static_cast<int>(std::lround(std::sin(angle) * radius));
+        const int y2 = cy - static_cast<int>(std::lround(std::cos(angle) * radius));
+        fb_.drawLine(x1, y1, x2, y2, theme_.grid);
+    }
+    drawSmallText(cx - 3, cy - radius + 3, "N", theme_.dim);
+    drawSmallText(cx + radius - 9, cy - 4, "E", theme_.dim);
+    drawSmallText(cx - 3, cy + radius - 11, "S", theme_.dim);
+    drawSmallText(cx - radius + 3, cy - 4, "W", theme_.dim);
+
+    // Own ship.
+    fb_.drawLine(cx, cy - 5, cx - 3, cy + 3, theme_.accent);
+    fb_.drawLine(cx, cy - 5, cx + 3, cy + 3, theme_.accent);
+    fb_.drawLine(cx - 3, cy + 3, cx + 3, cy + 3, theme_.accent);
+    fb_.drawPixel(cx, cy, theme_.text);
+
+    int drawn = 0;
+    const uint16_t selected_color = 0xFD20;
+
+    for (int index = 0; index < static_cast<int>(vessels.size()); ++index) {
+        const ais::VesselState& vessel = vessels[static_cast<size_t>(index)];
+        if (!vessel.has_position || vessel.distance_nm < 0.0f) continue;
+        if (vessel.distance_nm > range_nm * 1.05f) continue;
+
+        const int x = cx + static_cast<int>(std::lround(
+            std::sin(vessel.bearing_deg * kPi / 180.0) *
+            (vessel.distance_nm / range_nm) * radius));
+        const int y = cy - static_cast<int>(std::lround(
+            std::cos(vessel.bearing_deg * kPi / 180.0) *
+            (vessel.distance_nm / range_nm) * radius));
+
+        // Historical trail, oldest first.
+        for (size_t t = 0; t < vessel.trail.size(); ++t) {
+            const float distance = distanceNm(
+                station_latitude, station_longitude,
+                vessel.trail[t].first, vessel.trail[t].second);
+            if (distance > range_nm) continue;
+            const float bearing = bearingDeg(
+                station_latitude, station_longitude,
+                vessel.trail[t].first, vessel.trail[t].second);
+            const int tx = cx + static_cast<int>(std::lround(
+                std::sin(bearing * kPi / 180.0) * (distance / range_nm) * radius));
+            const int ty = cy - static_cast<int>(std::lround(
+                std::cos(bearing * kPi / 180.0) * (distance / range_nm) * radius));
+            fb_.drawPixel(tx, ty,
+                          t + 2 >= vessel.trail.size() ? theme_.dim : theme_.grid);
+        }
+
+        const bool selected = (index == selected_index);
+        const uint16_t color = selected ? selected_color
+                                        : (vessel.stale ? theme_.dim
+                                                        : (vessel.class_b
+                                                               ? 0x05FF
+                                                               : theme_.accent));
+
+        if (vessel.cog >= 0.0f && vessel.sog > 0.3f) {
+            const float length = 7.0f + std::min(13.0f, vessel.sog * 1.2f);
+            const float course = vessel.cog * static_cast<float>(kPi) / 180.0f;
+            const int ex = x + static_cast<int>(std::lround(std::sin(course) * length));
+            const int ey = y - static_cast<int>(std::lround(std::cos(course) * length));
+            fb_.drawLine(x, y, (x + ex) / 2, (y + ey) / 2, color);
+            fb_.drawLine((x + ex) / 2, (y + ey) / 2, ex, ey, theme_.dim);
+        }
+
+        if (vessel.base_station) {
+            fb_.drawRect(x - 2, y - 2, 5, 5, color);
+        } else if (vessel.aton) {
+            drawCircleOutline(fb_, x, y, 2, color);
+        } else if (vessel.class_b) {
+            fb_.drawLine(x, y - 4, x + 4, y, color);
+            fb_.drawLine(x + 4, y, x, y + 4, color);
+            fb_.drawLine(x, y + 4, x - 4, y, color);
+            fb_.drawLine(x - 4, y, x, y - 4, color);
+        } else {
+            drawTargetTriangle(fb_, x, y,
+                               vessel.cog >= 0.0f ? vessel.cog
+                                                  : vessel.bearing_deg,
+                               color, selected ? 5 : 4);
+        }
+        fb_.drawPixel(x, y, color);
+
+        if (selected) {
+            fb_.drawLine(x - 7, y, x - 3, y, selected_color);
+            fb_.drawLine(x + 3, y, x + 7, y, selected_color);
+            fb_.drawLine(x, y - 7, x, y - 3, selected_color);
+            fb_.drawLine(x, y + 3, x, y + 7, selected_color);
+        }
+        ++drawn;
+    }
+
+    // Selected target card on the left, translucent over the scope.
+    constexpr int panel_x = 3;
+    constexpr int panel_y = 24;
+    constexpr int panel_w = 94;
+    constexpr int panel_h = 74;
+    for (int y = 0; y < panel_h; ++y) {
+        for (int x = 0; x < panel_w; ++x) {
+            fb_.blendPixel(panel_x + x, panel_y + y, theme_.bg, 0.78f);
+        }
+    }
+    fb_.drawRect(panel_x, panel_y, panel_w, panel_h, theme_.grid);
+
+    if (selected_index >= 0 &&
+        selected_index < static_cast<int>(vessels.size())) {
+        const ais::VesselState& vessel = vessels[static_cast<size_t>(selected_index)];
+        const time_t age = time(nullptr) - vessel.last_seen;
+        int line_y = panel_y + 4;
+        std::snprintf(buffer, sizeof(buffer), "%09u", vessel.mmsi);
+        drawSmallText(panel_x + 4, line_y, buffer, theme_.accent);
+        line_y += 9;
+        std::snprintf(buffer, sizeof(buffer), "%.12s",
+                      vessel.name.empty() ? "-----" : vessel.name.c_str());
+        drawSmallText(panel_x + 4, line_y, buffer, theme_.text);
+        line_y += 9;
+        const char* type = ais::AisStore::shipTypeLabel(vessel.ship_type);
+        if (type[0] == '\0') {
+            type = vessel.base_station ? "BASE" : vessel.aton ? "ATON"
+                   : vessel.class_b ? "CLASS B" : "VESSEL";
+        }
+        drawSmallText(panel_x + 4, line_y, type, theme_.dim);
+        line_y += 9;
+        std::snprintf(buffer, sizeof(buffer), "SOG%.1f C%.0f",
+                      vessel.sog >= 0.0f ? vessel.sog : 0.0f,
+                      vessel.cog >= 0.0f ? vessel.cog : 0.0f);
+        drawSmallText(panel_x + 4, line_y, buffer, theme_.text);
+        line_y += 9;
+        std::snprintf(buffer, sizeof(buffer), "RNG%.1f B%03.0f",
+                      vessel.distance_nm >= 0.0f ? vessel.distance_nm : 0.0f,
+                      vessel.bearing_deg);
+        drawSmallText(panel_x + 4, line_y, buffer, theme_.text);
+        line_y += 9;
+        std::snprintf(buffer, sizeof(buffer), "AGE %lds", static_cast<long>(age));
+        drawSmallText(panel_x + 4, line_y, buffer, theme_.dim);
+    } else {
+        drawSmallText(panel_x + 4, panel_y + 4, "NO TARGET", theme_.dim);
+    }
+
+    if (!station_valid) {
+        drawText(78, 120, "POSITION NOT SET", theme_.alarm);
+    } else if (drawn == 0) {
+        drawText(92, 74, "WAITING FOR AIS", theme_.accent);
+    }
+
+    fb_.fillRect(0, 152, kScreenWidth, 18, theme_.status_bg);
+    fb_.fillRect(0, 152, kScreenWidth, 1, theme_.grid);
+    std::snprintf(buffer, sizeof(buffer), "PLOT %.0fNM", range_nm);
+    drawSmallText(2, 157, buffer, theme_.dim);
+    drawSmallText(78, 157, "UP/DN RANGE  <> TGT", theme_.text);
+    drawSmallText(kScreenWidth - smallTextWidth("H HELP") - 2, 157, "H HELP",
+                  theme_.accent);
+}
+
 void AisUIRenderer::renderHelp() {
     fb_.fillRect(12, 28, 296, 120, theme_.panel);
     fb_.fillRect(12, 28, 296, 1, theme_.accent);
@@ -285,16 +534,17 @@ void AisUIRenderer::renderHelp() {
 
     drawText(22, 34, "AIS KEYS", theme_.accent);
     const char* lines[] = {
-        "ENTER  LIST / CONSOLE",
-        "UP/DN  SCROLL",
+        "ENTER  LIST / PLOT / CONSOLE",
+        "UP/DN  SCROLL OR RANGE",
+        "LEFT/RIGHT  TARGET (PLOT)",
         "+/-    GAIN",
         "G      AUTO / MANUAL",
         "S      SCREENSHOT",
         "TAB    PAGES",
         "ESC    CLOSE HELP",
     };
-    for (int i = 0; i < 7; ++i) {
-        drawSmallText(24, 58 + i * 12, lines[i],
+    for (int i = 0; i < 8; ++i) {
+        drawSmallText(24, 56 + i * 11, lines[i],
                       i == 0 ? theme_.text : theme_.dim);
     }
 }

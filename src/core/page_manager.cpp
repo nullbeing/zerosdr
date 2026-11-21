@@ -531,6 +531,13 @@ void PageManager::drawPageIcon(int page_index, int x, int y,
         fb_.drawLine(x + 8, y + 2, x + 8, y + 17, color);
         fb_.drawLine(x + 5, y + 5, x + 8, y + 2, color);
         fb_.drawLine(x + 11, y + 5, x + 8, y + 2, color);
+    } else if (std::strcmp(name, "AIS") == 0) {
+        // Anchor: ring with a vertical shank and two curved flukes.
+        drawCircleOutline(x + 9, y + 10, 7, color);
+        fb_.drawLine(x + 9, y + 3, x + 9, y + 16, color);
+        fb_.drawLine(x + 5, y + 6, x + 13, y + 6, color);
+        fb_.drawLine(x + 5, y + 13, x + 3, y + 9, color);
+        fb_.drawLine(x + 13, y + 13, x + 15, y + 9, color);
     } else if (std::strcmp(name, "ADSB") == 0) {
         // Radar ring with a small aircraft.
         drawCircleOutline(x + 9, y + 9, 8, color);

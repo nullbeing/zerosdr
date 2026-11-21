@@ -40,6 +40,21 @@ void AisStore::setStation(double latitude, double longitude, bool valid) {
     for (auto& entry : vessels_) updateDistanceLocked(entry.second);
 }
 
+bool AisStore::hasStation() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return station_valid_;
+}
+
+double AisStore::stationLatitude() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return station_lat_;
+}
+
+double AisStore::stationLongitude() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return station_lon_;
+}
+
 void AisStore::apply(const AisFrame& frame) {
     AisMessage message;
     if (!parseAisMessage(frame, message) || !message.valid) return;
@@ -68,9 +83,16 @@ void AisStore::apply(const AisFrame& frame) {
     }
 
     if (message.has_position) {
+        const bool moved = !vessel.has_position ||
+                           std::fabs(vessel.latitude - message.latitude) > 1e-5 ||
+                           std::fabs(vessel.longitude - message.longitude) > 1e-5;
         vessel.has_position = true;
         vessel.latitude = message.latitude;
         vessel.longitude = message.longitude;
+        if (moved) {
+            vessel.trail.emplace_back(message.latitude, message.longitude);
+            while (vessel.trail.size() > 10) vessel.trail.pop_front();
+        }
         updateDistanceLocked(vessel);
     }
     if (message.sog >= 0.0f) vessel.sog = message.sog;

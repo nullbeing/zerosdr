@@ -81,6 +81,7 @@ void AisPage::onEnter() {
     scroll_offset_ = 0;
     console_scroll_ = 0;
     help_visible_ = false;
+    plot_range_nm_ = 8.0f;
     messages_per_second_ = 0.0f;
     last_rate_messages_ = 0;
     last_rate_time_ = 0;
@@ -142,8 +143,9 @@ void AisPage::updateRate() {
     }
     if (now != last_rate_time_) {
         const double seconds = static_cast<double>(now - last_rate_time_);
-        messages_per_second_ =
+        const float instant =
             static_cast<float>((total - last_rate_messages_) / seconds);
+        messages_per_second_ = 0.6f * messages_per_second_ + 0.4f * instant;
         last_rate_time_ = now;
         last_rate_messages_ = total;
     }
@@ -160,6 +162,20 @@ void AisPage::update(float delta_time) {
 
     updateRate();
     render();
+}
+
+void AisPage::selectTarget(int direction) {
+    const auto vessels = store_.snapshot();
+    const int count = static_cast<int>(vessels.size());
+    if (count == 0) return;
+    int index = selected_index_;
+    for (int step = 0; step < count; ++step) {
+        index = (index + direction + count) % count;
+        if (vessels[static_cast<size_t>(index)].has_position) {
+            selected_index_ = index;
+            return;
+        }
+    }
 }
 
 void AisPage::render() {
@@ -182,6 +198,25 @@ void AisPage::render() {
         }
         ui_.renderList(vessels, selected_index_, scroll_offset_, total,
                        messages_per_second_, gain_tenths_, agc_);
+    } else if (view_ == View::Plot) {
+        const int count = static_cast<int>(vessels.size());
+        if (count == 0) {
+            selected_index_ = 0;
+        } else {
+            selected_index_ = std::max(0, std::min(selected_index_, count - 1));
+            if (!vessels[static_cast<size_t>(selected_index_)].has_position) {
+                for (int i = 0; i < count; ++i) {
+                    if (vessels[static_cast<size_t>(i)].has_position) {
+                        selected_index_ = i;
+                        break;
+                    }
+                }
+            }
+        }
+        ui_.renderPlot(vessels, selected_index_, plot_range_nm_,
+                       store_.hasStation(), store_.stationLatitude(),
+                       store_.stationLongitude(), total, messages_per_second_,
+                       gain_tenths_, agc_);
     } else {
         const auto entries = store_.logSnapshot();
         const int max_scroll = std::max(0, static_cast<int>(entries.size()) - 1);
@@ -209,13 +244,21 @@ bool AisPage::handleInput(AppKeyCode key) {
 
     switch (key) {
         case APPKEY_ENTER:
-            view_ = (view_ == View::List) ? View::Console : View::List;
-            if (view_ == View::Console) console_scroll_ = 0;
+            if (view_ == View::List) {
+                view_ = View::Plot;
+            } else if (view_ == View::Plot) {
+                view_ = View::Console;
+                console_scroll_ = 0;
+            } else {
+                view_ = View::List;
+            }
             return true;
 
         case APPKEY_UP:
             if (view_ == View::List) {
                 if (selected_index_ > 0) --selected_index_;
+            } else if (view_ == View::Plot) {
+                plot_range_nm_ = std::max(0.5f, plot_range_nm_ / 2.0f);
             } else {
                 ++console_scroll_;
             }
@@ -225,10 +268,26 @@ bool AisPage::handleInput(AppKeyCode key) {
             if (view_ == View::List) {
                 const int count = static_cast<int>(store_.vesselCount());
                 if (selected_index_ + 1 < count) ++selected_index_;
+            } else if (view_ == View::Plot) {
+                plot_range_nm_ = std::min(32.0f, plot_range_nm_ * 2.0f);
             } else if (console_scroll_ > 0) {
                 --console_scroll_;
             }
             return true;
+
+        case APPKEY_LEFT:
+            if (view_ == View::Plot) {
+                selectTarget(-1);
+                return true;
+            }
+            return false;
+
+        case APPKEY_RIGHT:
+            if (view_ == View::Plot) {
+                selectTarget(1);
+                return true;
+            }
+            return false;
 
         case APPKEY_PLUS:
             agc_ = false;
@@ -251,7 +310,7 @@ bool AisPage::handleInput(AppKeyCode key) {
             return true;
 
         case APPKEY_ESC:
-            if (view_ == View::Console) {
+            if (view_ == View::Console || view_ == View::Plot) {
                 view_ = View::List;
                 return true;
             }
