@@ -480,7 +480,7 @@ LIST -> PLOT -> DOSSIER -> CONSOLE -> LIST
 - **PLOT** — north-up PPI with a cached map background, four range rings,
   compass ticks, COG vectors, ten-point trails, a 0.5 NM CPA guard ring and
   a selected-target card. `Up` / `Down` zooms from 0.5 to 32 NM.
-- **DOSSIER** — type-specific ship silhouette, dimensions and draught, plus
+- **DOSSIER** — type-specific 8-bit pixel-art ship silhouette, dimensions and draught, plus
   MMSI, callsign, IMO, navigation status, position, motion, range/bearing,
   CPA/TCPA, destination and ETA.
 - **CONSOLE** — decoded message log with time, channel, type and MMSI.

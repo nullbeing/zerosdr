@@ -2,6 +2,7 @@
 
 #include "font.h"
 #include "adsb/map_background.h"
+#include "ui/ais_sprites.h"
 
 #include <algorithm>
 #include <cmath>
@@ -146,79 +147,6 @@ const char* navStatusLabel(int status) {
     }
 }
 
-void drawShipSilhouette(Framebuffer& fb, int x, int y, int w, int h,
-                        const ais::VesselState& vessel, uint16_t color) {
-    if (vessel.base_station) {
-        const int cx = x + w / 2;
-        fb.drawLine(cx, y + 20, cx, y + h - 10, color);
-        fb.drawLine(cx, y + 20, cx - 12, y + 40, color);
-        fb.drawLine(cx, y + 20, cx + 12, y + 40, color);
-        fb.drawLine(cx - 14, y + h - 10, cx + 14, y + h - 10, color);
-        fb.drawLine(cx - 5, y + 48, cx + 5, y + 48, color);
-        return;
-    }
-    if (vessel.aton) {
-        const int cx = x + w / 2;
-        const int cy = y + h / 2 + 6;
-        drawCircleOutline(fb, cx, cy, 12, color);
-        fb.drawLine(cx, cy - 26, cx, cy - 12, color);
-        fb.drawLine(cx - 6, cy + 12, cx + 6, cy + 12, color);
-        fb.drawLine(cx, cy + 12, cx, cy + 22, color);
-        fb.drawLine(x + 10, cy + 22, x + w - 10, cy + 22, color);
-        return;
-    }
-
-    const int hull_top = y + h * 55 / 100;
-    const int hull_bottom = y + h * 80 / 100;
-    const int hull_span = std::max(1, hull_bottom - hull_top + 1);
-    for (int yy = hull_top; yy <= hull_bottom; ++yy) {
-        const int inset = (yy - hull_top) * (w / 20) / hull_span;
-        fb.drawLine(x + inset, yy, x + w - inset, yy, color);
-    }
-    fb.drawLine(x + w - 2, hull_top + 2, x + w - 2, hull_bottom - 2, color);
-    fb.drawLine(x, y + h * 84 / 100, x + w, y + h * 84 / 100, 0x2945);
-
-    const int type = vessel.ship_type;
-    if ((vessel.class_b && (type == 36 || type == 37)) || type == 36 ||
-        type == 37) {
-        const int mx = x + w / 2;
-        fb.drawLine(mx, hull_top, mx, y + 8, color);
-        fb.drawLine(mx, y + 10, mx + 24, hull_top - 4, color);
-        fb.drawLine(mx + 24, hull_top - 4, mx, hull_top, color);
-        fb.drawLine(mx, y + 10, mx - 18, hull_top - 2, color);
-        fb.drawLine(mx - 18, hull_top - 2, mx, hull_top, color);
-    } else if (type == 30) {
-        fb.fillRect(x + w * 55 / 100, hull_top - 14, w * 22 / 100, 14, color);
-        fb.drawLine(x + w * 40 / 100, hull_top, x + w * 40 / 100, y + 12, color);
-        fb.drawLine(x + w * 40 / 100, y + 12, x + w * 62 / 100, y + 12, color);
-    } else if (type >= 60 && type < 70) {
-        fb.fillRect(x + w * 45 / 100, hull_top - 18, w * 35 / 100, 18, color);
-        fb.fillRect(x + w * 30 / 100, hull_top - 32, w * 50 / 100, 14, color);
-        for (int wx = x + w * 33 / 100; wx < x + w * 77 / 100; wx += 6) {
-            fb.drawPixel(wx, hull_top - 26, 0x0000);
-        }
-    } else if (type >= 70 && type < 80) {
-        fb.fillRect(x + w * 52 / 100, hull_top - 16, w * 28 / 100, 16, color);
-        for (int i = 0; i < 4; ++i) {
-            const int bx = x + 8 + i * (w / 6);
-            fb.drawRect(bx, hull_top - 10, w / 8, 8, color);
-        }
-    } else if (type >= 80 && type < 90) {
-        fb.fillRect(x + w * 50 / 100, hull_top - 14, w * 32 / 100, 14, color);
-        for (int i = 0; i < 3; ++i) {
-            const int bx = x + 12 + i * (w / 5);
-            fb.drawRect(bx, hull_top - 10, w / 7, 6, color);
-        }
-        fb.drawLine(x + 10, hull_top - 16, x + w - 10, hull_top - 16, color);
-    } else if (type == 31 || type == 32 || type == 52) {
-        fb.fillRect(x + w * 55 / 100, hull_top - 30, w * 26 / 100, 30, color);
-        fb.drawLine(x + w * 68 / 100, hull_top - 30, x + w * 68 / 100,
-                    hull_top - 40, color);
-    } else {
-        fb.fillRect(x + w * 55 / 100, hull_top - 14, w * 25 / 100, 14, color);
-        fb.fillRect(x + w * 35 / 100, hull_top - 8, w * 15 / 100, 8, color);
-    }
-}
 
 }  // namespace
 
@@ -702,7 +630,15 @@ void AisUIRenderer::renderDossier(const ais::VesselState* vessel,
         fb_.fillRect(panel_x, panel_y, panel_w, panel_h, theme_.panel);
         fb_.drawRect(panel_x, panel_y, panel_w, panel_h, theme_.grid);
 
-        drawShipSilhouette(fb_, 6, 28, 96, 72, *vessel, theme_.accent);
+        uint16_t sprite_bright = theme_.accent;
+        uint16_t sprite_dim = 0x02AA;
+        uint16_t sprite_highlight = theme_.text;
+        if (vessel->base_station || vessel->aton) {
+            sprite_bright = 0xFD20;
+            sprite_dim = 0x8200;
+        }
+        ais_ui::drawDossierShip(fb_, 6, 28, 96, 72, *vessel,
+                                sprite_bright, sprite_dim, sprite_highlight);
 
         const int length = (vessel->to_bow >= 0 && vessel->to_stern >= 0)
                                ? vessel->to_bow + vessel->to_stern
