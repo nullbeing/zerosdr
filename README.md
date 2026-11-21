@@ -39,6 +39,8 @@ settings.*
   heading-up, `R` / `T` zoom and a red tech theme (`M`)
 - ADSB detail PFD: round or rounded-square attitude ball (`M`), pitch ladder,
   bank pointer, speed/altitude tapes and an audio variometer
+- AIS vessel tracking: native dual-channel decoder, list / plot / dossier /
+  console views, map and CPA display, and a standard NMEA UDP feed
 - System volume from every page (`Fn`+`D` / `Fn`+`S`)
 - Runs as the normal desktop user (no root) via the librtlsdr udev rule
 - Optimized for Raspberry Pi Zero 2W / Pi 5 and the M5Stack Cardputer Zero
@@ -339,8 +341,8 @@ the current sample rate can fill.
 
 ## ADSB page
 
-`Tab` opens the page menu (SDR, Spectrum, ADSB and a RADAR shortcut). In the
-ADSB list:
+`Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, AIS and a RADAR
+shortcut). In the ADSB list:
 
 | Key | Action |
 |-----|--------|
@@ -444,10 +446,82 @@ Audio feedback:
 - a quiet tick every 90° of the sweep,
 - a two-tone chime when a new aircraft appears (at most once every 3 s).
 
+## AIS vessel tracking
+
+![AIS plot with map and CPA guard ring](images/ais-plot.png)
+![AIS dossier with ship silhouette](images/ais-dossier.png)
+
+zeroSDR decodes AIS itself; no external decoder is required. It tunes
+162.000 MHz at 1.92 Msps and receives AIS1 (161.975 MHz) and AIS2
+(162.025 MHz) simultaneously, then runs the GMSK / HDLC / CRC / 6-bit chain in
+a dedicated thread.
+
+Select **AIS** in the `Tab` page menu. `Enter` cycles:
+
+```text
+LIST -> PLOT -> DOSSIER -> CONSOLE -> LIST
+```
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Cycle list / plot / dossier / console |
+| `↑` / `↓` | List scroll, plot range, console scroll |
+| `←` / `→` | Select a target in plot and dossier |
+| `+` / `-` | Manual gain |
+| `G` | Tuner AGC / manual gain |
+| `U` | Toggle NMEA UDP export |
+| `H` | Key list |
+| `Shift+S` / `Fn`+`P` | Screenshot |
+| `Tab` | Page menu |
+| `Esc` | Return to the list / close help |
+
+- **LIST** — MMSI, name, SOG, COG, distance and age, nearest first. Class A,
+  Class B, AtoN and base stations use different markers.
+- **PLOT** — north-up PPI with a cached map background, four range rings,
+  compass ticks, COG vectors, ten-point trails, a 0.5 NM CPA guard ring and
+  a selected-target card. `Up` / `Down` zooms from 0.5 to 32 NM.
+- **DOSSIER** — type-specific ship silhouette, dimensions and draught, plus
+  MMSI, callsign, IMO, navigation status, position, motion, range/bearing,
+  CPA/TCPA, destination and ETA.
+- **CONSOLE** — decoded message log with time, channel, type and MMSI.
+
+CPA/TCPA is calculated for a stationary shore station; targets that are
+opening out show `T--` rather than a false zero. A target with CPA below
+0.5 NM and TCPA below 10 minutes turns red and sits inside the guard ring.
+
+### NMEA UDP output
+
+`U` toggles a standard NMEA 0183 feed on UDP port 10110. The output is
+`!AIVDM` (single and multipart, with checksums); a message received on both
+AIS channels is forwarded once. Point OpenCPN or Signal K at UDP 10110.
+
+```json
+"ais": {
+  "udp_export": true,
+  "udp_host": "255.255.255.255",
+  "udp_port": 10110
+}
+```
+
+Use `127.0.0.1` when the consumer runs on the Cardputer itself, or the
+consumer's LAN address if broadcast is filtered. The setting is saved when
+`U` is pressed.
+
+AIS reception needs a 162 MHz vertical antenna and plenty of gain; on the
+Cardputer Zero / RTL-SDR Blog V4, 49.6 dB worked well while 25–40 dB was too
+deaf. The display is a situational view, not calibrated navigation data.
+
+Offline tools:
+
+```sh
+./build/ais_replay recording.cu8 --rate 1920000 --nmea
+./build/nmea_encoder_test
+```
+
 ## Wideband spectrum page
 
-`Tab` opens the page menu (SDR, Spectrum, ADSB, plus a RADAR shortcut on the
-second row). The spectrum page is a
+`Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, AIS, plus a RADAR
+shortcut on the second row). The spectrum page is a
 swept analyzer in the style of qspectrumanalyzer: it retunes the RTL-SDR
 across a user supplied range, stitches the slices into one wide spectrum and draws a yellow trace
 with a waterfall below it. The RTL-SDR V4 range is 24–1766 MHz.
