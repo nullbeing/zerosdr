@@ -3,6 +3,7 @@
 
 #include "ais/ais_decoder.h"
 #include "ais/ais_store.h"
+#include "adsb/map_background.h"
 #include "core/gps_locator.h"
 #include "core/ipage.h"
 #include "framebuffer.h"
@@ -48,6 +49,7 @@ private:
     ais::AisDecoder decoder_;
     ais::AisStore store_;
     GpsLocator gps_;
+    MapBackground map_bg_;
 
     std::thread decode_thread_;
     std::atomic<bool> running_{false};

@@ -93,12 +93,20 @@ void AisStore::apply(const AisFrame& frame) {
             vessel.trail.emplace_back(message.latitude, message.longitude);
             while (vessel.trail.size() > 10) vessel.trail.pop_front();
         }
-        updateDistanceLocked(vessel);
     }
     if (message.sog >= 0.0f) vessel.sog = message.sog;
     if (message.cog >= 0.0f) vessel.cog = message.cog;
     if (message.heading >= 0) vessel.heading = message.heading;
     if (message.nav_status >= 0) vessel.nav_status = message.nav_status;
+
+    if (vessel.has_position) {
+        updateDistanceLocked(vessel);
+        updateCpaLocked(vessel);
+    } else {
+        vessel.distance_nm = -1.0f;
+        vessel.cpa_nm = -1.0f;
+        vessel.tcpa_min = -1.0f;
+    }
 
     AisLogEntry entry;
     entry.time = now;
@@ -156,6 +164,45 @@ void AisStore::updateDistanceLocked(VesselState& vessel) const {
                                     vessel.latitude, vessel.longitude);
     vessel.bearing_deg = bearingDeg(station_lat_, station_lon_,
                                     vessel.latitude, vessel.longitude);
+}
+
+void AisStore::updateCpaLocked(VesselState& vessel) const {
+    if (!station_valid_ || !vessel.has_position) {
+        vessel.cpa_nm = -1.0f;
+        vessel.tcpa_min = -1.0f;
+        return;
+    }
+
+    const double lat0 = station_lat_ * kPi / 180.0;
+    const double north_nm = (vessel.latitude - station_lat_) * 60.0;
+    const double east_nm =
+        (vessel.longitude - station_lon_) * 60.0 * std::cos(lat0);
+
+    double vn = 0.0;
+    double ve = 0.0;
+    if (vessel.sog > 0.5f && vessel.cog >= 0.0f) {
+        const double course = vessel.cog * kPi / 180.0;
+        ve = vessel.sog * std::sin(course);
+        vn = vessel.sog * std::cos(course);
+    }
+
+    const double speed2 = ve * ve + vn * vn;
+    double tcpa_hours = 0.0;
+    bool closing = false;
+    if (speed2 > 1e-6) {
+        tcpa_hours = -(east_nm * ve + north_nm * vn) / speed2;
+        closing = (tcpa_hours >= 0.0);
+        if (!closing) tcpa_hours = 0.0;
+    }
+
+    const double cpa_east = east_nm + ve * tcpa_hours;
+    const double cpa_north = north_nm + vn * tcpa_hours;
+    vessel.cpa_east_nm = static_cast<float>(cpa_east);
+    vessel.cpa_north_nm = static_cast<float>(cpa_north);
+    vessel.cpa_nm = static_cast<float>(std::hypot(cpa_east, cpa_north));
+    vessel.tcpa_min = (speed2 > 0.25 && closing)
+                          ? static_cast<float>(tcpa_hours * 60.0)
+                          : -1.0f;
 }
 
 float AisStore::distanceNm(double lat1, double lon1, double lat2, double lon2) {

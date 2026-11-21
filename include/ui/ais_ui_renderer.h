@@ -14,6 +14,8 @@
  * palette is the marine phosphor scheme: deep blue-black, cyan, amber for
  * selection and dim blue-grey for secondary text.
  */
+class MapBackground;
+
 class AisUIRenderer : public BaseUIRenderer {
 public:
     explicit AisUIRenderer(Framebuffer& fb);
@@ -32,7 +34,7 @@ public:
                     int selected_index, float range_nm, bool station_valid,
                     double station_latitude, double station_longitude,
                     uint64_t total_messages, float messages_per_second,
-                    int gain_tenths, bool agc);
+                    int gain_tenths, bool agc, MapBackground* map = nullptr);
 
     void renderHelp();
 

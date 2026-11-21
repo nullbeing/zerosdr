@@ -37,6 +37,12 @@ struct VesselState {
     float distance_nm = -1.0f;
     float bearing_deg = 0.0f;
 
+    // Closest point of approach for a stationary shore station.
+    float cpa_nm = -1.0f;
+    float tcpa_min = -1.0f;
+    float cpa_east_nm = 0.0f;
+    float cpa_north_nm = 0.0f;
+
     time_t last_seen = 0;
     time_t last_static = 0;
     uint32_t messages = 0;
@@ -76,6 +82,7 @@ public:
 private:
     void pruneLocked(time_t now);
     void updateDistanceLocked(VesselState& vessel) const;
+    void updateCpaLocked(VesselState& vessel) const;
     static float distanceNm(double lat1, double lon1, double lat2, double lon2);
     static float bearingDeg(double lat1, double lon1, double lat2, double lon2);
 

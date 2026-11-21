@@ -1,6 +1,7 @@
 #include "ui/ais_ui_renderer.h"
 
 #include "font.h"
+#include "adsb/map_background.h"
 
 #include <algorithm>
 #include <cmath>
@@ -75,6 +76,20 @@ void drawCircleOutline(Framebuffer& fb, int cx, int cy, int radius,
             --x;
             error += 2 * (y - x) + 1;
         }
+    }
+}
+
+void drawDashedCircle(Framebuffer& fb, int cx, int cy, int radius,
+                      uint16_t color) {
+    for (int degrees = 0; degrees < 360; degrees += 8) {
+        if ((degrees / 8) % 2 != 0) continue;
+        const float a0 = degrees * static_cast<float>(kPi) / 180.0f;
+        const float a1 = (degrees + 4) * static_cast<float>(kPi) / 180.0f;
+        fb.drawLine(cx + static_cast<int>(std::lround(std::sin(a0) * radius)),
+                    cy - static_cast<int>(std::lround(std::cos(a0) * radius)),
+                    cx + static_cast<int>(std::lround(std::sin(a1) * radius)),
+                    cy - static_cast<int>(std::lround(std::cos(a1) * radius)),
+                    color);
     }
 }
 
@@ -349,25 +364,44 @@ void AisUIRenderer::renderPlot(
     const std::vector<ais::VesselState>& vessels, int selected_index,
     float range_nm, bool station_valid, double station_latitude,
     double station_longitude, uint64_t total_messages,
-    float messages_per_second, int gain_tenths, bool agc) {
+    float messages_per_second, int gain_tenths, bool agc,
+    MapBackground* map) {
     fb_.fillRect(0, 0, kScreenWidth, 170, theme_.bg);
-    renderStatusBar(total_messages, messages_per_second, gain_tenths, agc,
-                    vessels.size());
-
-    char buffer[64];
-    std::snprintf(buffer, sizeof(buffer), "R %.0fNM", range_nm);
-    drawText(200, 2, buffer, theme_.dim);
 
     constexpr int cx = 160;
     constexpr int cy = 86;
     constexpr int radius = 64;
+    const uint16_t selected_color = 0xFD20;
+    const bool has_map = (map != nullptr && station_valid);
+
+    if (has_map) {
+        map->draw(fb_, cx, cy, radius, range_nm * 1.852f, 0.0f);
+    }
+
+    // The cached map can cover the whole display; redraw the status strip on
+    // top of it.
+    renderStatusBar(total_messages, messages_per_second, gain_tenths, agc,
+                    vessels.size());
+    char buffer[64];
+    std::snprintf(buffer, sizeof(buffer), "R %.0fNM", range_nm);
+    drawText(200, 2, buffer, theme_.dim);
 
     for (int ring = 1; ring <= 4; ++ring) {
         drawCircleOutline(fb_, cx, cy, radius * ring / 4,
-                          ring == 4 ? theme_.dim : theme_.grid);
+                          ring == 4 ? (has_map ? theme_.accent : theme_.dim)
+                                    : (has_map ? theme_.dim : theme_.grid));
     }
-    fb_.drawLine(cx - radius, cy, cx + radius, cy, theme_.grid);
-    fb_.drawLine(cx, cy - radius, cx, cy + radius, theme_.grid);
+
+    // 0.5 NM CPA guard ring.
+    if (range_nm >= 0.5f) {
+        const int guard_radius = std::max(
+            1, static_cast<int>(std::lround(0.5f / range_nm * radius)));
+        drawDashedCircle(fb_, cx, cy, guard_radius, selected_color);
+    }
+
+    const uint16_t grid_color = has_map ? theme_.dim : theme_.grid;
+    fb_.drawLine(cx - radius, cy, cx + radius, cy, grid_color);
+    fb_.drawLine(cx, cy - radius, cx, cy + radius, grid_color);
 
     for (int degrees = 0; degrees < 360; degrees += 30) {
         const float angle = degrees * static_cast<float>(kPi) / 180.0f;
@@ -376,12 +410,13 @@ void AisUIRenderer::renderPlot(
         const int y1 = cy - static_cast<int>(std::lround(std::cos(angle) * inner));
         const int x2 = cx + static_cast<int>(std::lround(std::sin(angle) * radius));
         const int y2 = cy - static_cast<int>(std::lround(std::cos(angle) * radius));
-        fb_.drawLine(x1, y1, x2, y2, theme_.grid);
+        fb_.drawLine(x1, y1, x2, y2, grid_color);
     }
-    drawSmallText(cx - 3, cy - radius + 3, "N", theme_.dim);
-    drawSmallText(cx + radius - 9, cy - 4, "E", theme_.dim);
-    drawSmallText(cx - 3, cy + radius - 11, "S", theme_.dim);
-    drawSmallText(cx - radius + 3, cy - 4, "W", theme_.dim);
+    const uint16_t compass_color = has_map ? theme_.text : theme_.dim;
+    drawSmallText(cx - 3, cy - radius + 3, "N", compass_color);
+    drawSmallText(cx + radius - 9, cy - 4, "E", compass_color);
+    drawSmallText(cx - 3, cy + radius - 11, "S", compass_color);
+    drawSmallText(cx - radius + 3, cy - 4, "W", compass_color);
 
     // Own ship.
     fb_.drawLine(cx, cy - 5, cx - 3, cy + 3, theme_.accent);
@@ -390,7 +425,6 @@ void AisUIRenderer::renderPlot(
     fb_.drawPixel(cx, cy, theme_.text);
 
     int drawn = 0;
-    const uint16_t selected_color = 0xFD20;
 
     for (int index = 0; index < static_cast<int>(vessels.size()); ++index) {
         const ais::VesselState& vessel = vessels[static_cast<size_t>(index)];
@@ -422,11 +456,15 @@ void AisUIRenderer::renderPlot(
         }
 
         const bool selected = (index == selected_index);
+        const bool alarm = !vessel.stale && vessel.cpa_nm >= 0.0f &&
+                           vessel.cpa_nm < 0.5f && vessel.tcpa_min >= 0.0f &&
+                           vessel.tcpa_min < 10.0f;
         const uint16_t color = selected ? selected_color
                                         : (vessel.stale ? theme_.dim
-                                                        : (vessel.class_b
-                                                               ? 0x05FF
-                                                               : theme_.accent));
+                                                        : (alarm ? theme_.alarm
+                                                                 : (vessel.class_b
+                                                                        ? 0x05FF
+                                                                        : theme_.accent)));
 
         if (vessel.cog >= 0.0f && vessel.sog > 0.3f) {
             const float length = 7.0f + std::min(13.0f, vessel.sog * 1.2f);
@@ -459,6 +497,22 @@ void AisUIRenderer::renderPlot(
             fb_.drawLine(x + 3, y, x + 7, y, selected_color);
             fb_.drawLine(x, y - 7, x, y - 3, selected_color);
             fb_.drawLine(x, y + 3, x, y + 7, selected_color);
+
+            if (vessel.cpa_nm >= 0.0f && vessel.tcpa_min >= 0.0f) {
+                const int px = cx + static_cast<int>(std::lround(
+                    vessel.cpa_east_nm / range_nm * radius));
+                const int py = cy - static_cast<int>(std::lround(
+                    vessel.cpa_north_nm / range_nm * radius));
+                for (int k = 0; k < 32; k += 2) {
+                    const int x0 = cx + (px - cx) * k / 32;
+                    const int y0 = cy + (py - cy) * k / 32;
+                    const int x1 = cx + (px - cx) * (k + 1) / 32;
+                    const int y1 = cy + (py - cy) * (k + 1) / 32;
+                    fb_.drawLine(x0, y0, x1, y1, selected_color);
+                }
+                fb_.drawLine(px - 3, py - 3, px + 3, py + 3, selected_color);
+                fb_.drawLine(px - 3, py + 3, px + 3, py - 3, selected_color);
+            }
         }
         ++drawn;
     }
@@ -502,6 +556,19 @@ void AisUIRenderer::renderPlot(
         std::snprintf(buffer, sizeof(buffer), "RNG%.1f B%03.0f",
                       vessel.distance_nm >= 0.0f ? vessel.distance_nm : 0.0f,
                       vessel.bearing_deg);
+        drawSmallText(panel_x + 4, line_y, buffer, theme_.text);
+        line_y += 9;
+        if (vessel.cpa_nm >= 0.0f) {
+            if (vessel.tcpa_min >= 0.0f) {
+                std::snprintf(buffer, sizeof(buffer), "CPA%.1f T%.0fm",
+                              vessel.cpa_nm, vessel.tcpa_min);
+            } else {
+                std::snprintf(buffer, sizeof(buffer), "CPA%.1f T--",
+                              vessel.cpa_nm);
+            }
+        } else {
+            std::snprintf(buffer, sizeof(buffer), "CPA --");
+        }
         drawSmallText(panel_x + 4, line_y, buffer, theme_.text);
         line_y += 9;
         std::snprintf(buffer, sizeof(buffer), "AGE %lds", static_cast<long>(age));

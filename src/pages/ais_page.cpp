@@ -20,6 +20,7 @@ AisPage::~AisPage() {
 
 bool AisPage::init() {
     std::cout << "AisPage: Initializing..." << std::endl;
+    map_bg_.loadConfig();
     return true;
 }
 
@@ -75,6 +76,11 @@ void AisPage::onEnter() {
         [this](const ais::AisFrame& frame) { store_.apply(frame); });
     store_.clear();
     loadStation();
+    map_bg_.loadConfig();
+    if (store_.hasStation()) {
+        map_bg_.request(store_.stationLatitude(), store_.stationLongitude(),
+                        plot_range_nm_ * 1.852f);
+    }
 
     view_ = View::List;
     selected_index_ = 0;
@@ -160,6 +166,11 @@ void AisPage::update(float delta_time) {
         store_.setStation(gps_.latitude(), gps_.longitude(), true);
     }
 
+    if (store_.hasStation()) {
+        map_bg_.request(store_.stationLatitude(), store_.stationLongitude(),
+                        plot_range_nm_ * 1.852f);
+    }
+
     updateRate();
     render();
 }
@@ -216,7 +227,7 @@ void AisPage::render() {
         ui_.renderPlot(vessels, selected_index_, plot_range_nm_,
                        store_.hasStation(), store_.stationLatitude(),
                        store_.stationLongitude(), total, messages_per_second_,
-                       gain_tenths_, agc_);
+                       gain_tenths_, agc_, &map_bg_);
     } else {
         const auto entries = store_.logSnapshot();
         const int max_scroll = std::max(0, static_cast<int>(entries.size()) - 1);
