@@ -40,6 +40,40 @@ settings.*
 - Runs as the normal desktop user (no root) thanks to the librtlsdr udev rule
 - Optimized for Raspberry Pi Zero 2W / Pi 5 and the M5Stack Cardputer Zero
 
+## RFI equipment comparison (experimental)
+
+![RFI menu](images/rfi-menu.png)
+![RFI difference graph and waterfall](images/rfi-page.png)
+
+Select **RFI** from the `Tab` page menu. The receive survey presets are 10m
+(28.0–29.7 MHz), 20m (14.0–14.35 MHz), 40m (7.0–7.3 MHz), and 80m
+(3.5–4.0 MHz). These spans do not define regional transmit privileges.
+HF reception requires a suitable receiver and driver; the prototype was tuned
+with an RTL-SDR Blog V4.
+
+With the suspected equipment **on**, select a band with Left/Right and set
+manual gain with Up/Down. Press **Enter** (or B) and leave the equipment on
+until all eight baseline sweeps finish. Then switch the equipment off.
+The green spectrum is live; the yellow spectrum is the frozen reference.
+The waterfall shows changes: **cyan means less received power**, red means
+more. Each row represents a completed sweep, rather than a fixed time interval.
+**Space** switches the graph to a fixed ±20 dB difference scale. The median
+readout is the typical per-bin change across the band, not a calibrated noise
+figure or an identification of the interference source. Strong individual
+signals can be inspected on the graph. Levels are relative, not calibrated dBm.
+
+Band/gain changes, retry, and leaving/re-entering RFI clear the reference.
+`R` retries/reset acquisition; `H` opens help; `Fn+P` saves a screenshot.
+Keep the antenna/probe and its position unchanged during a comparison.
+No automatic equipment control or source classification is performed.
+
+Measurement checks can be run without SDR hardware:
+
+```sh
+c++ -std=c++17 -Iinclude tests/rfi_measurement_test.cpp src/fft_processor.cpp -o /tmp/rfi-test
+/tmp/rfi-test
+```
+
 ## Hardware
 
 - Raspberry Pi 5 / Pi Zero 2W / M5Stack Cardputer Zero (CM0, aarch64)

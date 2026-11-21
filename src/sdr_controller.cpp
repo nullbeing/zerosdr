@@ -255,3 +255,22 @@ void SDRController::captureLoop() {
     // drop URBs and produce an audible click every few seconds.
     rtlsdr_read_async(device, rtlsdr_callback, this, 32, 32768);
 }
+
+int SDRController::getGainTenths() const {
+    return device ? rtlsdr_get_tuner_gain(device) : 0;
+}
+
+std::vector<int> SDRController::getSupportedGainTenths() const {
+    if (!device) return {};
+    const int count = rtlsdr_get_tuner_gains(device, nullptr);
+    if (count <= 0) return {};
+    std::vector<int> gains(static_cast<size_t>(count));
+    if (rtlsdr_get_tuner_gains(device, gains.data()) != count) return {};
+    return gains;
+}
+
+bool SDRController::setGainTenths(int gain) {
+    if (!device || rtlsdr_set_tuner_gain(device, gain) < 0) return false;
+    current_gain = rtlsdr_get_tuner_gain(device) / 10;
+    return true;
+}
