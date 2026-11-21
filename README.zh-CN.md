@@ -8,10 +8,13 @@
 zeroSDR 是一个面向小屏幕嵌入式 Linux 的开源 SDR 接收程序。频谱和瀑布直接画进
 framebuffer，音频解调（FM / NFM / AM / USB / LSB）通过 ALSA 输出。
 
-![zeroSDR 界面](images/zerosdr.jpg)
+![ADSB 雷达、PFD 与设置](images/adsb-showcase.png)
+
+*ADSB 雷达地图与红色主题、Tab 菜单里的 RADAR 快捷入口、圆球 / 圆角方形 PFD，
+以及 `H` 设置里的地图源选择。*
 
 > **在 SDR 页面按 `H` 可以随时显示屏幕按键列表。**
-> 在列表页按 `→` 切到设置页（FM 去加重、音频 AGC、FFT 大小、采样率），
+> 在帮助浮层里按 `→` 切到设置页（FM 去加重、音频 AGC、FFT 大小、采样率），
 > 再按 `H` 关闭。
 
 | | |
@@ -19,25 +22,27 @@ framebuffer，音频解调（FM / NFM / AM / USB / LSB）通过 ALSA 输出。
 | ![宽带频谱页](images/spectrum-sweep.png) | ![SDR 页面](images/sdr-fm.png) |
 | 宽带频谱页：460–480 MHz 扫描 + 峰值保持 | SDR 页面：103.6 MHz FM 频谱与瀑布 |
 
-![ADSB 雷达、PFD 与设置](images/adsb-showcase.png)
-
-*ADSB 雷达地图与红色主题、Tab 菜单里的 RADAR 快捷入口、圆球 / 圆角方形 PFD，
-以及 `H` 设置里的地图源选择。*
-
 ## 功能
 
 - 320×170 framebuffer 上的实时频谱与瀑布
 - FM / NFM / AM / USB / LSB 解调，带静噪、音频 AGC、FM 去加重（50/75 µs）
 - 硬件 AGC / 手动增益、显示缩放、FFT 大小、采样率预设
-- 屏幕按键列表 + 设置页（`H`）
-- ADSB 飞机页面（readsb），含雷达/PFD 视图
-- 宽带扫描频谱页：自定义起止频率、平移缩放、峰值保持
-- 频谱与瀑布六种配色主题（`M`）
-- 任意页面都能用键盘调节系统音量（`Fn`+`D` / `Fn`+`S`）
-- 借助 librtlsdr 的 udev 规则，以普通用户运行，**不需要 root**
+- 屏幕按键列表与设置（`H`）；`Tab` 页面菜单带 RADAR 快捷入口
+- 宽带扫描频谱页：自定义起止、平移缩放、峰值保持、六种配色
+- ADSB 列表按距离排序；长按 `F` 回到顶部
+- ADSB 雷达：Esri / 高德 / OSM 地图（高德/OSM 默认暗色）、罗盘航向朝上、
+  `R` / `T` 缩放、红色科技主题（`M`）
+- ADSB 详情 PFD：圆球 / 圆角方形（`M`）、俯仰梯、坡度指针、
+  速度/高度带、音频变音器
+- 任意页面调节系统音量（`Fn`+`D` / `Fn`+`S`）
+- 通过 librtlsdr udev 规则以普通用户运行（不需要 root）
 - 针对 Raspberry Pi Zero 2W / Pi 5 与 M5Stack Cardputer Zero 优化
 
 ## 硬件要求
+
+![Cardputer Zero](images/zerosdr.jpg)
+
+*运行 zeroSDR 的 Cardputer Zero（M5Stack CM0）。*
 
 - Raspberry Pi 5 / Pi Zero 2W / M5Stack Cardputer Zero（CM0，aarch64）
 - RTL-SDR 电视棒（已验证：RTL-SDR Blog V4，RTL2832U）
@@ -89,153 +94,33 @@ sudo apt update && sudo apt install zerosdr
 
 ## Cardputer Zero 手动部署
 
-APPLaunch 以桌面用户 `pi` 启动应用，`Exec` / `Icon` 按 `/usr/share/APPLaunch`
-为根解析。最终目录：
-
-```text
-/usr/share/APPLaunch/
-├── applications/zerosdr.desktop
-├── bin/zerosdr                 # 主程序
-├── bin/run-zerosdr             # wrapper：屏幕 / 键盘 / 音频准备
-└── share/images/zerosdr.png    # 图标
-```
-
-### 1. 在设备上构建（推荐）
+推荐直接安装 AppStore / `.deb` 包。手动安装时用 Release 构建，然后复制程序、
+wrapper 和启动文件：
 
 ```bash
-sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libpulse-dev libfreetype-dev nlohmann-json3-dev curl
-cd ~/zerosdr
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
-file build/zerosdr        # 应显示 ARM aarch64
-```
-
-### 2. 安装主程序
-
-```bash
-sudo install -d /usr/share/APPLaunch/bin
-sudo install -m 755 build/zerosdr /usr/share/APPLaunch/bin/zerosdr
-```
-
-### 3. 安装启动 wrapper
-
-APPLaunch 的 `Terminal=false` 模式不经过 shell，所以 `-d /dev/fb_lcd` 这类参数
-不能直接写在 `Exec` 里。wrapper 还负责复用用户的 PipeWire 会话，并把 ES8389
-DAC 固定在 -6 dB（0 dB 会周期性断音）。
-
-```bash
-sudo tee /usr/share/APPLaunch/bin/run-zerosdr >/dev/null <<'EOF'
-#!/bin/sh
-set -eu
-
-# APPLaunch 在用户会话里启动应用；复用其 PipeWire runtime。
-if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
-    for d in /run/user/*; do
-        if [ -S "$d/pipewire-0" ]; then
-            XDG_RUNTIME_DIR="$d"
-            break
-        fi
-    done
-fi
-if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
-    export XDG_RUNTIME_DIR
-    export PIPEWIRE_RUNTIME_DIR="$XDG_RUNTIME_DIR"
-fi
-
-# 128 帧 quantum 在 CM0 上会产生周期性 xrun。
-if command -v pw-metadata >/dev/null 2>&1; then
-    pw-metadata -n settings 0 clock.force-quantum 1024 >/dev/null 2>&1 || true
-fi
-
-# ES8389 功放在 0 dB 会断音；179 = -6 dB。
-amixer -c 1 cset name='DACL Playback Volume' 179 >/dev/null 2>&1 || true
-amixer -c 1 cset name='DACR Playback Volume' 179 >/dev/null 2>&1 || true
-
-# LCD framebuffer。
-if [ -n "${LV_LINUX_FBDEV_DEVICE:-}" ]; then
-    FB="$LV_LINUX_FBDEV_DEVICE"
-elif [ -e /dev/fb_lcd ]; then
-    FB=/dev/fb_lcd
-else
-    FB=/dev/fb0
-fi
-
-# TCA8418 键盘。
-KBD=/dev/input/by-path/platform-3f804000.i2c-event
-
-set -- -d "$FB" "$@"
-if [ -e "$KBD" ]; then
-    set -- "$@" -k "$KBD"
-fi
-
-exec /usr/share/APPLaunch/bin/zerosdr "$@"
-EOF
-sudo chmod 755 /usr/share/APPLaunch/bin/run-zerosdr
-```
-
-### 4. 安装桌面入口
-
-```bash
-sudo install -d /usr/share/APPLaunch/applications
-sudo tee /usr/share/APPLaunch/applications/zerosdr.desktop >/dev/null <<'EOF'
-[Desktop Entry]
-Name=zeroSDR
-Comment=Lightweight SDR receiver
-Exec=bin/run-zerosdr
-Terminal=false
-Icon=share/images/zerosdr.png
-Type=Application
-EOF
-```
-
-### 5. 安装图标
-
-```bash
-sudo install -d /usr/share/APPLaunch/share/images
-sudo install -m 644 share/images/zerosdr.png \
+sudo install -Dm755 build/zerosdr /usr/share/APPLaunch/bin/zerosdr
+sudo install -Dm755 share/bin/run-zerosdr /usr/share/APPLaunch/bin/run-zerosdr
+sudo install -Dm644 share/APPLaunch/applications/zerosdr.desktop \
+    /usr/share/APPLaunch/applications/zerosdr.desktop
+sudo install -Dm644 share/images/zerosdr.png \
     /usr/share/APPLaunch/share/images/zerosdr.png
-```
-
-### 6. 权限（不需要 root）
-
-librtlsdr 自带 `/lib/udev/rules.d/60-librtlsdr0.rules`，会把电视棒设成
-`root:plugdev 0660`。确认 `pi` 在 `plugdev`（以及 `video` / `audio` / `input`），
-然后重新插拔电视棒：
-
-```bash
-groups pi
-ls -l /dev/bus/usb/*/*        # RTL-SDR 节点应为 root plugdev
-lsusb | grep -i 0bda
-```
-
-### 7. 重启 APPLaunch 并验证
-
-```bash
-export XDG_RUNTIME_DIR=/run/user/1000
-export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
 systemctl --user restart APPLaunch.service
 ```
 
-从启动器打开 **zeroSDR**，依次确认：
+`run-zerosdr` 会选择 LCD framebuffer 和键盘，复用 APPLaunch 的 PipeWire
+会话，并把 ES8389 DAC 保持在 -6 dB。运行只需要标准的 librtlsdr udev 规则，
+不需要 root；新系统上请先安装该规则，或把用户加入 `plugdev`。
 
-1. 频谱 / 瀑布在动
-2. **按 `H` 出现按键列表，按 `→` 进入设置页**
-3. 有声音（调到已知电台）
-4. `Tab` 打开页面菜单，用方向键选择、`Enter` 进入；长按 `Esc` 回到启动器
+完整部署与恢复说明见 [cardputerzero.md](cardputerzero.md)；构建与打包见
+[BUILD.md](BUILD.md)。
 
-日志：
+构建安装包：
 
 ```bash
-journalctl --user -u APPLaunch.service -f
-```
-
-正常应包含：
-
-```text
-Framebuffer initialized: 320x170
-Keyboard map: Cardputer Zero (tca8418c)
-RTL-SDR device initialized
-Audio output initialized: 48000 Hz, 1 channel(s)
+dpkg-buildpackage -us -uc -b
+sudo dpkg -i ../zerosdr_*.deb
 ```
 
 ### 卸载
@@ -248,20 +133,6 @@ sudo rm -f /usr/share/APPLaunch/bin/zerosdr \
 systemctl --user restart APPLaunch.service
 ```
 
-### `.deb` 方式
-
-```bash
-dpkg-buildpackage -us -uc -b
-sudo dpkg -i ../zerosdr_*.deb
-```
-
-包内安装 `usr/bin/zerosdr` 和 `/usr/share/APPLaunch/` 下的入口、主程序与图标；
-**不会**安装系统级 `/usr/share/applications` 入口（AppStore 的路径规则只允许
-`usr/share/<包名>/**` 和 `usr/share/APPLaunch/**`），也不会生成 `-dbgsym` 包。
-
-更详细的 Cardputer Zero 说明（音频、ADSB/readsb、依赖包风险、恢复步骤）见
-[cardputerzero.md](cardputerzero.md)。
-
 ## 首次启动
 
 第一次运行会显示一个简短引导（之后可从 `H` → 设置 → `SHOW GUIDE` 重新打开）：
@@ -269,6 +140,7 @@ sudo dpkg -i ../zerosdr_*.deb
 - `H` 打开按键列表与设置
 - `Tab` 打开页面菜单，选择 SDR、频谱、ADSB；第二行的 RADAR 快捷入口直接进入 ADSB 雷达视图
 - `Enter` 在 ADSB 的 雷达 → 详情 → 列表 之间循环
+- `M` 切换 SDR / 雷达配色主题
 - 观测点位置：可以手动输入，也可以在检测到 GPS 时自动读取（gpsd 或串口
   NMEA）。手动输入会一直覆盖 GPS，直到在设置里清除位置。编辑器支持负数
   （南纬/西经）：按 `SYM`+`R` 输入减号，再按一次则去掉负号。
@@ -357,26 +229,9 @@ TCA8418 键盘会自动识别（`tca8418c`）。`F`/`Z`/`X`/`C` 直接作为方�
 修改采样率时，显示跨度会自动切到"新带宽能填满的最大档"（1.2 M → 1.0 M，
 2.048 M → 2.0 M），避免出现"跨度大于采样率、按 `Y` 看起来没反应"的情况。
 
-所有设置统一保存在：
-
-```text
-~/.config/zerosdr/config.json
-```
-
-```json
-{
-  "system":   { "guide_show": false },
-  "sdr":      { "deemphasis_us": 50, "audio_agc": true,
-                "fft_size": 512, "sample_rate": 1024000, "theme": 0 },
-  "spectrum": { "configured": true,
-                "start_hz": 88000000, "stop_hz": 108000000 },
-  "adsb":     { "observer_latitude": 23.1211,
-                "observer_longitude": 113.236, "manual_override": true }
-}
-```
-
-旧的 `sdr_settings.json`、`spectrum_range.txt`、`adsb_config.json` 和
-`guide.json` 会在首次启动时自动导入一次，之后不再更新。
+所有设置都在 `~/.config/zerosdr/config.json`。旧的
+`sdr_settings.json`、`spectrum_range.txt`、`adsb_config.json` 和
+`guide.json` 只会在首次启动时导入一次，之后不再更新。
 
 ## 解调带宽预设
 
@@ -392,7 +247,7 @@ TCA8418 键盘会自动识别（`tca8418c`）。`F`/`Z`/`X`/`C` 直接作为方�
 
 ## ADSB 页面
 
-按 `Tab` 打开页面菜单，可切换到 SDR 页面、宽带频谱页和 ADSB 飞机列表。列表页按键：
+按 `Tab` 打开页面菜单（SDR、频谱、ADSB，以及 RADAR 快捷入口）。ADSB 列表按键：
 
 | 按键 | 功能 |
 |---|---|
@@ -409,19 +264,20 @@ TCA8418 键盘会自动识别（`tca8418c`）。`F`/`Z`/`X`/`C` 直接作为方�
 | `R` / `T` | 雷达圈缩小 / 放大（雷达视图） |
 | `Tab` | 页面菜单 |
 
-雷达左侧列表显示 `ICAO` / 高度 / 距离，与主列表一样按距离由近到远排序，选中飞机的呼号以大字显示在左侧栏底部的
+列表按距离由近到远排序，没有解出位置的飞机排在最后。雷达左侧列表显示
+`ICAO` / 高度 / 距离，选中飞机的呼号以大字显示在左侧栏底部的
 暗色通栏条带上（没有呼号时显示 ICAO）。呼号以及 ADSB 的状态栏/详情文字使用抗锯齿
 TrueType 字体渲染。
 
 详情页左侧是占满高度的像素风格 PFD（200 px），右侧是 120 px 的飞机文字栏。
 没有外框，也没有底部状态栏。大号圆形姿态球占据左侧区域，天空/地面渐变，地平线
-随估计的坡度旋转，带俯仰梯和坡度指针；速度/高度刻度在球体两侧，航向带在底部。速度和高度不用外框，直接在
-面板上用琥珀色七段
-数码管显示；高度读数保留前导零，最后两位是独立滚轮（个位每 1 ft 滚动，十位只在
-9→0 进位时转动），每次变化只滚一下，爬升向上、下降向下。详情页还有音频变音器：
-只在高度数字滚动时发出密集的短促点声（每次新数据对应一小段点声），升降越快越密，
-爬升时音调升高、下降时音调降低。呼号只在右侧文字栏的 `Call:` 显示，
-只出现在列表和雷达页。俯仰角由升降率和地速推算，坡度由航向变化率估算。
+随估计的坡度旋转，带俯仰梯和坡度指针；速度/高度刻度在球体两侧，航向带在底部。
+速度和高度不用外框，直接在面板上用琥珀色七段数码管显示；高度读数保留前导零，
+最后两位是独立滚轮（个位每 1 ft 滚动，十位只在 9→0 进位时转动），每次变化只滚
+一下，爬升向上、下降向下。详情页还有音频变音器：只在高度数字滚动时发出密集的
+短促点声（每次新数据对应一小段点声），升降越快越密，爬升时音调升高、下降时音调
+降低。呼号只在右侧文字栏的 `Call:` 显示，仪表内不重复。
+俯仰角由升降率和地速推算，坡度由航向变化率估算。
 
 ### 罗盘（BMI270 + BMM150）
 
@@ -468,25 +324,12 @@ TrueType 字体渲染。
 |---|---|
 | `esri_dark` | 默认。无需 key，无标签，显示海岸线/河流/陆地。 |
 | `esri_imagery` | 卫星影像。无需 key，但细节较杂。 |
-| `osm` | OSM 标准瓦片，颜色和标签较多。 |
+| `osm` | OSM 标准瓦片，默认显示为 `OSM DARK`。 |
 | `amap` | 高德瓦片，WGS-84 会转换为 GCJ-02。 |
 | `carto_dark_nolabels` | CARTO 现在对无 key 请求加 “API KEY REQUIRED” 水印，仅建议配合带 key 的自定义 URL。 |
 | `custom` | 使用 `map.url_template`，支持 `{z}`、`{x}`、`{y}`。 |
 
-```json
-"map": {
-  "enabled": true,
-  "provider": "esri_dark",
-  "url_template": "",
-  "attribution": "",
-  "proxy": "",
-  "dim": 0.90,
-  "cache_hours": 168,
-  "full_screen": true
-}
-```
-
-- `L` 打开 ADSB 设置菜单，在 `Map source` 上按 Enter 会循环
+- `L`（或 `H` → 设置）里可以切换地图源；在 `Map source` 上按 Enter 会循环
   `ESRI DARK -> AMAP -> OSM -> ESRI DARK`，并立即保存
 - 默认下载 5×5 张瓦片，裁成以观测点为中心的 1024×1024 图块，足够铺满整个屏幕；
   设 `full_screen=false` 则回到 3×3 / 512×512、只画在雷达圆内的旧模式。图块缓存到

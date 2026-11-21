@@ -9,7 +9,11 @@ zeroSDR is an open source SDR receiver for Linux-based small-screen embedded
 systems. It renders the spectrum and waterfall straight into the framebuffer
 and demodulates FM / NFM / AM / USB / LSB audio through ALSA.
 
-![zeroSDR Interface](images/zerosdr.jpg)
+![ADSB radar, PFD and settings](images/adsb-showcase.png)
+
+*ADSB radar with a map and the red tech theme, the RADAR shortcut in the
+page menu, the round / rounded-square PFD and the map source in the `H`
+settings.*
 
 > **Press `H` on the SDR page to show the on-screen key list.**
 > Press `→` there to switch to the settings tab (FM de-emphasis, audio AGC,
@@ -20,27 +24,30 @@ and demodulates FM / NFM / AM / USB / LSB audio through ALSA.
 | ![Wideband spectrum page](images/spectrum-sweep.png) | ![SDR page](images/sdr-fm.png) |
 | Wideband spectrum page: 460–480 MHz sweep with max hold | SDR page: 103.6 MHz FM with spectrum and waterfall |
 
-![ADSB radar, PFD and settings](images/adsb-showcase.png)
-
-*ADSB radar with a map and the red tech theme, the RADAR shortcut in the
-page menu, the round / rounded-square PFD and the map source in the `H`
-settings.*
-
 ## Features
 
 - Real-time spectrum and waterfall on a 320x170 framebuffer
 - FM / NFM / AM / USB / LSB demodulation with squelch, audio AGC and
   FM de-emphasis (50/75 µs)
-- Hardware AGC and manual gain, display zoom, FFT size and sample-rate presets
-- On-screen key reference and settings panel (`H`)
-- ADSB aircraft page (readsb) with radar/PFD view
-- Wideband swept spectrum page with a custom start/stop range, pan and zoom
-- Six colour themes for the spectrum and waterfall (`M`)
-- System volume from the keyboard on every page (`Fn`+`D` / `Fn`+`S`)
-- Runs as the normal desktop user (no root) thanks to the librtlsdr udev rule
+- Hardware AGC / manual gain, display zoom, FFT size and sample-rate presets
+- On-screen key reference and settings (`H`); `Tab` page menu with a RADAR
+  shortcut
+- Wideband swept spectrum page: custom start/stop, pan/zoom, max hold and six
+  colour themes
+- ADSB list sorted by distance; holding `F` jumps back to the top
+- ADSB radar with Esri / AMap / OSM map backgrounds (dark AMap/OSM), gyro
+  heading-up, `R` / `T` zoom and a red tech theme (`M`)
+- ADSB detail PFD: round or rounded-square attitude ball (`M`), pitch ladder,
+  bank pointer, speed/altitude tapes and an audio variometer
+- System volume from every page (`Fn`+`D` / `Fn`+`S`)
+- Runs as the normal desktop user (no root) via the librtlsdr udev rule
 - Optimized for Raspberry Pi Zero 2W / Pi 5 and the M5Stack Cardputer Zero
 
 ## Hardware
+
+![Cardputer Zero](images/zerosdr.jpg)
+
+*Cardputer Zero (M5Stack CM0) running zeroSDR.*
 
 - Raspberry Pi 5 / Pi Zero 2W / M5Stack Cardputer Zero (CM0, aarch64)
 - RTL-SDR dongle (tested: RTL-SDR Blog V4, RTL2832U)
@@ -94,154 +101,34 @@ with the RTL-SDR backend, so nothing else needs to be set up.
 
 ## Manual deployment on Cardputer Zero
 
-APPLaunch launches apps as the desktop user `pi` and resolves `Exec` / `Icon`
-relative to `/usr/share/APPLaunch`. The final layout is:
-
-```text
-/usr/share/APPLaunch/
-├── applications/zerosdr.desktop
-├── bin/zerosdr                 # binary
-├── bin/run-zerosdr             # wrapper: display / keyboard / audio setup
-└── share/images/zerosdr.png    # icon
-```
-
-### 1. Build (on the device, recommended)
+The AppStore / `.deb` package is the recommended path. For a manual install,
+build with `Release`, then copy the binary, wrapper and launcher files:
 
 ```bash
-sudo apt-get install -y build-essential cmake librtlsdr-dev libasound2-dev libpulse-dev libfreetype-dev nlohmann-json3-dev curl
-cd ~/zerosdr
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
-file build/zerosdr        # should report: ARM aarch64
-```
-
-### 2. Install the binary
-
-```bash
-sudo install -d /usr/share/APPLaunch/bin
-sudo install -m 755 build/zerosdr /usr/share/APPLaunch/bin/zerosdr
-```
-
-### 3. Install the launcher wrapper
-
-APPLaunch's `Terminal=false` mode does not run a shell, so `-d /dev/fb_lcd`
-cannot be put in `Exec`. The wrapper also reuses the user's PipeWire session
-and keeps the ES8389 DAC at -6 dB (0 dB causes dropouts on this hardware).
-
-```bash
-sudo tee /usr/share/APPLaunch/bin/run-zerosdr >/dev/null <<'EOF'
-#!/bin/sh
-set -eu
-
-# APPLaunch starts apps in the user session; reuse its PipeWire runtime.
-if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
-    for d in /run/user/*; do
-        if [ -S "$d/pipewire-0" ]; then
-            XDG_RUNTIME_DIR="$d"
-            break
-        fi
-    done
-fi
-if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
-    export XDG_RUNTIME_DIR
-    export PIPEWIRE_RUNTIME_DIR="$XDG_RUNTIME_DIR"
-fi
-
-# 128-frame quantum causes periodic xruns on the CM0.
-if command -v pw-metadata >/dev/null 2>&1; then
-    pw-metadata -n settings 0 clock.force-quantum 1024 >/dev/null 2>&1 || true
-fi
-
-# ES8389 speaker amp drops out at 0 dB; 179 = -6 dB.
-amixer -c 1 cset name='DACL Playback Volume' 179 >/dev/null 2>&1 || true
-amixer -c 1 cset name='DACR Playback Volume' 179 >/dev/null 2>&1 || true
-
-# LCD framebuffer.
-if [ -n "${LV_LINUX_FBDEV_DEVICE:-}" ]; then
-    FB="$LV_LINUX_FBDEV_DEVICE"
-elif [ -e /dev/fb_lcd ]; then
-    FB=/dev/fb_lcd
-else
-    FB=/dev/fb0
-fi
-
-# TCA8418 keyboard.
-KBD=/dev/input/by-path/platform-3f804000.i2c-event
-
-set -- -d "$FB" "$@"
-if [ -e "$KBD" ]; then
-    set -- "$@" -k "$KBD"
-fi
-
-exec /usr/share/APPLaunch/bin/zerosdr "$@"
-EOF
-sudo chmod 755 /usr/share/APPLaunch/bin/run-zerosdr
-```
-
-### 4. Install the desktop entry
-
-```bash
-sudo install -d /usr/share/APPLaunch/applications
-sudo tee /usr/share/APPLaunch/applications/zerosdr.desktop >/dev/null <<'EOF'
-[Desktop Entry]
-Name=zeroSDR
-Comment=Lightweight SDR receiver
-Exec=bin/run-zerosdr
-Terminal=false
-Icon=share/images/zerosdr.png
-Type=Application
-EOF
-```
-
-### 5. Install the icon
-
-```bash
-sudo install -d /usr/share/APPLaunch/share/images
-sudo install -m 644 share/images/zerosdr.png \
+sudo install -Dm755 build/zerosdr /usr/share/APPLaunch/bin/zerosdr
+sudo install -Dm755 share/bin/run-zerosdr /usr/share/APPLaunch/bin/run-zerosdr
+sudo install -Dm644 share/APPLaunch/applications/zerosdr.desktop \
+    /usr/share/APPLaunch/applications/zerosdr.desktop
+sudo install -Dm644 share/images/zerosdr.png \
     /usr/share/APPLaunch/share/images/zerosdr.png
-```
-
-### 6. Permissions (no root needed)
-
-librtlsdr ships `/lib/udev/rules.d/60-librtlsdr0.rules`, which sets the dongle
-to `root:plugdev 0660`. Make sure `pi` is in `plugdev` (and in `video` /
-`audio` / `input`) and re-plug the dongle:
-
-```bash
-groups pi
-ls -l /dev/bus/usb/*/*        # the RTL-SDR node should be root plugdev
-lsusb | grep -i 0bda
-```
-
-### 7. Restart APPLaunch and verify
-
-```bash
-export XDG_RUNTIME_DIR=/run/user/1000
-export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
 systemctl --user restart APPLaunch.service
 ```
 
-Open **zeroSDR** from the launcher, then check:
+`run-zerosdr` selects the LCD framebuffer and keyboard, reuses APPLaunch's
+PipeWire session and keeps the ES8389 DAC at -6 dB. Runtime needs only the
+standard librtlsdr udev rule (no root); on a fresh system install that rule or
+add your user to `plugdev`.
 
-1. the spectrum/waterfall is moving,
-2. **press `H` — the key list appears; press `→` for settings**,
-3. audio is audible (tune to a known station),
-4. `Tab` opens the page menu; pick ADSB with the arrows and `Enter`; hold
-   `Esc` for 2 s to return to the launcher.
+Full walkthrough and recovery notes: [cardputerzero.md](cardputerzero.md) (Chinese).
+Build/package details: [BUILD.md](BUILD.md).
 
-Logs:
+To build the package instead:
 
 ```bash
-journalctl --user -u APPLaunch.service -f
-```
-
-Expected lines:
-
-```text
-Framebuffer initialized: 320x170
-Keyboard map: Cardputer Zero (tca8418c)
-RTL-SDR device initialized
-Audio output initialized: 48000 Hz, 1 channel(s)
+dpkg-buildpackage -us -uc -b
+sudo dpkg -i ../zerosdr_*.deb
 ```
 
 ### Uninstall
@@ -254,30 +141,15 @@ sudo rm -f /usr/share/APPLaunch/bin/zerosdr \
 systemctl --user restart APPLaunch.service
 ```
 
-### `.deb` alternative
-
-```bash
-dpkg-buildpackage -us -uc -b
-sudo dpkg -i ../zerosdr_*.deb
-```
-
-The package installs `usr/bin/zerosdr` plus the APPLaunch entry, binary and
-icon under `/usr/share/APPLaunch/`. It deliberately does **not** install a
-system `/usr/share/applications` entry (the AppStore path policy only allows
-`usr/share/<package>/**` and `usr/share/APPLaunch/**`), and no `-dbgsym`
-package is generated.
-
-For a much more detailed Cardputer Zero walkthrough (audio, ADSB/readsb,
-package pitfalls, recovery steps) see [cardputerzero.md](cardputerzero.md).
-
 ## First run
 
 On the first start zeroSDR shows a short guide (reopen it from
 `H` → settings → `SHOW GUIDE`):
 
 - `H` opens the key list and settings
-- `Tab` opens the page menu for the SDR, Spectrum and ADSB pages
+- `Tab` opens the page menu (SDR, Spectrum, ADSB and a RADAR shortcut)
 - `Enter` cycles the ADSB views (radar → detail → list)
+- `M` toggles the SDR / radar colour theme
 - Observer position: entered by hand, or read from a GPS when one is present
   (gpsd or a serial NMEA device). A manual entry overrides GPS until the
   position is cleared. The editor accepts negative values (southern/western
@@ -370,47 +242,9 @@ Changing the sample rate resets the display span to the widest level that fits
 the new band (1.2 M → 1.0 M, 2.048 M → 2.0 M), so `Y` never appears to do
 nothing because the stored span was wider than the captured bandwidth.
 
-All settings live in one file:
-
-```text
-~/.config/zerosdr/config.json
-```
-
-```json
-{
-  "system": {
-    "guide_show": false
-  },
-  "sdr": {
-    "deemphasis_us": 50,
-    "audio_agc": true,
-    "fft_size": 512,
-    "sample_rate": 1024000,
-    "theme": 0
-  },
-  "spectrum": {
-    "configured": true,
-    "start_hz": 88000000,
-    "stop_hz": 108000000
-  },
-  "adsb": {
-    "observer_latitude": 23.1211,
-    "observer_longitude": 113.236,
-    "manual_override": true
-  },
-  "map": {
-    "enabled": true,
-    "provider": "esri_dark",
-    "proxy": "",
-    "dim": 0.90,
-    "cache_hours": 168,
-    "full_screen": true
-  }
-}
-```
-
-The older `sdr_settings.json`, `spectrum_range.txt`, `adsb_config.json` and
-`guide.json` are imported once on first start and are no longer updated.
+All settings live in `~/.config/zerosdr/config.json`. The older
+`sdr_settings.json`, `spectrum_range.txt`, `adsb_config.json` and `guide.json`
+are imported once on first start and are no longer updated.
 
 ### Radar map background
 
@@ -426,26 +260,14 @@ API key. Other values for `map.provider`:
 |---|---|
 | `esri_dark` | Default. No key, no labels, coastlines/rivers/land. |
 | `esri_imagery` | Satellite imagery. No key, but noisier. |
-| `osm` | Standard OSM tiles. Colourful and labelled. |
+| `osm` | Standard OSM tiles; shown as `OSM DARK` by default. |
 | `amap` | Gaode web tiles. WGS-84 is converted to GCJ-02. |
 | `carto_dark_nolabels` | CARTO now watermarks keyless tiles; use only with a keyed custom URL. |
 | `custom` | Uses `map.url_template` with `{z}`, `{x}`, `{y}`. |
 
-```json
-"map": {
-  "enabled": true,
-  "provider": "esri_dark",
-  "url_template": "",
-  "attribution": "",
-  "proxy": "",
-  "dim": 0.90,
-  "cache_hours": 168,
-  "full_screen": true
-}
-```
-
-- `L` opens the ADSB settings menu; Enter on `Map source` cycles
-  `ESRI DARK -> AMAP -> OSM -> ESRI DARK` and saves the choice immediately.
+- `L` (or `H` → settings) opens the map source row; Enter on `Map source`
+  cycles `ESRI DARK -> AMAP -> OSM -> ESRI DARK` and saves the choice
+  immediately.
 - By default a 5×5 tile grid is downloaded and cropped to a 1024×1024 patch
   centred on the observer, enough to fill the whole screen. Set
   `full_screen=false` for the older 3×3 / 512×512 patch clipped to the scope
@@ -483,8 +305,8 @@ the current sample rate can fill.
 
 ## ADSB page
 
-`Tab` opens the page menu for the SDR page, the wideband spectrum page and the
-ADSB aircraft list. In the list:
+`Tab` opens the page menu (SDR, Spectrum, ADSB and a RADAR shortcut). In the
+ADSB list:
 
 | Key | Action |
 |-----|--------|
@@ -501,10 +323,10 @@ ADSB aircraft list. In the list:
 | `R` / `T` | Zoom the radar scope out / in (radar view) |
 | `Tab` | Page menu |
 
-The radar's left panel lists `ICAO` / altitude / distance and shares the
-list view's order (nearest target first), with the selected aircraft's
-callsign shown in large text on a dim strip that spans the full width of the
-panel. The callsign and the ADSB status/detail text are rendered
+The list is sorted by distance, nearest first; aircraft without a decoded
+position go last. The radar's left panel lists `ICAO` / altitude / distance,
+with the selected aircraft's callsign shown in large text on a dim strip that
+spans the full width of the panel. The callsign and the ADSB status/detail text are rendered
 with an anti-aliased TrueType font.
 
 The detail view has a full-height pixel-style PFD on the left (200 px) and
@@ -519,8 +341,9 @@ carry); each change is a single roll, up for a climb and down for a descent.
 The detail view also has an audio variometer: dense short dots play only
 while the altitude digits are rolling (each new sample gives one short
 burst), with the spacing tightening as the climb/descent rate grows, and a
-rising pitch for a climb and a falling pitch for a descent. The callsign/ICAO/position text is only in the list and radar views.
-Pitch is derived from vertical rate and ground speed;
+rising pitch for a climb and a falling pitch for a descent. The callsign is
+not repeated inside the PFD; the right-hand text column keeps `Call:` together
+with the ICAO/position data. Pitch is derived from vertical rate and ground speed;
 bank is estimated from the track change rate.
 
 ### Compass (BMI270 + BMM150)
