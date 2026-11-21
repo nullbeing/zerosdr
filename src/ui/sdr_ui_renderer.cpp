@@ -195,20 +195,20 @@ void SDRUIRenderer::renderStatusBar(uint32_t freq, uint32_t span, int gain, cons
     // 3. Tuning step (just after demod mode, dim if Auto)
     if (step_label != nullptr) {
         uint16_t step_color = (step_label[0] == 'A') ? COLOR_TEXT_DIM : COLOR_TEXT_BRIGHT;
-        drawText(85, STATUSBAR_Y + 3, step_label, step_color);
+        drawText(74, STATUSBAR_Y + 3, step_label, step_color);
     }
 
     // 4. AGC/Gain (right of step)
     char gain_str[16];
     if (agc_enabled) {
         snprintf(gain_str, sizeof(gain_str), "AGC");
-        drawTextBg(120, STATUSBAR_Y + 3, gain_str, COLOR_BLACK, COLOR_WHITE);
+        drawTextBg(104, STATUSBAR_Y + 3, gain_str, COLOR_BLACK, COLOR_WHITE);
     } else if (gain >= 0) {
         snprintf(gain_str, sizeof(gain_str), "+%ddB", gain / 10);
-        drawTextBg(120, STATUSBAR_Y + 3, gain_str, COLOR_BLACK, COLOR_WHITE);
+        drawTextBg(104, STATUSBAR_Y + 3, gain_str, COLOR_BLACK, COLOR_WHITE);
     } else {
         snprintf(gain_str, sizeof(gain_str), "AUTO");
-        drawText(120, STATUSBAR_Y + 3, gain_str, COLOR_TEXT_DIM);
+        drawText(104, STATUSBAR_Y + 3, gain_str, COLOR_TEXT_DIM);
     }
 
     // 4. Span (center, dim)
