@@ -338,7 +338,7 @@ codes, and plain letters are used for the SDR controls.
 
 | Key | Action |
 |-----|--------|
-| `←` `→` | Tune (Alt = coarse) |
+| `←` `→` | Tune (Alt = coarse); hold to repeat and accelerate |
 | `Alt`+`Z`/`C` | Coarse tune (step × 10) |
 | `↑` `↓` | Gain |
 | `D` | Demodulation mode |

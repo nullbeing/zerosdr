@@ -201,6 +201,30 @@ void SDRPage::onExit() {
 }
 
 void SDRPage::update(float delta_time) {
+    // Left/right tuning: hold to keep stepping. The initial press has
+    // already tuned once; after a short delay repeat the same step, then
+    // accelerate. A key release (getHoldDuration() == 0) ends the repeat.
+    if (held_tune_key_ != APPKEY_NONE) {
+        if (help_visible_ || freq_input_len_ > 0) {
+            held_tune_key_ = APPKEY_NONE;
+            tune_repeat_accum_ = 0.0f;
+        } else {
+            const int hold_ms = input_.getHoldDuration(held_tune_key_);
+            if (hold_ms <= 0) {
+                held_tune_key_ = APPKEY_NONE;
+                tune_repeat_accum_ = 0.0f;
+            } else if (hold_ms >= 400) {
+                tune_repeat_accum_ += delta_time;
+                const float interval = (hold_ms >= 1200) ? 0.04f : 0.08f;
+                int guard = 0;
+                while (tune_repeat_accum_ >= interval && guard++ < 8) {
+                    tune_repeat_accum_ -= interval;
+                    handleNavigationKeys(held_tune_key_);
+                }
+            }
+        }
+    }
+
     // Keep the displayed value in step with the system sink (it may also
     // change from the launcher while another page is active).
     volume_poll_accum_ += delta_time;
@@ -325,6 +349,11 @@ bool SDRPage::handleInput(AppKeyCode key) {
         key == APPKEY_LEFT_COARSE || key == APPKEY_RIGHT_COARSE ||
         key == APPKEY_UP || key == APPKEY_DOWN) {
         handleNavigationKeys(key);
+        if (key == APPKEY_LEFT || key == APPKEY_RIGHT ||
+            key == APPKEY_LEFT_COARSE || key == APPKEY_RIGHT_COARSE) {
+            held_tune_key_ = key;
+            tune_repeat_accum_ = 0.0f;
+        }
         return true;
     }
     if (key == APPKEY_V || key == APPKEY_C || key == APPKEY_S ||

@@ -119,6 +119,12 @@ private:
     // Spectrum/waterfall colour theme (M key).
     int theme_index_ = 0;
 
+    // Software hold-repeat for left/right tuning: the Cardputer keyboard
+    // does not emit kernel auto-repeat events, so the page repeats the step
+    // itself while the key is held.
+    AppKeyCode held_tune_key_ = APPKEY_NONE;
+    float tune_repeat_accum_ = 0.0f;
+
     // The main loop applies the volume keys through the shared system volume;
     // the page only mirrors the resulting sink volume in its status bar.
     bool system_volume_ok_ = false;
