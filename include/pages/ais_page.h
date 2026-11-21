@@ -32,12 +32,13 @@ public:
     const char* getDescription() const override { return "AIS Vessel Tracker"; }
 
 private:
-    enum class View { List, Plot, Console };
+    enum class View { List, Plot, Dossier, Console };
 
     void startDecodeThread();
     void stopDecodeThread();
     void loadStation();
     void selectTarget(int direction);
+    void selectTargetAny(int direction);
     void render();
     void updateRate();
 

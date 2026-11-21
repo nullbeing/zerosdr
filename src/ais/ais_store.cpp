@@ -74,11 +74,26 @@ void AisStore::apply(const AisFrame& frame) {
     if (!message.callsign.empty()) vessel.callsign = trim(message.callsign);
     if (!message.destination.empty()) vessel.destination = trim(message.destination);
     if (message.ship_type >= 0) vessel.ship_type = message.ship_type;
+    if (message.imo != 0) vessel.imo = message.imo;
+    if (message.epfd >= 0) vessel.epfd = message.epfd;
+    if (message.to_bow >= 0) vessel.to_bow = message.to_bow;
+    if (message.to_stern >= 0) vessel.to_stern = message.to_stern;
+    if (message.to_port >= 0) vessel.to_port = message.to_port;
+    if (message.to_starboard >= 0) vessel.to_starboard = message.to_starboard;
+    if (message.draught > 0.0f) vessel.draught = message.draught;
+    if (message.eta_month != 0 || message.eta_day != 0 ||
+        message.eta_hour != 0 || message.eta_minute != 0) {
+        vessel.eta_month = message.eta_month;
+        vessel.eta_day = message.eta_day;
+        vessel.eta_hour = message.eta_hour;
+        vessel.eta_minute = message.eta_minute;
+    }
     if (message.class_b) vessel.class_b = true;
     if (message.is_aton) vessel.aton = true;
     if (message.is_base_station) vessel.base_station = true;
     if (!message.name.empty() || !message.callsign.empty() ||
-        message.ship_type >= 0) {
+        message.ship_type >= 0 || message.imo != 0 ||
+        message.destination.size() > 0) {
         vessel.last_static = now;
     }
 

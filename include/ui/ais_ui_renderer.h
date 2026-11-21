@@ -36,6 +36,10 @@ public:
                     uint64_t total_messages, float messages_per_second,
                     int gain_tenths, bool agc, MapBackground* map = nullptr);
 
+    void renderDossier(const ais::VesselState* vessel, size_t vessel_count,
+                       uint64_t total_messages, float messages_per_second,
+                       int gain_tenths, bool agc);
+
     void renderHelp();
 
     void drawChar(int x, int y, char c, uint16_t color) override;

@@ -22,9 +22,21 @@ struct VesselState {
 
     int last_type = 0;
     int ship_type = -1;
+    uint32_t imo = 0;
     bool class_b = false;
     bool aton = false;
     bool base_station = false;
+    int epfd = -1;
+
+    int to_bow = -1;
+    int to_stern = -1;
+    int to_port = -1;
+    int to_starboard = -1;
+    float draught = -1.0f;
+    int eta_month = 0;
+    int eta_day = 0;
+    int eta_hour = 0;
+    int eta_minute = 0;
 
     bool has_position = false;
     double latitude = 0.0;
