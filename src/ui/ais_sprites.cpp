@@ -82,17 +82,21 @@ private:
 };
 
 void drawHull(PixelCanvas& c) {
-    for (int y = 22; y <= 29; ++y) {
-        const int bow = 34 + (y - 22);
-        c.hline(6, bow, y, 1);
+    // Dim hull with a bright deck line, bow edge, keel and boot stripe.
+    for (int y = 22; y <= 30; ++y) {
+        const int bow = 33 + (y - 22);
+        c.hline(4, bow, y, 2);
     }
-    c.hline(6, 41, 22, 3);
-    c.hline(3, 6, 27, 1);
-    c.hline(3, 5, 26, 2);
-    c.hline(6, 40, 30, 2);
-    c.hline(6, 39, 31, 2);
-    c.dither(8, 28, 38, 29, 2, 1);
-    for (int x = 10; x <= 30; x += 4) c.set(x, 25, 3);
+    c.hline(4, 33, 22, 1);
+    c.hline(4, 41, 30, 1);
+    c.hline(4, 40, 31, 2);
+    for (int y = 22; y <= 30; ++y) c.set(33 + (y - 22), y, 1);
+    c.vline(4, 22, 30, 1);
+    for (int x = 7; x <= 29; x += 4) c.set(x, 26, 3);
+    c.set(40, 29, 3);
+    c.set(39, 30, 3);
+    c.hline(1, 3, 31, 2);
+    c.set(0, 32, 2);
 }
 
 void drawBridge(PixelCanvas& c, int x0, int y0, int x1, int y1) {
@@ -117,113 +121,108 @@ void drawMast(PixelCanvas& c, int x, int y0, int y1) {
 
 void drawCargo(PixelCanvas& c) {
     drawHull(c);
-    for (int i = 0; i < 5; ++i) {
-        const int x = 9 + i * 5;
-        c.rect(x, 17, x + 3, 22, 2);
-        c.outline(x, 17, x + 3, 22, 1);
-        c.hline(x, x + 3, 17, 3);
+    // Containers forward of the aft bridge.
+    for (int i = 0; i < 4; ++i) {
+        const int x = 18 + i * 4;
+        c.rect(x, 16, x + 3, 21, 2);
+        c.outline(x, 16, x + 3, 21, 1);
+        c.hline(x, x + 3, 16, 3);
     }
-    drawBridge(c, 33, 14, 40, 22);
-    drawFunnel(c, 36, 9, 38, 13);
-    drawMast(c, 42, 6, 22);
-    c.hline(39, 45, 8, 1);
-    c.dither(10, 30, 34, 31, 2, 1);
+    drawBridge(c, 7, 12, 15, 21);
+    drawFunnel(c, 10, 8, 12, 12);
+    drawMast(c, 5, 3, 21);
+    c.vline(35, 6, 21, 1);
+    c.hline(33, 37, 8, 1);
+    c.set(35, 5, 3);
 }
 
 void drawTanker(PixelCanvas& c) {
     drawHull(c);
-    for (int i = 0; i < 4; ++i) {
-        const int x = 9 + i * 6;
-        c.rect(x, 18, x + 4, 22, 2);
+    for (int i = 0; i < 3; ++i) {
+        const int x = 19 + i * 5;
+        c.rect(x, 18, x + 4, 21, 2);
+        c.outline(x, 18, x + 4, 21, 1);
         c.hline(x, x + 4, 18, 3);
-        c.hline(x + 1, x + 3, 20, 1);
     }
-    c.hline(8, 32, 17, 1);
-    c.hline(8, 32, 23, 1);
-    drawBridge(c, 33, 13, 40, 22);
-    drawFunnel(c, 36, 8, 38, 12);
-    drawMast(c, 42, 5, 22);
-    c.vline(30, 17, 22, 1);
-    c.dither(9, 30, 34, 31, 2, 1);
+    c.hline(17, 35, 20, 1);
+    drawBridge(c, 7, 12, 15, 21);
+    drawFunnel(c, 10, 8, 12, 12);
+    drawMast(c, 5, 3, 21);
+    c.vline(36, 8, 21, 1);
+    c.hline(34, 38, 10, 1);
 }
 
 void drawPassenger(PixelCanvas& c) {
     drawHull(c);
-    c.rect(10, 18, 38, 22, 2);
-    c.outline(10, 18, 38, 22, 1);
-    c.rect(14, 13, 34, 18, 2);
-    c.outline(14, 13, 34, 18, 1);
-    for (int x = 12; x <= 36; x += 3) {
-        c.set(x, 20, 3);
-        c.set(x, 15, 3);
-    }
-    drawBridge(c, 34, 11, 41, 22);
-    drawFunnel(c, 36, 6, 38, 10);
-    drawMast(c, 42, 4, 22);
-    c.hline(39, 45, 7, 1);
-    c.dither(11, 30, 35, 31, 2, 1);
+    c.rect(8, 17, 34, 21, 2);
+    c.outline(8, 17, 34, 21, 1);
+    c.rect(12, 12, 31, 17, 2);
+    c.outline(12, 12, 31, 17, 1);
+    for (int x = 10; x <= 33; x += 3) c.set(x, 19, 3);
+    for (int x = 14; x <= 30; x += 3) c.set(x, 14, 3);
+    drawBridge(c, 29, 9, 35, 21);
+    drawFunnel(c, 19, 7, 21, 11);
+    drawMast(c, 7, 3, 21);
 }
 
 void drawFishing(PixelCanvas& c) {
     drawHull(c);
-    c.rect(25, 16, 33, 22, 2);
-    c.outline(25, 16, 33, 22, 1);
-    c.set(27, 18, 3);
-    c.set(30, 18, 3);
-    drawFunnel(c, 31, 12, 33, 15);
-    drawMast(c, 22, 5, 22);
-    c.hline(22, 30, 7, 1);
-    c.hline(22, 30, 8, 1);
-    c.dither(10, 28, 26, 29, 2, 1);
-    c.hline(4, 8, 29, 2);
+    drawBridge(c, 8, 14, 15, 21);
+    drawFunnel(c, 11, 10, 12, 13);
+    drawMast(c, 6, 3, 21);
+    c.hline(15, 30, 10, 1);
+    c.vline(30, 10, 18, 1);
+    c.set(30, 19, 3);
+    c.hline(18, 27, 23, 2);
 }
 
 void drawSail(PixelCanvas& c) {
     drawHull(c);
-    const int mast_x = 24;
-    c.vline(mast_x, 4, 22, 1);
-    for (int y = 6; y <= 20; ++y) {
-        const int half = (y - 6) * 12 / 14;
+    const int mast_x = 22;
+    c.vline(mast_x, 3, 22, 1);
+    for (int y = 5; y <= 21; ++y) {
+        const int half = (y - 5) * 13 / 16;
         c.hline(mast_x, mast_x + half, y, 1);
         if ((y & 1) == 0) c.hline(mast_x + 1, mast_x + half - 1, y, 3);
     }
-    for (int y = 8; y <= 20; ++y) {
-        const int half = (y - 8) * 10 / 12;
+    for (int y = 7; y <= 21; ++y) {
+        const int half = (y - 7) * 9 / 14;
         c.hline(mast_x - half, mast_x, y, 1);
         if ((y & 1) == 0) c.hline(mast_x - half + 1, mast_x - 1, y, 3);
     }
-    c.hline(mast_x - 3, mast_x + 3, 4, 3);
-    c.hline(6, 10, 29, 2);
+    c.hline(mast_x - 3, mast_x + 3, 3, 3);
 }
 
 void drawTug(PixelCanvas& c) {
     drawHull(c);
-    c.rect(22, 11, 32, 22, 2);
-    c.outline(22, 11, 32, 22, 1);
-    for (int x = 24; x <= 30; x += 2) c.set(x, 14, 3);
-    drawFunnel(c, 28, 6, 30, 10);
-    drawMast(c, 34, 3, 22);
-    c.vline(18, 24, 29, 3);
-    c.vline(20, 24, 29, 3);
-    c.hline(14, 21, 30, 1);
-    c.dither(10, 30, 34, 31, 2, 1);
+    drawBridge(c, 16, 9, 24, 21);
+    drawFunnel(c, 18, 5, 20, 9);
+    drawMast(c, 27, 2, 21);
+    c.vline(10, 24, 30, 3);
+    c.vline(12, 24, 30, 3);
 }
 
 void drawClassB(PixelCanvas& c) {
-    for (int y = 25; y <= 30; ++y) c.hline(14, 36 - (30 - y), y, 1);
-    c.hline(14, 36, 25, 3);
-    c.hline(14, 34, 31, 2);
-    c.rect(25, 19, 32, 25, 2);
-    c.outline(25, 19, 32, 25, 1);
-    c.set(27, 21, 3);
-    c.set(30, 21, 3);
-    c.vline(20, 18, 25, 1);
-    c.hline(19, 21, 18, 1);
-    c.set(24, 17, 3);
-    c.dither(16, 29, 32, 30, 2, 1);
-    c.hline(6, 10, 30, 2);
+    // Small motorboat: low hull, pointed bow, cabin and windshield.
+    for (int y = 25; y <= 30; ++y) c.hline(8, 30 + (y - 25), y, 2);
+    c.hline(8, 30, 25, 1);
+    c.hline(8, 35, 30, 1);
+    c.hline(8, 34, 31, 2);
+    for (int y = 25; y <= 30; ++y) c.set(30 + (y - 25), y, 1);
+    c.vline(8, 25, 30, 1);
+    c.set(34, 29, 3);
+    c.rect(11, 19, 20, 25, 2);
+    c.outline(11, 19, 20, 25, 1);
+    c.hline(12, 19, 19, 3);
+    c.set(13, 21, 3);
+    c.set(16, 21, 3);
+    c.set(19, 21, 3);
+    c.hline(20, 22, 24, 1);
+    c.vline(9, 13, 25, 1);
+    c.hline(8, 10, 14, 1);
+    c.set(9, 12, 3);
+    c.hline(2, 5, 30, 2);
 }
-
 void drawAton(PixelCanvas& c) {
     c.hline(4, 44, 30, 2);
     c.hline(6, 42, 31, 2);
@@ -239,6 +238,18 @@ void drawAton(PixelCanvas& c) {
     c.set(25, 6, 3);
     c.hline(18, 32, 29, 1);
     c.hline(4, 20, 31, 2);
+}
+
+void drawGeneric(PixelCanvas& c) {
+    drawHull(c);
+    drawBridge(c, 7, 12, 15, 21);
+    drawFunnel(c, 10, 8, 12, 12);
+    drawMast(c, 5, 3, 21);
+    c.vline(33, 6, 21, 1);
+    c.hline(31, 35, 8, 1);
+    c.rect(21, 18, 29, 21, 2);
+    c.outline(21, 18, 29, 21, 1);
+    c.hline(23, 27, 20, 3);
 }
 
 void drawBase(PixelCanvas& c) {
@@ -283,7 +294,7 @@ void drawDossierShip(Framebuffer& fb, int x, int y, int w, int h,
     } else if (vessel.class_b) {
         drawClassB(canvas);
     } else {
-        drawCargo(canvas);
+        drawGeneric(canvas);
     }
 
     canvas.blit(fb, x, y, w, h, bright, dim, highlight);
