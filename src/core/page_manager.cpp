@@ -525,6 +525,12 @@ void PageManager::drawPageIcon(int page_index, int x, int y,
         }
         fb_.fillRect(x, y + 14, 18, 1, color);
         fb_.fillRect(x + 14, y + 1, 2, 2, color);
+    } else if (std::strcmp(name, "RFI") == 0) {
+        fb_.drawLine(x, y + 14, x + 17, y + 14, color);
+        fb_.drawLine(x, y + 7, x + 17, y + 7, color);
+        fb_.drawLine(x + 8, y + 2, x + 8, y + 17, color);
+        fb_.drawLine(x + 5, y + 5, x + 8, y + 2, color);
+        fb_.drawLine(x + 11, y + 5, x + 8, y + 2, color);
     } else if (std::strcmp(name, "ADSB") == 0) {
         // Radar ring with a small aircraft.
         drawCircleOutline(x + 9, y + 9, 8, color);

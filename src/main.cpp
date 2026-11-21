@@ -10,6 +10,7 @@
 #include "pages/sdr_page.h"
 #include "pages/adsb_page.h"
 #include "pages/spectrum_page.h"
+#include "pages/rfi_page.h"
 #include "app_config.h"
 #include "screenshot.h"
 #include "version.h"
@@ -243,10 +244,12 @@ int main(int argc, char* argv[]) {
         std::make_unique<SpectrumPage>(fb, sdr, input);
     page_manager.registerPage(std::move(spectrum_page));
 
+    page_manager.registerPage(std::make_unique<RfiPage>(fb, sdr));
+
     auto adsb_page = std::make_unique<ADSBPage>(fb, sdr, input, adsb_ui, radar_ui);
     page_manager.registerPage(std::move(adsb_page));
 
-    std::cout << "Starting main loop with " << 2 << " pages..." << std::endl;
+    std::cout << "Starting main loop with " << 4 << " pages..." << std::endl;
 
     // Run main loop (PageManager handles everything)
     int exit_code = page_manager.run();

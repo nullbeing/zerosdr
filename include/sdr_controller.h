@@ -24,6 +24,9 @@ public:
     uint32_t getFrequency() const { return current_frequency; }
     uint32_t getSampleRate() const { return current_sample_rate; }
     int getGain() const { return current_gain; }
+    int getGainTenths() const;
+    std::vector<int> getSupportedGainTenths() const;
+    bool setGainTenths(int gain);
 
     bool setAGCMode(bool enable);
     bool getAGCEnabled() const { return agc_enabled; }
