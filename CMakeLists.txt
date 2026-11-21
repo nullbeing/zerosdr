@@ -89,6 +89,12 @@ set(SOURCES
     src/pages/sdr_page.cpp
     src/pages/adsb_page.cpp
     src/pages/spectrum_page.cpp
+    src/pages/ais_page.cpp
+    # AIS
+    src/ais/ais_decoder.cpp
+    src/ais/ais_message.cpp
+    src/ais/ais_store.cpp
+
     # ADSB integration
     src/adsb/readsb_controller.cpp
     src/adsb/readsb_json_parser.cpp
@@ -100,6 +106,7 @@ set(SOURCES
     src/ui/sdr_ui_renderer.cpp
     src/ui/adsb_ui_renderer.cpp
     src/ui/radar_ui_renderer.cpp
+    src/ui/ais_ui_renderer.cpp
     src/ui/ttf_text.cpp
 
     # Hardware
@@ -127,6 +134,21 @@ add_executable(zerosdr ${SOURCES})
 # Include directories
 target_include_directories(zerosdr PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+# Offline AIS replay tool. It shares the native decoder with the application
+# but is a development/validation helper, so it is not installed.
+add_executable(ais_replay
+    tools/ais_replay.cpp
+    src/ais/ais_decoder.cpp
+    src/ais/ais_message.cpp
+)
+target_include_directories(ais_replay PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(ais_replay PRIVATE
+    ${M_LIB}
+    Threads::Threads
 )
 
 # Link libraries

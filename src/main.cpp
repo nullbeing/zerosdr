@@ -3,6 +3,7 @@
 #include "ui/sdr_ui_renderer.h"
 #include "ui/adsb_ui_renderer.h"
 #include "ui/radar_ui_renderer.h"
+#include "ui/ais_ui_renderer.h"
 #include "input_handler.h"
 #include "audio_output.h"
 #include "core/page_manager.h"
@@ -10,6 +11,7 @@
 #include "pages/sdr_page.h"
 #include "pages/adsb_page.h"
 #include "pages/spectrum_page.h"
+#include "pages/ais_page.h"
 #include "app_config.h"
 #include "screenshot.h"
 #include "version.h"
@@ -98,6 +100,7 @@ int main(int argc, char* argv[]) {
     SDRUIRenderer sdr_ui(fb);
     ADSBUIRenderer adsb_ui(fb);
     RadarUIRenderer radar_ui(fb);
+    AisUIRenderer ais_ui(fb);
 
     // Initialize keyboard input
     InputHandler input;
@@ -245,6 +248,9 @@ int main(int argc, char* argv[]) {
 
     auto adsb_page = std::make_unique<ADSBPage>(fb, sdr, input, adsb_ui, radar_ui);
     page_manager.registerPage(std::move(adsb_page));
+
+    auto ais_page = std::make_unique<AisPage>(fb, sdr, input, ais_ui);
+    page_manager.registerPage(std::move(ais_page));
 
     std::cout << "Starting main loop with " << 2 << " pages..." << std::endl;
 
