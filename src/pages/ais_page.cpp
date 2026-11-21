@@ -122,6 +122,7 @@ void AisPage::onExit() {
     std::cout << "AisPage: Exiting AIS mode" << std::endl;
     stopDecodeThread();
     decoder_.setFrameCallback(nullptr);
+    beeps_.close();
     nmea_udp_.close();
     udp_ready_ = false;
     udp_enabled_ = false;
@@ -197,6 +198,28 @@ void AisPage::update(float delta_time) {
     }
 
     updateRate();
+
+    const time_t now = time(nullptr);
+    if (now != last_alarm_check_) {
+        last_alarm_check_ = now;
+        bool alarm = false;
+        for (const auto& vessel : store_.snapshot()) {
+            if (vessel.stale || vessel.cpa_nm < 0.0f ||
+                vessel.tcpa_min < 0.0f) {
+                continue;
+            }
+            if (vessel.cpa_nm < 0.5f && vessel.tcpa_min < 10.0f) {
+                alarm = true;
+                break;
+            }
+        }
+        if (alarm && (!alarm_active_ || now - last_alarm_beep_ >= 5)) {
+            beeps_.play(1320.0f, 80, 0.08f);
+            last_alarm_beep_ = now;
+        }
+        alarm_active_ = alarm;
+    }
+
     render();
 }
 

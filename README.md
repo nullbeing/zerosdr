@@ -487,7 +487,8 @@ LIST -> PLOT -> DOSSIER -> CONSOLE -> LIST
 
 CPA/TCPA is calculated for a stationary shore station; targets that are
 opening out show `T--` rather than a false zero. A target with CPA below
-0.5 NM and TCPA below 10 minutes turns red and sits inside the guard ring.
+0.5 NM and TCPA below 10 minutes turns red, sits inside the guard ring and
+beeps once every 5 seconds.
 
 ### NMEA UDP output
 

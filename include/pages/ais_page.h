@@ -5,6 +5,7 @@
 #include "ais/ais_store.h"
 #include "ais/nmea_encoder.h"
 #include "adsb/map_background.h"
+#include "core/beep_player.h"
 #include "core/gps_locator.h"
 #include "core/ipage.h"
 #include "framebuffer.h"
@@ -58,6 +59,7 @@ private:
     int udp_port_ = 10110;
     GpsLocator gps_;
     MapBackground map_bg_;
+    BeepPlayer beeps_;
 
     std::thread decode_thread_;
     std::atomic<bool> running_{false};
@@ -76,6 +78,10 @@ private:
     uint64_t last_rate_messages_ = 0;
     time_t last_rate_time_ = 0;
     float messages_per_second_ = 0.0f;
+
+    time_t last_alarm_check_ = 0;
+    time_t last_alarm_beep_ = 0;
+    bool alarm_active_ = false;
 
     bool sdr_ready_ = false;
 };
