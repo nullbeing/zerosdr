@@ -567,9 +567,14 @@ void PageManager::drawPageMenu() {
     const int page_count = (int)pages_.size();
     const bool has_shortcut =
         page_menu_entries_.size() > (size_t)page_count;
-    const int tile_w = 70;
     const int tile_h = 46;
-    const int gap = 6;
+    const int gap = 5;
+    // Four pages fit at the original 70 px tile. Five or more have to
+    // shrink so the panel stays inside the 320 px display.
+    int tile_w = 70;
+    if (page_count > 4) {
+        tile_w = std::max(48, (w - 18 - (page_count - 1) * gap) / page_count);
+    }
     const int panel_w = page_count * tile_w + (page_count - 1) * gap + 18;
     const int panel_h = has_shortcut ? 122 : 74;
     const int px = (w - panel_w) / 2;

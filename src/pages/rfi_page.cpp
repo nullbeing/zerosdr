@@ -61,6 +61,7 @@ void RfiPage::start() {
     error_.clear();
     // ADSB hands off the USB receiver through the same mechanism as Spectrum.
     std::system("pkill -9 readsb 2>/dev/null");
+    usleep(500000);
     if (!sdr_.init(0) || !sdr_.setSampleRate(sample_rate) ||
         !sdr_.setAGCMode(false) ||
         !sdr_.setFrequency((bands[band_].low + bands[band_].high) / 2)) {
