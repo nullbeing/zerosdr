@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdlib>
 
 namespace ais_ui {
@@ -266,6 +267,157 @@ void drawBase(PixelCanvas& c) {
 }
 
 }  // namespace
+
+
+namespace {
+
+struct PlotSprite {
+    const char* const* rows;
+    int width;
+    int height;
+};
+
+const char* const kCargo[] = {
+    "...o...",
+    "..###..",
+    ".#####.",
+    ".#o#o#.",
+    ".#####.",
+    ".#o#o#.",
+    ".#####.",
+    ".#####.",
+    "..###..",
+};
+
+const char* const kTanker[] = {
+    "...#...",
+    "..###..",
+    ".#####.",
+    ".#ooo#.",
+    ".#####.",
+    ".#ooo#.",
+    ".#####.",
+    "..###..",
+    "..###..",
+};
+
+const char* const kPassenger[] = {
+    "...#...",
+    "..###..",
+    ".#####.",
+    ".#ooo#.",
+    ".#ooo#.",
+    ".#ooo#.",
+    ".#####.",
+    "..###..",
+    "..###..",
+};
+
+const char* const kGeneric[] = {
+    "...#...",
+    "..###..",
+    ".#####.",
+    ".#o#o#.",
+    ".#####.",
+    ".#o#o#.",
+    ".#####.",
+    "..###..",
+    "..###..",
+};
+
+const char* const kClassB[] = {
+    "...#...",
+    "..###..",
+    ".#ooo#.",
+    ".#o#o#.",
+    ".#####.",
+    ".#####.",
+    "..###..",
+};
+
+const char* const kAton[] = {
+    "..#..",
+    ".###.",
+    ".#o#.",
+    ".###.",
+    "..#..",
+    "..#..",
+    ".###.",
+};
+
+const char* const kBase[] = {
+    "..#..",
+    ".###.",
+    "..#..",
+    "..#..",
+    ".###.",
+    ".#.#.",
+    "##.##",
+};
+
+PlotSprite plotSprite(PlotTargetKind kind) {
+    switch (kind) {
+        case PlotTargetKind::Cargo: return {kCargo, 7, 9};
+        case PlotTargetKind::Tanker: return {kTanker, 7, 9};
+        case PlotTargetKind::Passenger: return {kPassenger, 7, 9};
+        case PlotTargetKind::ClassB: return {kClassB, 7, 7};
+        case PlotTargetKind::Aton: return {kAton, 5, 7};
+        case PlotTargetKind::Base: return {kBase, 5, 7};
+        default: return {kGeneric, 7, 9};
+    }
+}
+
+}  // namespace
+
+void drawPlotTarget(Framebuffer& fb, int cx, int cy, float heading,
+                    PlotTargetKind kind, uint16_t bright, uint16_t dim,
+                    uint16_t highlight) {
+    const PlotSprite sprite = plotSprite(kind);
+    const float angle = heading * static_cast<float>(M_PI) / 180.0f;
+    const float c = std::cos(angle);
+    const float s = std::sin(angle);
+    const int radius = static_cast<int>(
+        std::ceil(std::sqrt(static_cast<float>(sprite.width * sprite.width +
+                                               sprite.height * sprite.height)) /
+                  2.0f)) + 2;
+    const float cx_src = (sprite.width - 1) * 0.5f;
+    const float cy_src = (sprite.height - 1) * 0.5f;
+
+    // Dark halo keeps the tiny ship readable over the map labels.
+    for (int dy = -radius; dy <= radius; ++dy) {
+        for (int dx = -radius; dx <= radius; ++dx) {
+            const int sx = static_cast<int>(std::lround(dx * c + dy * s + cx_src));
+            const int sy = static_cast<int>(std::lround(-dx * s + dy * c + cy_src));
+            if (sx < 0 || sx >= sprite.width || sy < 0 ||
+                sy >= sprite.height || sprite.rows[sy][sx] == '.') {
+                continue;
+            }
+            for (int oy = -1; oy <= 1; ++oy) {
+                for (int ox = -1; ox <= 1; ++ox) {
+                    if (ox == 0 && oy == 0) continue;
+                    fb.drawPixel(cx + dx + ox, cy + dy + oy, 0x0000);
+                }
+            }
+        }
+    }
+
+    for (int dy = -radius; dy <= radius; ++dy) {
+        for (int dx = -radius; dx <= radius; ++dx) {
+            const int sx = static_cast<int>(std::lround(dx * c + dy * s + cx_src));
+            const int sy = static_cast<int>(std::lround(-dx * s + dy * c + cy_src));
+            if (sx < 0 || sx >= sprite.width || sy < 0 ||
+                sy >= sprite.height) {
+                continue;
+            }
+            const char value = sprite.rows[sy][sx];
+            if (value == '.') continue;
+            uint16_t color = bright;
+            if (value == '+') color = dim;
+            else if (value == 'o') color = highlight;
+            fb.drawPixel(cx + dx, cy + dy, color);
+        }
+    }
+}
 
 void drawDossierShip(Framebuffer& fb, int x, int y, int w, int h,
                      const ais::VesselState& vessel,

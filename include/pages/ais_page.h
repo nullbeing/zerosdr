@@ -70,7 +70,7 @@ private:
     int scroll_offset_ = 0;
     int console_scroll_ = 0;
     bool help_visible_ = false;
-    float plot_range_nm_ = 8.0f;
+    float plot_range_nm_ = 2.0f;
 
     int gain_tenths_ = 496;  // 49.6 dB, the V4's maximum; AIS is weak here
     bool agc_ = false;

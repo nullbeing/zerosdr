@@ -108,7 +108,7 @@ void AisPage::onEnter() {
     scroll_offset_ = 0;
     console_scroll_ = 0;
     help_visible_ = false;
-    plot_range_nm_ = 8.0f;
+    plot_range_nm_ = 2.0f;
     messages_per_second_ = 0.0f;
     last_rate_messages_ = 0;
     last_rate_time_ = 0;

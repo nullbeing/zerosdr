@@ -117,19 +117,6 @@ float bearingDeg(double lat1, double lon1, double lat2, double lon2) {
     return static_cast<float>(degrees);
 }
 
-void drawTargetTriangle(Framebuffer& fb, int cx, int cy, float heading,
-                        uint16_t color, int size) {
-    const float angle = heading * static_cast<float>(kPi) / 180.0f;
-    const int nose_x = cx + static_cast<int>(std::lround(std::sin(angle) * size));
-    const int nose_y = cy - static_cast<int>(std::lround(std::cos(angle) * size));
-    const int left_x = cx + static_cast<int>(std::lround(std::sin(angle + 2.4f) * size));
-    const int left_y = cy - static_cast<int>(std::lround(std::cos(angle + 2.4f) * size));
-    const int right_x = cx + static_cast<int>(std::lround(std::sin(angle - 2.4f) * size));
-    const int right_y = cy - static_cast<int>(std::lround(std::cos(angle - 2.4f) * size));
-    fb.drawLine(nose_x, nose_y, left_x, left_y, color);
-    fb.drawLine(left_x, left_y, right_x, right_y, color);
-    fb.drawLine(right_x, right_y, nose_x, nose_y, color);
-}
 
 const char* navStatusLabel(int status) {
     switch (status) {
@@ -494,28 +481,40 @@ void AisUIRenderer::renderPlot(
             fb_.drawLine((x + ex) / 2, (y + ey) / 2, ex, ey, theme_.dim);
         }
 
+        ais_ui::PlotTargetKind kind = ais_ui::PlotTargetKind::Generic;
         if (vessel.base_station) {
-            fb_.drawRect(x - 2, y - 2, 5, 5, color);
+            kind = ais_ui::PlotTargetKind::Base;
         } else if (vessel.aton) {
-            drawCircleOutline(fb_, x, y, 2, color);
+            kind = ais_ui::PlotTargetKind::Aton;
         } else if (vessel.class_b) {
-            fb_.drawLine(x, y - 4, x + 4, y, color);
-            fb_.drawLine(x + 4, y, x, y + 4, color);
-            fb_.drawLine(x, y + 4, x - 4, y, color);
-            fb_.drawLine(x - 4, y, x, y - 4, color);
-        } else {
-            drawTargetTriangle(fb_, x, y,
+            kind = ais_ui::PlotTargetKind::ClassB;
+        } else if (vessel.ship_type >= 60 && vessel.ship_type < 70) {
+            kind = ais_ui::PlotTargetKind::Passenger;
+        } else if (vessel.ship_type >= 70 && vessel.ship_type < 80) {
+            kind = ais_ui::PlotTargetKind::Cargo;
+        } else if (vessel.ship_type >= 80 && vessel.ship_type < 90) {
+            kind = ais_ui::PlotTargetKind::Tanker;
+        }
+
+        const uint16_t sprite_dim =
+            selected ? 0x8200 : (alarm ? 0x8000 : theme_.grid);
+        const uint16_t sprite_highlight =
+            (selected || alarm) ? 0xFFFF : theme_.text;
+        ais_ui::drawPlotTarget(fb_, x, y,
                                vessel.cog >= 0.0f ? vessel.cog
                                                   : vessel.bearing_deg,
-                               color, selected ? 5 : 4);
-        }
-        fb_.drawPixel(x, y, color);
+                               kind, color, sprite_dim, sprite_highlight);
 
         if (selected) {
-            fb_.drawLine(x - 7, y, x - 3, y, selected_color);
-            fb_.drawLine(x + 3, y, x + 7, y, selected_color);
-            fb_.drawLine(x, y - 7, x, y - 3, selected_color);
-            fb_.drawLine(x, y + 3, x, y + 7, selected_color);
+            constexpr int r = 7;
+            fb_.drawLine(x - r, y - r, x - r + 3, y - r, selected_color);
+            fb_.drawLine(x - r, y - r, x - r, y - r + 3, selected_color);
+            fb_.drawLine(x + r, y - r, x + r - 3, y - r, selected_color);
+            fb_.drawLine(x + r, y - r, x + r, y - r + 3, selected_color);
+            fb_.drawLine(x - r, y + r, x - r + 3, y + r, selected_color);
+            fb_.drawLine(x - r, y + r, x - r, y + r - 3, selected_color);
+            fb_.drawLine(x + r, y + r, x + r - 3, y + r, selected_color);
+            fb_.drawLine(x + r, y + r, x + r, y + r - 3, selected_color);
 
             if (vessel.cpa_nm >= 0.0f && vessel.tcpa_min >= 0.0f) {
                 const int px = cx + static_cast<int>(std::lround(

@@ -478,8 +478,10 @@ LIST -> PLOT -> DOSSIER -> CONSOLE -> LIST
 - **LIST** — MMSI, name, SOG, COG, distance and age, nearest first. Class A,
   Class B, AtoN and base stations use different markers.
 - **PLOT** — north-up PPI with a cached map background, four range rings,
-  compass ticks, COG vectors, ten-point trails, a 0.5 NM CPA guard ring and
-  a selected-target card. `Up` / `Down` zooms from 0.5 to 32 NM.
+  compass ticks, 8-bit top-down pixel ships (cargo / tanker / passenger /
+  Class B, plus AtoN and base-station glyphs), COG vectors, ten-point trails,
+  a 0.5 NM CPA guard ring and a selected-target card. `Up` / `Down` zooms
+  from 0.5 to 32 NM (starts at 2 NM).
 - **DOSSIER** — type-specific 8-bit pixel-art ship silhouette, dimensions and draught, plus
   MMSI, callsign, IMO, navigation status, position, motion, range/bearing,
   CPA/TCPA, destination and ETA.
