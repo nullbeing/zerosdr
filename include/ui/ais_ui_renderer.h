@@ -40,6 +40,8 @@ public:
                        uint64_t total_messages, float messages_per_second,
                        int gain_tenths, bool agc);
 
+    void setUdpEnabled(bool enabled) { udp_enabled_ = enabled; }
+
     void renderHelp();
 
     void drawChar(int x, int y, char c, uint16_t color) override;
@@ -73,6 +75,7 @@ private:
                         int gain_tenths, bool agc);
 
     Theme theme_;
+    bool udp_enabled_ = false;
 };
 
 #endif  // AIS_UI_RENDERER_H

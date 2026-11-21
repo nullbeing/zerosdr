@@ -3,6 +3,7 @@
 
 #include "ais/ais_decoder.h"
 #include "ais/ais_store.h"
+#include "ais/nmea_encoder.h"
 #include "adsb/map_background.h"
 #include "core/gps_locator.h"
 #include "core/ipage.h"
@@ -49,6 +50,12 @@ private:
 
     ais::AisDecoder decoder_;
     ais::AisStore store_;
+    ais::NmeaEncoder nmea_encoder_;
+    ais::NmeaUdpSender nmea_udp_;
+    std::atomic<bool> udp_enabled_{false};
+    bool udp_ready_ = false;
+    std::string udp_host_ = "255.255.255.255";
+    int udp_port_ = 10110;
     GpsLocator gps_;
     MapBackground map_bg_;
 

@@ -23,6 +23,7 @@ enum AppKeyCode {
     APPKEY_S,      // Adjust squelch
     APPKEY_E,      // Cycle FM deemphasis (50/75us)
     APPKEY_T,      // Cycle tuning step (Auto / 100Hz / 1k / 5k / 10k / 100k / 1M)
+    APPKEY_U,      // Toggle AIS NMEA UDP export
     APPKEY_SPACE,  // Toggle audio
     APPKEY_LEFT_COARSE,   // Alt+Left  = current step × 10 (coarse tune)
     APPKEY_RIGHT_COARSE,  // Alt+Right = current step × 10 (coarse tune)

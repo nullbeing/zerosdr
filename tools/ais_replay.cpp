@@ -1,5 +1,6 @@
 #include "ais/ais_decoder.h"
 #include "ais/ais_message.h"
+#include "ais/nmea_encoder.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -24,7 +25,8 @@ struct VesselSummary {
 void printUsage(const char* program) {
     std::cout
         << "Usage: " << program
-        << " <file.cu8> [--rate 1920000] [--ppm N] [--fc2 Hz] [--fcd Hz]\n"
+        << " <file.cu8> [--rate 1920000] [--ppm N] [--fc2 Hz] [--fcd Hz]"
+        << " [--nmea]\n"
         << "\n"
         << "Reads interleaved 8-bit unsigned IQ (RTL-SDR CU8) and prints every\n"
         << "AIS frame that passes the HDLC CRC. The file must be centred between\n"
@@ -60,6 +62,7 @@ int main(int argc, char** argv) {
     double ppm = 0.0;
     double fc2 = 7000.0;
     double fcd = 6800.0;
+    bool nmea_only = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
@@ -71,6 +74,8 @@ int main(int argc, char** argv) {
             fc2 = std::stod(argv[++i]);
         } else if (arg == "--fcd" && i + 1 < argc) {
             fcd = std::stod(argv[++i]);
+        } else if (arg == "--nmea") {
+            nmea_only = true;
         } else if (arg == "-h" || arg == "--help") {
             printUsage(argv[0]);
             return 0;
@@ -108,8 +113,16 @@ int main(int argc, char** argv) {
 
     std::map<uint32_t, VesselSummary> vessels;
     uint64_t printed = 0;
+    ais::NmeaEncoder encoder;
 
     decoder.setFrameCallback([&](const ais::AisFrame& frame) {
+        if (nmea_only) {
+            const auto sentences = encoder.encode(frame);
+            for (const auto& sentence : sentences) std::cout << sentence;
+            ++printed;
+            return;
+        }
+
         ais::AisMessage message;
         if (!ais::parseAisMessage(frame, message) || !message.valid) return;
 

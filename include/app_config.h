@@ -13,6 +13,7 @@
 //   sdr      - deemphasis_us, audio_agc, fft_size, sample_rate, theme
 //   spectrum - configured, start_hz, stop_hz, max_hold_decay_db_s
 //   adsb     - observer_latitude, observer_longitude, manual_override
+//   ais      - udp_export, udp_host, udp_port (NMEA 0183 feed)
 //   imu      - enabled, heading_up, offset_deg, invert (radar compass)
 //   map      - enabled, provider, url_template, proxy, dim, cache_hours
 //

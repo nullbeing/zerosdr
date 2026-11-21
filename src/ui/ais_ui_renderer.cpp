@@ -302,6 +302,7 @@ void AisUIRenderer::renderStatusBar(uint64_t total_messages,
     char buffer[64];
     std::snprintf(buffer, sizeof(buffer), "AIS %zu", vessels);
     drawText(2, 2, buffer, theme_.status_text);
+    if (udp_enabled_) drawText(70, 2, "UDP", 0x07E0);
 
     std::snprintf(buffer, sizeof(buffer), "%.1f MSG/S", messages_per_second);
     drawText(112, 2, buffer, theme_.dim);
@@ -863,11 +864,12 @@ void AisUIRenderer::renderHelp() {
         "LEFT/RIGHT  TARGET",
         "+/-    GAIN",
         "G      AUTO / MANUAL",
+        "U      UDP NMEA 10110",
         "S      SCREENSHOT",
         "TAB    PAGES",
         "ESC    CLOSE HELP",
     };
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < 9; ++i) {
         drawSmallText(24, 56 + i * 11, lines[i],
                       i == 0 ? theme_.text : theme_.dim);
     }

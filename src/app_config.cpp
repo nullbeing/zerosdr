@@ -90,6 +90,11 @@ void AppConfig::setDefaults() {
     if (!adsb.contains("observer_longitude")) adsb["observer_longitude"] = 0.0;
     if (!adsb.contains("manual_override")) adsb["manual_override"] = false;
 
+    nlohmann::json& ais = section("ais");
+    if (!ais.contains("udp_export")) ais["udp_export"] = false;
+    if (!ais.contains("udp_host")) ais["udp_host"] = "255.255.255.255";
+    if (!ais.contains("udp_port")) ais["udp_port"] = 10110;
+
     nlohmann::json& imu = section("imu");
     if (!imu.contains("enabled")) imu["enabled"] = true;
     if (!imu.contains("heading_up")) imu["heading_up"] = true;

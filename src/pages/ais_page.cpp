@@ -72,8 +72,29 @@ void AisPage::onEnter() {
         return;
     }
 
-    decoder_.setFrameCallback(
-        [this](const ais::AisFrame& frame) { store_.apply(frame); });
+    const auto& data = AppConfig::instance().data();
+    bool udp_export = false;
+    if (data.contains("ais")) {
+        const auto& ais = data["ais"];
+        udp_export = ais.value("udp_export", false);
+        udp_host_ = ais.value("udp_host", "255.255.255.255");
+        udp_port_ = ais.value("udp_port", 10110);
+    }
+    udp_ready_ = nmea_udp_.open(udp_host_, udp_port_);
+    udp_enabled_ = udp_export && udp_ready_;
+    ui_.setUdpEnabled(udp_enabled_);
+    if (!udp_ready_) {
+        std::cerr << "AisPage: UDP NMEA socket unavailable" << std::endl;
+    }
+
+    decoder_.setFrameCallback([this](const ais::AisFrame& frame) {
+        store_.apply(frame);
+        if (udp_enabled_ && udp_ready_ &&
+            !nmea_encoder_.isDuplicate(frame)) {
+            const auto sentences = nmea_encoder_.encode(frame);
+            for (const auto& sentence : sentences) nmea_udp_.send(sentence);
+        }
+    });
     store_.clear();
     loadStation();
     map_bg_.loadConfig();
@@ -101,6 +122,10 @@ void AisPage::onExit() {
     std::cout << "AisPage: Exiting AIS mode" << std::endl;
     stopDecodeThread();
     decoder_.setFrameCallback(nullptr);
+    nmea_udp_.close();
+    udp_ready_ = false;
+    udp_enabled_ = false;
+    ui_.setUdpEnabled(false);
 
     if (sdr_.isCapturing()) sdr_.stopCapture();
     sdr_.close();
@@ -337,6 +362,28 @@ bool AisPage::handleInput(AppKeyCode key) {
             gain_tenths_ = std::max(0, gain_tenths_ - 10);
             sdr_.setAGCMode(false);
             sdr_.setGain(gain_tenths_);
+            return true;
+
+        case APPKEY_U:
+            if (!udp_ready_) {
+                udp_ready_ = nmea_udp_.open(udp_host_, udp_port_);
+            }
+            if (udp_ready_) {
+                udp_enabled_ = !udp_enabled_;
+                ui_.setUdpEnabled(udp_enabled_);
+                auto& config = AppConfig::instance().data();
+                if (!config.contains("ais")) {
+                    config["ais"] = nlohmann::json::object();
+                }
+                config["ais"]["udp_export"] = udp_enabled_.load();
+                AppConfig::instance().save();
+                std::cout << "AisPage: NMEA UDP "
+                          << (udp_enabled_ ? "ON" : "OFF") << " "
+                          << udp_host_ << ":" << udp_port_ << std::endl;
+            } else {
+                std::cerr << "AisPage: UDP NMEA socket unavailable"
+                          << std::endl;
+            }
             return true;
 
         case APPKEY_G:

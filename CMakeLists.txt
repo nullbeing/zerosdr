@@ -96,6 +96,7 @@ set(SOURCES
     src/ais/ais_decoder.cpp
     src/ais/ais_message.cpp
     src/ais/ais_store.cpp
+    src/ais/nmea_encoder.cpp
 
     # ADSB integration
     src/adsb/readsb_controller.cpp
@@ -144,6 +145,7 @@ add_executable(ais_replay
     tools/ais_replay.cpp
     src/ais/ais_decoder.cpp
     src/ais/ais_message.cpp
+    src/ais/nmea_encoder.cpp
 )
 target_include_directories(ais_replay PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -152,6 +154,16 @@ target_link_libraries(ais_replay PRIVATE
     ${M_LIB}
     Threads::Threads
 )
+
+# AIS NMEA encoder regression test (development helper, not installed).
+add_executable(nmea_encoder_test
+    tests/nmea_encoder_test.cpp
+    src/ais/nmea_encoder.cpp
+)
+target_include_directories(nmea_encoder_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(nmea_encoder_test PRIVATE ${M_LIB})
 
 # Link libraries
 target_link_libraries(zerosdr PRIVATE
