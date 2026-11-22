@@ -478,9 +478,9 @@ LIST -> PLOT -> DOSSIER -> CONSOLE -> LIST
 - **LIST** — MMSI, name, SOG, COG, distance and age, nearest first. Class A,
   Class B, AtoN and base stations use different markers.
 - **PLOT** — north-up PPI with a cached map background, four range rings,
-  compass ticks, 8-bit top-down pixel ships (cargo / tanker / passenger /
-  Class B, plus AtoN and base-station glyphs), COG vectors, ten-point trails,
-  a 0.5 NM CPA guard ring and a selected-target card. `Up` / `Down` zooms
+  compass ticks, COG vectors, ten-point trails, a 0.5 NM CPA guard ring and
+  a selected-target card. Class A ships are oriented triangles, Class B
+  diamonds, AtoN circles and base stations squares. `Up` / `Down` zooms
   from 0.5 to 32 NM (starts at 2 NM).
 - **DOSSIER** — 200x170 porthole instrument: gradient sky/sea, compass bezel,
   heading bug and a type-specific side-view ship (cargo, tanker, passenger,

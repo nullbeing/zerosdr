@@ -612,13 +612,27 @@ void drawSmallBoat(Canvas& c) {
     c.hline(58, 152, WATERLINE, 0x3C9E);
     c.hline(66, 146, deck + 8, 0x02AA);
 
-    // Cabin and raked windscreen.
-    c.rect(84, 78, 118, deck - 1, 0xDEFB);
-    c.outline(84, 78, 118, deck - 1, c.dim);
-    c.rect(87, 81, 115, 87, 0x18E3);
-    c.hline(89, 113, 82, 0x39E7);
-    c.hline(84, 118, 78, c.highlight);
-    c.rect(86, 90, 116, deck - 1, 0x39C7);
+    // Cabin with a paned windscreen.
+    c.rect(82, 78, 120, deck - 1, 0xDEFB);
+    c.outline(82, 78, 120, deck - 1, c.dim);
+    for (int x = 85; x <= 114; x += 7) {
+        c.rect(x, 81, x + 4, 86, 0x18E3);
+        c.vline(x + 4, 81, 86, 0xD69A);
+    }
+    c.hline(82, 120, 78, c.highlight);
+    c.rect(84, 90, 118, deck - 1, 0x39C7);
+
+    // Flybridge and railing.
+    c.rect(92, 70, 112, 78, 0xCE79);
+    c.outline(92, 70, 112, 78, c.dim);
+    c.hline(92, 112, 70, c.highlight);
+    for (int x = 92; x <= 112; x += 4) c.put(x, 69, 0x9CF3);
+
+    // Foredeck hatch and stern flag.
+    c.rect(128, 91, 136, 93, 0x9CF3);
+    c.outline(128, 91, 136, 93, c.dim);
+    c.vline(70, 82, 94, c.dim);
+    c.rect(71, 82, 74, 84, c.amber);
 
     // Console, antenna and outboard.
     c.rect(120, 86, 132, deck - 1, 0x39C7);
