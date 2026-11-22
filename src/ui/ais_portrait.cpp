@@ -17,8 +17,9 @@ constexpr int WATERLINE = 109;
 constexpr int DECK = 96;
 
 constexpr int STERN = 30;
-constexpr int BOW_DECK = 156;
-constexpr int BOW_TOP = 90;
+constexpr int BOW_DECK = 164;
+constexpr int BOW_TOP = 89;
+constexpr int FORECASTLE_X = 154;
 constexpr int KEEL = 118;
 
 constexpr double kPi = 3.14159265358979323846;
@@ -154,20 +155,20 @@ uint16_t seaColorAt(int y) {
 }
 
 int deckY(int x) {
-    return DECK - (x - STERN) * (DECK - BOW_TOP) / (BOW_DECK - STERN);
+    return (x <= FORECASTLE_X) ? DECK : BOW_TOP;
 }
 
 /** Rows of the hull: deck sheer at the bow, raked stem and a short keel. */
 void hullEdges(int y, int& left, int& right) {
     if (y < DECK) {
-        left = STERN + (DECK - y) * (BOW_DECK - STERN) / (DECK - BOW_TOP);
-        right = BOW_DECK + (y - BOW_TOP) * 6 / (DECK - BOW_TOP);
+        left = FORECASTLE_X;
+        right = BOW_DECK;
     } else if (y <= WATERLINE) {
-        left = STERN - (y - DECK) * 3 / (KEEL - DECK);
-        right = BOW_DECK + 6 + (y - DECK) * 8 / (WATERLINE - DECK);
+        left = STERN - (y - DECK) * 5 / (KEEL - DECK);
+        right = BOW_DECK + (y - DECK) * 4 / (WATERLINE - DECK);
     } else {
-        left = STERN - 3 - (y - WATERLINE);
-        right = BOW_DECK + 14 - (y - WATERLINE) * 12 / (KEEL - WATERLINE);
+        left = STERN - 5 - (y - WATERLINE) / 2;
+        right = BOW_DECK + 4 - (y - WATERLINE) * 10 / (KEEL - WATERLINE);
     }
 }
 
@@ -203,9 +204,27 @@ void drawHull(Canvas& c, bool whiteHull, uint16_t upper, uint16_t lower,
     }
 
     // Deck sheer and stem highlight.
-    c.line(STERN, DECK, BOW_DECK, BOW_TOP, c.highlight);
-    c.line(BOW_DECK, BOW_TOP, BOW_DECK + 6, DECK, c.highlight);
-    c.line(BOW_DECK + 6, DECK, BOW_DECK + 8, WATERLINE, c.highlight);
+    c.hline(STERN, FORECASTLE_X, DECK, c.highlight);
+    c.vline(FORECASTLE_X, BOW_TOP, DECK, c.highlight);
+    c.hline(FORECASTLE_X, BOW_DECK, BOW_TOP, c.highlight);
+    c.line(BOW_DECK, BOW_TOP, BOW_DECK + 4, WATERLINE, c.highlight);
+
+    // Bulwark rail just above the deck edges.
+    for (int x = STERN + 2; x <= FORECASTLE_X; ++x) {
+        c.put(x, DECK - 1, whiteHull ? 0xCE79 : 0x4A69);
+    }
+    for (int x = FORECASTLE_X + 1; x <= BOW_DECK; ++x) {
+        c.put(x, BOW_TOP - 1, whiteHull ? 0xCE79 : 0x4A69);
+    }
+
+    // Transom shading at the stern.
+    for (int y = DECK; y <= WATERLINE; ++y) {
+        int l = 0;
+        int r = 0;
+        hullEdges(y, l, r);
+        c.put(l, y, c.dim);
+        c.put(l + 1, y, whiteHull ? 0x9CF3 : 0x2104);
+    }
 
     // Hull plating seams (steel hulls only).
     if (!whiteHull) {
