@@ -156,6 +156,16 @@ target_link_libraries(ais_replay PRIVATE
     Threads::Threads
 )
 
+# AIS name padding regression test (development helper, not installed).
+add_executable(ais_message_test
+    tests/ais_message_test.cpp
+    src/ais/ais_message.cpp
+)
+target_include_directories(ais_message_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(ais_message_test PRIVATE ${M_LIB})
+
 # AIS NMEA encoder regression test (development helper, not installed).
 add_executable(nmea_encoder_test
     tests/nmea_encoder_test.cpp

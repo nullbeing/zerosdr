@@ -43,9 +43,13 @@ private:
 };
 
 std::string trimSixBit(std::string value) {
-    while (!value.empty() && (value.back() == '@' || value.back() == ' ')) {
-        value.pop_back();
-    }
+    // '@' is the "not available" filler. Some transponders keep writing
+    // vendor bytes after the name (e.g. "SUISHUIBA52@A1=?A1=?"), so the
+    // name ends at the first '@', not only at the end of the field.
+    const size_t at = value.find('@');
+    if (at != std::string::npos) value.erase(at);
+
+    while (!value.empty() && value.back() == ' ') value.pop_back();
     size_t start = 0;
     while (start < value.size() && value[start] == ' ') ++start;
     value.erase(0, start);
