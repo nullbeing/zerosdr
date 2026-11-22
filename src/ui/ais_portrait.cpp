@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <chrono>
 #include <cstdio>
 
 namespace ais_ui {
@@ -93,6 +94,8 @@ struct Canvas {
     uint16_t dim;
     uint16_t highlight;
     uint16_t amber;
+    float speed = 0.0f;
+    float time = 0.0f;
 
     bool inside(int x, int y) const {
         const int dx = x - CX;
@@ -169,6 +172,54 @@ void hullEdges(int y, int& left, int& right) {
         left = STERN - 5 - (y - WATERLINE) / 2;
         right = BOW_DECK - 6 - (y - WATERLINE) * 6 /
                                   (KEEL - WATERLINE);
+    }
+}
+
+/** Foam and drifting streaks for a vessel under way. */
+void drawWake(Canvas& c, int stern, int bow) {
+    if (c.speed < 0.4f) return;
+    const float m = std::min(1.0f, c.speed / 10.0f);
+    const int tick = static_cast<int>(c.time * 14.0f);
+
+    // Bow splash.
+    const int bx = bow - 6;
+    c.put(bx, WATERLINE, 0x5DDF);
+    if ((tick & 1) == 0) c.put(bx - 1, WATERLINE - 1, 0x2A8A);
+    for (int i = 1; i <= 2 + static_cast<int>(m * 2); ++i) {
+        if (((tick + i) % 3) != 0) {
+            c.put(bx - 2 - i, WATERLINE, 0x2A8A);
+        }
+    }
+
+    // Stern wash at the surface.
+    for (int i = 0; i < 3 + static_cast<int>(m * 4); ++i) {
+        const int x = stern - 2 - i;
+        if (((tick + i) % 4) != 0) c.put(x, WATERLINE + 1, 0x2A8A);
+    }
+
+    // Foam dashes at the bow and stern, scrolling aft.
+    const int shift = (tick * 2) % 12;
+    for (int x = bow - 42; x <= bow - 10; x += 6) {
+        if (((x + shift) / 6) % 3 == 0) {
+            c.put(x, WATERLINE, 0x3C9E);
+            c.put(x + 1, WATERLINE, 0x5DDF);
+        }
+    }
+    for (int x = stern; x <= stern + 10; x += 5) {
+        if (((x + shift) / 5) % 2 == 0) {
+            c.put(x, WATERLINE, 0x5DDF);
+        }
+    }
+
+    // Water rushing aft along the submerged hull.
+    const int span = std::max(24, bow - stern - 24);
+    for (int j = 0; j < 4; ++j) {
+        const int y = WATERLINE + 2 + j * 2;
+        const int x0 = bow - 18 - ((tick * 3 + j * 37) % span);
+        const int len = 5 + static_cast<int>(m * 8);
+        for (int i = 0; i < len; ++i) {
+            c.blend(x0 - i, y, 0x3C9E, 0.22f + 0.10f * m);
+        }
     }
 }
 
@@ -256,6 +307,7 @@ void drawHull(Canvas& c, bool whiteHull, uint16_t upper, uint16_t lower,
         if (((x + WATERLINE) % 3) != 0) c.put(x, WATERLINE, 0x2A8A);
     }
     c.put(BOW_DECK - 7, WATERLINE, 0x5DDF);
+    drawWake(c, STERN, BOW_DECK);
 }
 
 void drawBridgeWindows(Canvas& c, int x0, int x1, int y, int step) {
@@ -539,6 +591,7 @@ void drawTugHull(Canvas& c) {
         }
     }
     c.hline(stern - 2, bow_deck - 6, WATERLINE, 0x1A6B);
+    drawWake(c, stern, bow_deck);
 }
 
 void drawTug(Canvas& c) {
@@ -623,6 +676,7 @@ void drawSmallBoat(Canvas& c) {
     }
     c.hline(58, 145, WATERLINE, 0x1A6B);
     c.hline(66, 146, deck + 8, 0x02AA);
+    drawWake(c, 62, 146);
 
     // Cabin with a paned windscreen.
     c.rect(82, 78, 120, deck - 1, 0xDEFB);
@@ -753,6 +807,10 @@ void drawGeneric(Canvas& c) {
 void drawDossierPortrait(Framebuffer& fb, const ais::VesselState* vessel,
                          uint16_t accent, uint16_t dim,
                          uint16_t highlight, uint16_t amber) {
+    const float now_s = std::chrono::duration<float>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+    const int drift = static_cast<int>(now_s * 9.0f) % 24;
+
     // Sky and sea, clipped by the porthole.
     for (int y = CY - R; y <= CY + R; ++y) {
         const int dy = y - CY;
@@ -793,13 +851,15 @@ void drawDossierPortrait(Framebuffer& fb, const ais::VesselState* vessel,
         const int half = static_cast<int>(
             std::sqrt(static_cast<float>(R * R - dy * dy)));
         for (int x = CX - half + 4; x < CX + half - 4; ++x) {
-            if (((x + y * 2) / 6) % 4 == 0) {
+            if (((x + drift + y * 2) / 6) % 4 == 0) {
                 fb.blendPixel(x, y, 0x0C6F, 0.28f);
             }
         }
     }
 
     Canvas canvas{fb, accent, dim, highlight, amber};
+    canvas.time = now_s;
+    canvas.speed = (vessel != nullptr) ? std::max(0.0f, vessel->sog) : 0.0f;
 
     const ais::VesselState* subject = vessel;
 
