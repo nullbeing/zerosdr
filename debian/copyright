@@ -1,0 +1,26 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: zeroSDR
+Source: https://github.com/nullbeing/zerosdr
+
+Files: *
+Copyright: 2026 Weiming Feng <bestedwin@gmail.com>
+License: GPL-3.0-only
+ This package is free software: you can redistribute it and/or modify it
+ under the terms of the GNU General Public License version 3 as published
+ by the Free Software Foundation.
+ .
+ On Debian systems the complete text is in /usr/share/common-licenses/GPL-3.
+
+Files: vendor/readsb/*
+Copyright: 2012-2026 readsb contributors
+License: GPL-3.0-or-later
+ See /usr/share/common-licenses/GPL-3.
+
+Files: vendor/acarsdec/acarsdec
+Copyright: 2007-2022, 2025 Thierry Leconte
+           2024-2026 Thibaut VARENE
+License: GPL-2
+ acarsdec is bundled as a separate executable and invoked as a subprocess;
+ it is not linked into zeroSDR.
+ .
+ On Debian systems the complete text is in /usr/share/common-licenses/GPL-2.

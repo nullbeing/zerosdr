@@ -1,0 +1,4 @@
+acarsdec 4f0e554
+https://github.com/f00b4r0/acarsdec
+GPLv2-only
+Built with: RTL-SDR + static cJSON, all other optional inputs/outputs disabled.

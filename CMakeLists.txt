@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(zeroSDR VERSION 0.4.0 LANGUAGES C CXX)
+project(zeroSDR VERSION 0.5.0 LANGUAGES C CXX)
 
 # Default to an optimized build. Without this, a plain `cmake ..` produces
 # an unoptimized binary that cannot keep up with real-time audio on the
@@ -91,12 +91,16 @@ set(SOURCES
     src/pages/spectrum_page.cpp
     src/pages/rfi_page.cpp
     src/pages/ais_page.cpp
+    src/pages/acars_page.cpp
 
     # AIS
     src/ais/ais_decoder.cpp
     src/ais/ais_message.cpp
     src/ais/ais_store.cpp
     src/ais/nmea_encoder.cpp
+
+    # ACARS integration (external acarsdec subprocess)
+    src/acars/acars_controller.cpp
 
     # ADSB integration
     src/adsb/readsb_controller.cpp
@@ -111,6 +115,7 @@ set(SOURCES
     src/ui/radar_ui_renderer.cpp
     src/ui/ais_ui_renderer.cpp
     src/ui/ais_portrait.cpp
+    src/ui/acars_ui_renderer.cpp
     src/ui/ttf_text.cpp
 
     # Hardware
@@ -196,6 +201,12 @@ install(FILES share/images/zerosdr.png
         DESTINATION share/APPLaunch/share/images)
 # ADSB decoder bundled with the RTL-SDR backend (Debian's readsb lacks it).
 install(PROGRAMS vendor/readsb/readsb DESTINATION lib/zerosdr)
+# ACARS decoder, GPLv2-only: bundled and executed as a separate process.
+install(PROGRAMS vendor/acarsdec/acarsdec DESTINATION lib/zerosdr)
+install(FILES vendor/acarsdec/LICENSE.md DESTINATION share/doc/zerosdr
+        RENAME acarsdec-LICENSE.md)
+install(FILES vendor/acarsdec/VERSION DESTINATION share/doc/zerosdr
+        RENAME acarsdec-VERSION.txt)
 
 # 2) CLI install. The system-wide /usr/share/applications entry is NOT
 #    installed: the AppStore only allows usr/share/APPLaunch/**,
