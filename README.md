@@ -448,13 +448,16 @@ Audio feedback:
 
 ## AIS vessel tracking
 
-![AIS plot with map and CPA guard ring](images/ais-plot.png)
-![AIS dossier with ship silhouette](images/ais-dossier.png)
-
 zeroSDR decodes AIS itself; no external decoder is required. It tunes
 162.000 MHz at 1.92 Msps and receives AIS1 (161.975 MHz) and AIS2
 (162.025 MHz) simultaneously, then runs the GMSK / HDLC / CRC / 6-bit chain in
 a dedicated thread.
+
+| LIST | PLOT |
+| --- | --- |
+| ![AIS list](images/ais-list.png) | ![AIS plot with map and CPA guard ring](images/ais-plot.png) |
+| **DOSSIER** | **CONSOLE** |
+| ![AIS dossier with the porthole ship portrait](images/ais-dossier.png) | ![AIS console](images/ais-console.png) |
 
 Select **AIS** in the `Tab` page menu. `Enter` cycles:
 
@@ -486,7 +489,8 @@ LIST -> PLOT -> DOSSIER -> CONSOLE -> LIST
   heading bug and a type-specific side-view ship (cargo, tanker, passenger,
   fishing, sailing, tug, Class B, AtoN, base station), plus MMSI, callsign,
   IMO, navigation status, position, motion, range/bearing, CPA/TCPA,
-  destination and ETA.
+  destination and ETA. Under-way targets get bow/stern foam and underwater
+  flow streaks scaled by SOG, while moored vessels stay calm.
 - **CONSOLE** — decoded message log with time, channel, type and MMSI.
 
 CPA/TCPA is calculated for a stationary shore station; targets that are
