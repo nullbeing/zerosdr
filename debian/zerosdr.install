@@ -1,0 +1,1 @@
+debian/60-zerosdr.rules usr/lib/udev/rules.d/

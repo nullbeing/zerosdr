@@ -12,8 +12,9 @@ zerosdr (0.4.0) trixie; urgency=medium
   * RFI page: HF equipment on/off survey (10m / 20m / 40m / 80m) with a
     baseline, difference graph and waterfall
   * Fn+P takes a screenshot on every page, including help and the page menu
-  * Ship USB udev rules (mode 0666) and reload them from postinst so the
-    dongle works for a normal user without plugdev
+  * Ship USB udev rules (mode 0666) under /usr/lib/udev/rules.d (Debian
+    Policy 10.1) and reload them from postinst so the dongle works for a
+    normal user without plugdev
   * Startup dialog mentions USB permissions instead of only "connect dongle"
 
  -- Weiming Feng <bestedwin@gmail.com>  Sun, 22 Nov 2026 14:30:00 +0800

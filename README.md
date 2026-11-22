@@ -624,7 +624,7 @@ Add yourself to `plugdev` and log out/in (or reboot), then re-plug the dongle:
 sudo usermod -aG plugdev "$USER"
 ```
 
-The Debian package ships `/lib/udev/rules.d/60-zerosdr.rules`, which grants the
+The Debian package ships `/usr/lib/udev/rules.d/60-zerosdr.rules`, which grants the
 common RTL2832U IDs (`0bda:2832`, `0bda:2838`) mode 0666 so membership is not
 required. If the rules are missing, create them by hand:
 
