@@ -1,18 +1,18 @@
 {
   "app_name": "zeroSDR",
   "package_name": "zerosdr",
-  "version": "0.3.9",
-  "description": "Pocket SDR receiver for Cardputer Zero: spectrum, waterfall, FM/NFM/AM/USB/LSB audio and an ADSB aircraft page. Requires an RTL-SDR USB dongle and an antenna.",
+  "version": "0.4.0",
+  "description": "Pocket SDR receiver for Cardputer Zero: spectrum, waterfall, FM/NFM/AM/USB/LSB audio, ADSB aircraft, AIS vessels and an RFI survey page. Requires an RTL-SDR USB dongle and an antenna.",
   "store": {
-    "summary": "Pocket SDR receiver for RTL-SDR: spectrum, waterfall, audio and ADSB",
-    "description": "zeroSDR turns the Cardputer Zero into a pocket SDR receiver.\n\nFEATURES\n- Real-time spectrum and waterfall on the 320x170 display\n- FM / NFM / AM / USB / LSB demodulation with squelch, audio AGC and FM de-emphasis (50/75 us)\n- Adjustable tuning step, display zoom, FFT size and sample rate\n- On-screen key reference and settings panel (press H)\n- Wideband spectrum page: sweep a custom start/stop range (e.g. 88-108 MHz), pan and zoom, max hold, six colour themes\n- Fn+D / Fn+S set the system volume on every page\n- ADSB aircraft page: sortable list, detail view with a PFD, and a radar view with a fading sweep, range rings and a large callsign plate\n- Runs as the normal user through the librtlsdr udev rule - no root, no background service\n- First-run guide (reopen with H) and optional GPS position (gpsd or serial NMEA), with manual override\n\nREQUIRED EXTRA HARDWARE\n- An RTL-SDR USB dongle (tested with RTL-SDR Blog V4 / RTL2832U). The app has no built-in radio, so a dongle is mandatory.\n- An antenna: any VHF/UHF antenna for the SDR page; a 1090 MHz antenna for the ADSB page.\n- The dongle plugs into the Cardputer Zero USB-A port and is powered by the device.\n\nNOTES\n- ADSB decoding uses a readsb build with the RTL-SDR backend bundled with the package (/usr/lib/zerosdr/readsb); no separate decoder install is needed.\n- Audio plays through the built-in speaker or the 3.5 mm jack.",
+    "summary": "Pocket SDR receiver: spectrum, waterfall, audio, ADSB, AIS and RFI",
+    "description": "zeroSDR turns the Cardputer Zero into a pocket SDR receiver.\n\nFEATURES\n- Real-time spectrum and waterfall on the 320x170 display\n- FM / NFM / AM / USB / LSB demodulation with squelch, audio AGC and FM de-emphasis (50/75 us)\n- Adjustable tuning step, display zoom, FFT size and sample rate\n- On-screen key reference and settings panel (press H)\n- Wideband spectrum page: sweep a custom start/stop range (e.g. 88-108 MHz), pan and zoom, max hold, six colour themes\n- Fn+D / Fn+S set the system volume on every page\n- ADSB aircraft page: sortable list, detail view with a PFD, and a radar view with a fading sweep, range rings and a large callsign plate\n- AIS vessel page: native dual-channel receiver at 162 MHz, nearest-first list, map PPI with a CPA guard ring and trails, a porthole dossier with a type-specific ship, and a live message console\n- AIS NMEA 0183 output on UDP 10110 for OpenCPN / Signal K\n- RFI page: compare HF band noise with your equipment switched on and off (10m / 20m / 40m / 80m)\n- Runs as the normal user; the package installs its own USB udev rules - no root, no background service\n- First-run guide (reopen with H) and optional GPS position (gpsd or serial NMEA), with manual override\n\nREQUIRED EXTRA HARDWARE\n- An RTL-SDR USB dongle (tested with RTL-SDR Blog V4 / RTL2832U). The app has no built-in radio, so a dongle is mandatory.\n- An antenna: any VHF/UHF antenna for the SDR page; a 1090 MHz antenna for the ADSB page.\n- The dongle plugs into the Cardputer Zero USB-A port and is powered by the device.\n\nNOTES\n- ADSB decoding uses a readsb build with the RTL-SDR backend bundled with the package (/usr/lib/zerosdr/readsb); no separate decoder install is needed.\n- Audio plays through the built-in speaker or the 3.5 mm jack.",
     "locales": {
       "zh-CN": {
-        "summary": "RTL-SDR 口袋 SDR：频谱、瀑布、解调收听与 ADSB",
-        "description": "zeroSDR 把 Cardputer Zero 变成一台口袋 SDR 接收机。\n\n功能\n- 320×170 屏幕上的实时频谱与瀑布\n- FM / NFM / AM / USB / LSB 解调，带静噪、音频 AGC、FM 去加重（50/75 µs）\n- 可调调谐步进、显示缩放、FFT 大小、采样率\n- 屏幕按键列表与设置页（按 H）\n- 宽带频谱页：自定义起止频率（例如 88–108 MHz）扫描，可平移缩放、峰值保持，六种配色主题\n- Fn+D / Fn+S 在任何页面调节系统音量\n- ADSB 飞机页：可排序列表、带 PFD 的详情页，以及带渐变扫描扇区、距离环和大字呼号的雷达视图\n- 通过 librtlsdr 的 udev 规则以普通用户运行，不需要 root，也不安装后台服务\n- 首次启动引导（可按 H 重新打开），支持 GPS 定位（gpsd 或串口 NMEA）与手动覆盖\n\n需要的额外硬件\n- 一个 RTL-SDR USB 电视棒（已验证：RTL-SDR Blog V4 / RTL2832U）。程序本身不含射频前端，没有电视棒就没有信号。\n- 一根天线：SDR 页面用普通 VHF/UHF 天线即可；ADSB 页面建议用 1090 MHz 天线。\n- 电视棒插在 Cardputer Zero 的 USB-A 口上，由设备供电。\n\n说明\n- ADSB 解码使用随包安装的 readsb（带 RTL-SDR 后端，位于 /usr/lib/zerosdr/readsb），不需要另外安装解码器。\n- 音频通过内置扬声器或 3.5 mm 耳机口输出。"
+        "summary": "RTL-SDR 口袋 SDR：频谱、瀑布、解调、ADSB、AIS 与 RFI",
+        "description": "zeroSDR 把 Cardputer Zero 变成一台口袋 SDR 接收机。\n\n功能\n- 320×170 屏幕上的实时频谱与瀑布\n- FM / NFM / AM / USB / LSB 解调，带静噪、音频 AGC、FM 去加重（50/75 µs）\n- 可调调谐步进、显示缩放、FFT 大小、采样率\n- 屏幕按键列表与设置页（按 H）\n- 宽带频谱页：自定义起止频率（例如 88–108 MHz）扫描，可平移缩放、峰值保持，六种配色主题\n- Fn+D / Fn+S 在任何页面调节系统音量\n- ADSB 飞机页：可排序列表、带 PFD 的详情页，以及带渐变扫描扇区、距离环和大字呼号的雷达视图\n- AIS 船舶页：162 MHz 双通道原生解码，按距离排序的列表、带 CPA 警戒圈和轨迹的地图 PPI、带船型侧视船的舷窗档案页，以及实时报文控制台\n- AIS 的 NMEA 0183 输出（UDP 10110），可直接接入 OpenCPN / Signal K\n- RFI 页：对比业余无线电设备开关前后的 HF 底噪（10m / 20m / 40m / 80m）\n- 以普通用户运行；安装包自带 USB udev 规则，不需要 root，也不安装后台服务\n- 首次启动引导（可按 H 重新打开），支持 GPS 定位（gpsd 或串口 NMEA）与手动覆盖\n\n需要的额外硬件\n- 一个 RTL-SDR USB 电视棒（已验证：RTL-SDR Blog V4 / RTL2832U）。程序本身不含射频前端，没有电视棒就没有信号。\n- 一根天线：SDR 页面用普通 VHF/UHF 天线即可；ADSB 页面建议用 1090 MHz 天线。\n- 电视棒插在 Cardputer Zero 的 USB-A 口上，由设备供电。\n\n说明\n- ADSB 解码使用随包安装的 readsb（带 RTL-SDR 后端，位于 /usr/lib/zerosdr/readsb），不需要另外安装解码器。\n- 音频通过内置扬声器或 3.5 mm 耳机口输出。"
       },
       "ja": {
-        "summary": "RTL-SDR 用ポケット SDR：スペクトラム、ウォーターフォール、音声復調、ADSB"
+        "summary": "RTL-SDR ポケット SDR：スペクトラム、ウォーターフォール、音声復調、ADSB、AIS、RFI"
       }
     },
     "icon": "store/icon.png",
@@ -22,7 +22,10 @@
       "store/screenshots/screenshot3.png",
       "store/screenshots/screenshot4.png",
       "store/screenshots/screenshot5.png",
-      "store/screenshots/screenshot6.png"
+      "store/screenshots/screenshot6.png",
+      "store/screenshots/screenshot7.png",
+      "store/screenshots/screenshot8.png",
+      "store/screenshots/screenshot9.png"
     ],
     "categories": [
       "Radio & Comms",
@@ -32,7 +35,7 @@
       "camera": false,
       "microphone": false,
       "imu": false,
-      "network": false,
+      "network": true,
       "additional_hardware": true,
       "background_service": false,
       "external_display": false

@@ -1,3 +1,23 @@
+zerosdr (0.4.0) trixie; urgency=medium
+
+  * AIS page: native dual-channel receiver (161.975 / 162.025 MHz) with
+    LIST, PLOT, DOSSIER and CONSOLE views
+  * AIS PLOT: cached map background, range rings, COG vectors, ten-point
+    trails, CPA/TCPA guard ring and a selected-target card
+  * AIS DOSSIER: 200x170 porthole instrument with a type-specific ship and a
+    wake that scales with SOG
+  * AIS: NMEA 0183 UDP 10110 output (!AIVDM, single and multipart)
+  * AIS: stop names, callsigns and destinations at the first '@' so vendor
+    padding no longer shows as mojibake
+  * RFI page: HF equipment on/off survey (10m / 20m / 40m / 80m) with a
+    baseline, difference graph and waterfall
+  * Fn+P takes a screenshot on every page, including help and the page menu
+  * Ship USB udev rules (mode 0666) and reload them from postinst so the
+    dongle works for a normal user without plugdev
+  * Startup dialog mentions USB permissions instead of only "connect dongle"
+
+ -- Weiming Feng <bestedwin@gmail.com>  Sun, 22 Nov 2026 14:30:00 +0800
+
 zerosdr (0.3.9) trixie; urgency=medium
 
   * ADSB radar: map background with Esri / AMap / OSM providers (dark by
