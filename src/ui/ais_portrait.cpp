@@ -17,9 +17,8 @@ constexpr int WATERLINE = 109;
 constexpr int DECK = 96;
 
 constexpr int STERN = 30;
-constexpr int BOW_DECK = 164;
-constexpr int BOW_TOP = 89;
-constexpr int FORECASTLE_X = 154;
+constexpr int BOW_DECK = 160;
+constexpr int BOW_TOP = 90;
 constexpr int KEEL = 118;
 
 constexpr double kPi = 3.14159265358979323846;
@@ -155,20 +154,20 @@ uint16_t seaColorAt(int y) {
 }
 
 int deckY(int x) {
-    return (x <= FORECASTLE_X) ? DECK : BOW_TOP;
+    return DECK - (x - STERN) * (DECK - BOW_TOP) / (BOW_DECK - STERN);
 }
 
 /** Rows of the hull: deck sheer at the bow, raked stem and a short keel. */
 void hullEdges(int y, int& left, int& right) {
     if (y < DECK) {
-        left = FORECASTLE_X;
-        right = BOW_DECK;
+        left = STERN + (DECK - y) * (BOW_DECK - STERN) / (DECK - BOW_TOP);
+        right = BOW_DECK + (y - BOW_TOP) * 2 / (DECK - BOW_TOP);
     } else if (y <= WATERLINE) {
         left = STERN - (y - DECK) * 5 / (KEEL - DECK);
-        right = BOW_DECK + (y - DECK) * 4 / (WATERLINE - DECK);
+        right = BOW_DECK + 2 + (y - DECK) * 6 / (WATERLINE - DECK);
     } else {
         left = STERN - 5 - (y - WATERLINE) / 2;
-        right = BOW_DECK + 4 - (y - WATERLINE) * 10 / (KEEL - WATERLINE);
+        right = BOW_DECK + 8 - (y - WATERLINE) * 12 / (KEEL - WATERLINE);
     }
 }
 
@@ -204,18 +203,9 @@ void drawHull(Canvas& c, bool whiteHull, uint16_t upper, uint16_t lower,
     }
 
     // Deck sheer and stem highlight.
-    c.hline(STERN, FORECASTLE_X, DECK, c.highlight);
-    c.vline(FORECASTLE_X, BOW_TOP, DECK, c.highlight);
-    c.hline(FORECASTLE_X, BOW_DECK, BOW_TOP, c.highlight);
-    c.line(BOW_DECK, BOW_TOP, BOW_DECK + 4, WATERLINE, c.highlight);
-
-    // Bulwark rail just above the deck edges.
-    for (int x = STERN + 2; x <= FORECASTLE_X; ++x) {
-        c.put(x, DECK - 1, whiteHull ? 0xCE79 : 0x4A69);
-    }
-    for (int x = FORECASTLE_X + 1; x <= BOW_DECK; ++x) {
-        c.put(x, BOW_TOP - 1, whiteHull ? 0xCE79 : 0x4A69);
-    }
+    c.line(STERN, DECK, BOW_DECK, BOW_TOP, c.highlight);
+    c.line(BOW_DECK, BOW_TOP, BOW_DECK + 2, DECK, c.highlight);
+    c.line(BOW_DECK + 2, DECK, BOW_DECK + 8, WATERLINE, c.highlight);
 
     // Transom shading at the stern.
     for (int y = DECK; y <= WATERLINE; ++y) {
@@ -259,11 +249,14 @@ void drawHull(Canvas& c, bool whiteHull, uint16_t upper, uint16_t lower,
         for (int x = left; x <= right; ++x) c.blend(x, y, sea, alpha);
     }
 
-    // Waterline and a little foam.
-    c.hline(STERN - 4, BOW_DECK + 8, WATERLINE, 0x3C9E);
-    for (int x = STERN - 2; x < BOW_DECK + 6; x += 9) {
-        c.hline(x, x + 5, WATERLINE + 1, 0x2A8A);
-        c.put(x + 2, WATERLINE + 2, 0x1A6B);
+    // Waterline: a soft edge with foam at the bow and stern only.
+    c.hline(STERN - 4, BOW_DECK + 8, WATERLINE, 0x1A6B);
+    for (int x = STERN - 2; x < STERN + 10; ++x) {
+        if (((x + WATERLINE) % 3) != 0) c.put(x, WATERLINE, 0x2A8A);
+    }
+    for (int x = BOW_DECK; x <= BOW_DECK + 9; ++x) {
+        c.put(x, WATERLINE, 0x2A8A);
+        if ((x & 1) == 0) c.put(x, WATERLINE - 1, 0x5DDF);
     }
 }
 
@@ -628,7 +621,7 @@ void drawSmallBoat(Canvas& c) {
             c.blend(x, y, seaColorAt(y), alpha);
         }
     }
-    c.hline(58, 152, WATERLINE, 0x3C9E);
+    c.hline(58, 152, WATERLINE, 0x1A6B);
     c.hline(66, 146, deck + 8, 0x02AA);
 
     // Cabin with a paned windscreen.
