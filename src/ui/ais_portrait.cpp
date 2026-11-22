@@ -668,11 +668,12 @@ void drawAton(Canvas& c) {
 }
 
 void drawBase(Canvas& c) {
-    // Quay edge.
-    c.rect(20, 104, 180, 112, 0x39C7);
-    c.hline(20, 180, 104, 0x7B60);
+    // Quay edge and bollards.
+    c.rect(18, 104, 182, 112, 0x5AEB);
+    c.hline(18, 182, 104, 0x8C71);
+    c.hline(18, 182, 112, 0x2965);
     for (int x = 24; x <= 176; x += 14) {
-        c.put(x, 110, 0x2104);
+        c.rect(x, 106, x + 2, 109, 0x2104);
     }
 
     // Control building.
