@@ -496,13 +496,13 @@ void drawTugHull(Canvas& c) {
         int right;
         if (y < deck) {
             left = stern + (deck - y) * (bow_deck - stern) / 4;
-            right = bow_deck + (y - (deck - 4)) * 6 / 4;
+            right = bow_deck - (y - (deck - 4)) / 4;
         } else if (y <= WATERLINE) {
             left = stern - (y - deck) * 3 / (KEEL - deck);
-            right = bow_deck + 6 + (y - deck) * 6 / (WATERLINE - deck);
+            right = bow_deck - 1 - (y - deck) * 5 / (WATERLINE - deck);
         } else {
             left = stern - 3 - (y - WATERLINE) / 2;
-            right = bow_deck + 12 - (y - WATERLINE) * 10 /
+            right = bow_deck - 6 - (y - WATERLINE) * 6 /
                                          (KEEL - WATERLINE);
         }
         if (right <= left) continue;
@@ -521,23 +521,24 @@ void drawTugHull(Canvas& c) {
         c.hline(left, right, y, color);
     }
     c.line(stern, deck, bow_deck, deck - 4, c.highlight);
-    c.line(bow_deck, deck - 4, bow_deck + 6, deck, c.highlight);
-    c.line(bow_deck + 6, deck, bow_deck + 12, WATERLINE, c.highlight);
+    c.line(bow_deck, deck - 4, bow_deck - 1, deck, c.highlight);
+    c.line(bow_deck - 1, deck, bow_deck - 6, WATERLINE, c.highlight);
+    c.line(bow_deck - 6, WATERLINE, bow_deck - 12, KEEL, c.highlight);
     for (int x = stern + 8; x <= bow_deck - 6; x += 12) {
         c.vline(x, deck + 2, WATERLINE - 1, 0x2965);
     }
     for (int y = WATERLINE; y <= KEEL; ++y) {
         const int left = stern - 3 - (y - WATERLINE) / 2;
-        const int right = bow_deck + 12 - (y - WATERLINE) * 10 /
+        const int right = bow_deck - 6 - (y - WATERLINE) * 6 /
                                              (KEEL - WATERLINE);
         const float depth = static_cast<float>(y - WATERLINE) /
                             static_cast<float>(KEEL - WATERLINE);
-        const float alpha = 0.14f + 0.18f * depth;
+        const float alpha = 0.34f + 0.28f * depth;
         for (int x = left; x <= right; ++x) {
             c.blend(x, y, seaColorAt(y), alpha);
         }
     }
-    c.hline(stern - 2, bow_deck + 12, WATERLINE, 0x3C9E);
+    c.hline(stern - 2, bow_deck - 6, WATERLINE, 0x1A6B);
 }
 
 void drawTug(Canvas& c) {
@@ -585,10 +586,10 @@ void drawSmallBoat(Canvas& c) {
         int right;
         if (y <= WATERLINE) {
             left = 64 - (y - deck) / 4;
-            right = 138 + (y - deck) * 12 / (WATERLINE - deck);
+            right = 146 - (y - deck) * 5 / (WATERLINE - deck);
         } else {
             left = 61 - (y - WATERLINE) / 2;
-            right = 150 - (y - WATERLINE) * 3;
+            right = 141 - (y - WATERLINE) * 4 / (KEEL - WATERLINE);
         }
         uint16_t color;
         if (y < deck + 7) {
@@ -599,27 +600,28 @@ void drawSmallBoat(Canvas& c) {
                             (y - deck - 7) /
                                 static_cast<float>(WATERLINE - deck - 7));
         } else {
-            color = lerp565(0x8000, 0x3800,
+            color = lerp565(0x6000, 0x3000,
                             (y - WATERLINE) /
                                 static_cast<float>(KEEL - WATERLINE));
         }
         c.hline(left, right, y, color);
     }
-    c.line(64, deck, 138, deck, c.highlight);
-    c.line(138, deck, 150, WATERLINE, c.highlight);
-    c.line(150, WATERLINE, 147, KEEL, c.highlight);
+    c.line(64, deck, 146, deck, c.highlight);
+    c.line(146, deck, 141, WATERLINE, c.highlight);
+    c.line(141, WATERLINE, 137, KEEL, c.highlight);
     c.line(64, deck, 61, KEEL, c.highlight);
     for (int y = WATERLINE; y <= KEEL; ++y) {
         const int left = 61 - (y - WATERLINE) / 2;
-        const int right = 150 - (y - WATERLINE) * 3;
+        const int right = 141 - (y - WATERLINE) * 4 /
+                                  (KEEL - WATERLINE);
         const float depth = static_cast<float>(y - WATERLINE) /
                             static_cast<float>(KEEL - WATERLINE);
-        const float alpha = 0.14f + 0.18f * depth;
+        const float alpha = 0.34f + 0.28f * depth;
         for (int x = left; x <= right; ++x) {
             c.blend(x, y, seaColorAt(y), alpha);
         }
     }
-    c.hline(58, 152, WATERLINE, 0x1A6B);
+    c.hline(58, 145, WATERLINE, 0x1A6B);
     c.hline(66, 146, deck + 8, 0x02AA);
 
     // Cabin with a paned windscreen.
@@ -654,9 +656,8 @@ void drawSmallBoat(Canvas& c) {
     c.hline(56, 64, 100, c.highlight);
 
     // Bow rail, fenders and wake.
-    c.line(134, 90, 144, 95, c.highlight);
-    c.line(138, 90, 148, 92, 0x9CF3);
-    c.line(120, 92, 138, 92, 0x9CF3);
+    c.line(120, 92, 140, 92, 0x9CF3);
+    c.line(140, 92, 145, 94, 0x9CF3);
     c.rect(68, 100, 72, 104, 0x2104);
     for (int i = 0; i < 5; ++i) {
         c.hline(46 - i * 8, 54 - i * 8, 108 + (i & 1), 0x2A8A);
