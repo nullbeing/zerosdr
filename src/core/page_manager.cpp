@@ -556,14 +556,6 @@ void PageManager::drawPageIcon(int page_index, int x, int y,
         fb_.drawLine(x + 5, y + 6, x + 13, y + 6, color);
         fb_.drawLine(x + 5, y + 13, x + 3, y + 9, color);
         fb_.drawLine(x + 13, y + 13, x + 15, y + 9, color);
-    } else if (std::strcmp(name, "ACARS") == 0) {
-        // Radio mast with two side waves.
-        fb_.drawLine(x + 9, y + 16, x + 9, y + 7, color);
-        fb_.drawLine(x + 4, y + 16, x + 14, y + 16, color);
-        fb_.drawLine(x + 9, y + 7, x + 5, y + 11, color);
-        fb_.drawLine(x + 9, y + 7, x + 13, y + 11, color);
-        fb_.drawLine(x + 2, y + 8, x + 2, y + 12, color);
-        fb_.drawLine(x + 16, y + 8, x + 16, y + 12, color);
     } else if (std::strcmp(name, "ADSB") == 0) {
         // Radar ring with a small aircraft.
         drawCircleOutline(x + 9, y + 9, 8, color);
@@ -606,9 +598,7 @@ void PageManager::drawPageMenu() {
     // shrink so the panel stays inside the 320 px display.
     int tile_w = 70;
     if (page_count > 4) {
-        // Six pages still have to fit the 320 px panel: 46 px tiles plus
-        // five 5 px gaps and the 18 px padding come to 319 px.
-        tile_w = std::max(46, (w - 18 - (page_count - 1) * gap) / page_count);
+        tile_w = std::max(48, (w - 18 - (page_count - 1) * gap) / page_count);
     }
     const int panel_w = page_count * tile_w + (page_count - 1) * gap + 18;
     const int panel_h = has_shortcut ? 122 : 74;
