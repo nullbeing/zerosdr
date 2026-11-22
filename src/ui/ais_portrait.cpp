@@ -17,8 +17,8 @@ constexpr int WATERLINE = 109;
 constexpr int DECK = 96;
 
 constexpr int STERN = 30;
-constexpr int BOW_DECK = 160;
-constexpr int BOW_TOP = 90;
+constexpr int BOW_DECK = 168;
+constexpr int BOW_TOP = 92;
 constexpr int KEEL = 118;
 
 constexpr double kPi = 3.14159265358979323846;
@@ -161,13 +161,14 @@ int deckY(int x) {
 void hullEdges(int y, int& left, int& right) {
     if (y < DECK) {
         left = STERN + (DECK - y) * (BOW_DECK - STERN) / (DECK - BOW_TOP);
-        right = BOW_DECK + (y - BOW_TOP) * 2 / (DECK - BOW_TOP);
+        right = BOW_DECK - (y - BOW_TOP) / (DECK - BOW_TOP);
     } else if (y <= WATERLINE) {
         left = STERN - (y - DECK) * 5 / (KEEL - DECK);
-        right = BOW_DECK + 2 + (y - DECK) * 6 / (WATERLINE - DECK);
+        right = BOW_DECK - 1 - (y - DECK) * 5 / (WATERLINE - DECK);
     } else {
         left = STERN - 5 - (y - WATERLINE) / 2;
-        right = BOW_DECK + 8 - (y - WATERLINE) * 12 / (KEEL - WATERLINE);
+        right = BOW_DECK - 6 - (y - WATERLINE) * 6 /
+                                  (KEEL - WATERLINE);
     }
 }
 
@@ -204,8 +205,8 @@ void drawHull(Canvas& c, bool whiteHull, uint16_t upper, uint16_t lower,
 
     // Deck sheer and stem highlight.
     c.line(STERN, DECK, BOW_DECK, BOW_TOP, c.highlight);
-    c.line(BOW_DECK, BOW_TOP, BOW_DECK + 2, DECK, c.highlight);
-    c.line(BOW_DECK + 2, DECK, BOW_DECK + 8, WATERLINE, c.highlight);
+    c.line(BOW_DECK, BOW_TOP, BOW_DECK - 6, WATERLINE, c.highlight);
+    c.line(BOW_DECK - 6, WATERLINE, BOW_DECK - 12, KEEL, c.highlight);
 
     // Transom shading at the stern.
     for (int y = DECK; y <= WATERLINE; ++y) {
@@ -245,7 +246,7 @@ void drawHull(Canvas& c, bool whiteHull, uint16_t upper, uint16_t lower,
         const float depth = static_cast<float>(y - WATERLINE) /
                             static_cast<float>(KEEL - WATERLINE);
         const uint16_t sea = seaColorAt(y);
-        const float alpha = 0.42f + 0.30f * depth;
+        const float alpha = 0.14f + 0.18f * depth;
         for (int x = left; x <= right; ++x) c.blend(x, y, sea, alpha);
     }
 
@@ -254,10 +255,7 @@ void drawHull(Canvas& c, bool whiteHull, uint16_t upper, uint16_t lower,
     for (int x = STERN - 2; x < STERN + 10; ++x) {
         if (((x + WATERLINE) % 3) != 0) c.put(x, WATERLINE, 0x2A8A);
     }
-    for (int x = BOW_DECK; x <= BOW_DECK + 9; ++x) {
-        c.put(x, WATERLINE, 0x2A8A);
-        if ((x & 1) == 0) c.put(x, WATERLINE - 1, 0x5DDF);
-    }
+    c.put(BOW_DECK - 7, WATERLINE, 0x5DDF);
 }
 
 void drawBridgeWindows(Canvas& c, int x0, int x1, int y, int step) {
@@ -271,7 +269,7 @@ void drawCargo(Canvas& c) {
 
     // Deck cargo: two tiers of containers.
     const uint16_t box[5] = {0x8200, 0x02AA, 0x7B60, 0x2965, 0x03A6};
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < 4; ++i) {
         const int x = 86 + i * 12;
         const int base = deckY(x);
         c.rect(x, base - 10, x + 10, base - 1, box[i % 5]);
@@ -281,7 +279,7 @@ void drawCargo(Canvas& c) {
             c.vline(x + d * 3, base - 9, base - 2, 0x18E3);
         }
     }
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 3; ++i) {
         const int x = 92 + i * 13;
         const int base = deckY(x) - 10;
         c.rect(x, base - 8, x + 11, base - 1, box[(i + 2) % 5]);
@@ -534,7 +532,7 @@ void drawTugHull(Canvas& c) {
                                              (KEEL - WATERLINE);
         const float depth = static_cast<float>(y - WATERLINE) /
                             static_cast<float>(KEEL - WATERLINE);
-        const float alpha = 0.42f + 0.30f * depth;
+        const float alpha = 0.14f + 0.18f * depth;
         for (int x = left; x <= right; ++x) {
             c.blend(x, y, seaColorAt(y), alpha);
         }
@@ -616,7 +614,7 @@ void drawSmallBoat(Canvas& c) {
         const int right = 150 - (y - WATERLINE) * 3;
         const float depth = static_cast<float>(y - WATERLINE) /
                             static_cast<float>(KEEL - WATERLINE);
-        const float alpha = 0.42f + 0.30f * depth;
+        const float alpha = 0.14f + 0.18f * depth;
         for (int x = left; x <= right; ++x) {
             c.blend(x, y, seaColorAt(y), alpha);
         }
