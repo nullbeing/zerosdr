@@ -109,6 +109,10 @@ private:
     int volume_key_before_ = -1;
     struct timeval volume_key_deadline_ {};
 
+    // Fn+P is a global shortcut: the frame is saved after the page (or the
+    // menu/exit overlay) has finished drawing, so the PNG matches the screen.
+    bool screenshot_requested_ = false;
+
     /**
      * Perform page transition
      * @param new_index Index of the page to switch to

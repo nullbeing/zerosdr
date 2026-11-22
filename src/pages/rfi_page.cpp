@@ -1,5 +1,4 @@
 #include "pages/rfi_page.h"
-#include "screenshot.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -209,11 +208,6 @@ bool RfiPage::handleInput(AppKeyCode key) {
             return true;
         case APPKEY_SPACE: delta_view_ = !delta_view_; return true;
         case APPKEY_R: start(); return true;
-        case APPKEY_SCREENSHOT: {
-            const auto path = makeScreenshotPath();
-            if (fb_.saveScreenshot(path.c_str())) std::cout << "RFI screenshot: " << path << std::endl;
-            return true;
-        }
         default: return false;
     }
 }

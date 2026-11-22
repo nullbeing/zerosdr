@@ -110,7 +110,7 @@ set(SOURCES
     src/ui/adsb_ui_renderer.cpp
     src/ui/radar_ui_renderer.cpp
     src/ui/ais_ui_renderer.cpp
-    src/ui/ais_sprites.cpp
+    src/ui/ais_portrait.cpp
     src/ui/ttf_text.cpp
 
     # Hardware

@@ -1,6 +1,5 @@
 #include "pages/sdr_page.h"
 #include "app_config.h"
-#include "screenshot.h"
 #include "core/first_run_guide.h"
 #include <iostream>
 #include <algorithm>
@@ -364,15 +363,6 @@ bool SDRPage::handleInput(AppKeyCode key) {
     if (key == APPKEY_M || key == APPKEY_G || key == APPKEY_RES || key == APPKEY_BW ||
         key == APPKEY_ZOOM || key == APPKEY_PLUS || key == APPKEY_MINUS || key == APPKEY_T) {
         handleModeControls(key);
-        return true;
-    }
-    if (key == APPKEY_SCREENSHOT) {
-        const std::string path = makeScreenshotPath();
-        if (fb_.saveScreenshot(path.c_str())) {
-            std::cout << "Screenshot saved: " << path << std::endl;
-        } else {
-            std::cerr << "Screenshot failed" << std::endl;
-        }
         return true;
     }
     return false;

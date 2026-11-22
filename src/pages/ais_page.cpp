@@ -1,7 +1,6 @@
 #include "pages/ais_page.h"
 
 #include "app_config.h"
-#include "screenshot.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -200,6 +199,7 @@ void AisPage::update(float delta_time) {
     updateRate();
 
     const time_t now = time(nullptr);
+
     if (now != last_alarm_check_) {
         last_alarm_check_ = now;
         bool alarm = false;
@@ -423,13 +423,6 @@ bool AisPage::handleInput(AppKeyCode key) {
             }
             return false;
 
-        case APPKEY_SCREENSHOT: {
-            const std::string path = makeScreenshotPath();
-            if (fb_.saveScreenshot(path.c_str())) {
-                std::cout << "Screenshot saved: " << path << std::endl;
-            }
-            return true;
-        }
 
         default:
             return false;

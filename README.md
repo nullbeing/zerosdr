@@ -257,7 +257,7 @@ codes, and plain letters are used for the SDR controls.
 | `M` | Color theme |
 | `Shift+Z` | Display zoom |
 | `Shift+R` | FFT size |
-| `Shift+S` | Screenshot |
+| `Shift+S` | Screenshot (PC alias of `Fn`+`P`) |
 | `H` | Key list / settings |
 | `Tab` | Page menu |
 | `Esc` (hold 2 s) | Quit, with a centered progress prompt |
@@ -471,7 +471,7 @@ LIST -> PLOT -> DOSSIER -> CONSOLE -> LIST
 | `G` | Tuner AGC / manual gain |
 | `U` | Toggle NMEA UDP export |
 | `H` | Key list |
-| `Shift+S` / `Fn`+`P` | Screenshot |
+| `Fn`+`P` | Screenshot (any page; `Shift+S` on a PC) |
 | `Tab` | Page menu |
 | `Esc` | Return to the list / close help |
 
@@ -482,9 +482,11 @@ LIST -> PLOT -> DOSSIER -> CONSOLE -> LIST
   Class B, plus AtoN and base-station glyphs), COG vectors, ten-point trails,
   a 0.5 NM CPA guard ring and a selected-target card. `Up` / `Down` zooms
   from 0.5 to 32 NM (starts at 2 NM).
-- **DOSSIER** — type-specific 8-bit pixel-art ship silhouette, dimensions and draught, plus
-  MMSI, callsign, IMO, navigation status, position, motion, range/bearing,
-  CPA/TCPA, destination and ETA.
+- **DOSSIER** — 200x170 porthole instrument: gradient sky/sea, compass bezel,
+  heading bug and a type-specific side-view ship (cargo, tanker, passenger,
+  fishing, sailing, tug, Class B, AtoN, base station), plus MMSI, callsign,
+  IMO, navigation status, position, motion, range/bearing, CPA/TCPA,
+  destination and ETA.
 - **CONSOLE** — decoded message log with time, channel, type and MMSI.
 
 CPA/TCPA is calculated for a stationary shore station; targets that are

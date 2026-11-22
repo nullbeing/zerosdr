@@ -1,7 +1,6 @@
 #include "pages/spectrum_page.h"
 #include "app_config.h"
 #include "system_volume.h"
-#include "screenshot.h"
 
 #include <algorithm>
 #include <cmath>
@@ -293,19 +292,6 @@ bool SpectrumPage::handleInput(AppKeyCode key) {
     }
     if (key == APPKEY_H) {
         help_visible_ = true;
-        return true;
-    }
-    if (key == APPKEY_SCREENSHOT) {
-        const std::string path = makeScreenshotPath();
-        if (fb_.saveScreenshot(path.c_str())) {
-            toast_ = "SAVED";
-            std::cout << "Screenshot saved: " << path << std::endl;
-        } else {
-            toast_ = "FAILED";
-            std::cerr << "Screenshot failed" << std::endl;
-        }
-        toast_until_ = std::chrono::steady_clock::now() +
-                       std::chrono::milliseconds(1500);
         return true;
     }
 

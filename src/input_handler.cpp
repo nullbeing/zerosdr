@@ -384,6 +384,9 @@ AppKeyCode InputHandler::translateKeyCode(int linux_keycode,
             return shift_pressed ? APPKEY_ZOOM : APPKEY_NONE;
         case KEY_C:
             return alt_pressed ? APPKEY_RIGHT_COARSE : APPKEY_NONE;
+        case KEY_F12:
+        case KEY_SYSRQ:
+            return APPKEY_SCREENSHOT;
 
         // Number keys (top row, not numpad)
         case KEY_0:        return APPKEY_0;

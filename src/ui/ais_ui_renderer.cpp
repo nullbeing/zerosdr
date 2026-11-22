@@ -2,7 +2,7 @@
 
 #include "font.h"
 #include "adsb/map_background.h"
-#include "ui/ais_sprites.h"
+#include "ui/ais_portrait.h"
 
 #include <algorithm>
 #include <cmath>
@@ -117,6 +117,20 @@ float bearingDeg(double lat1, double lon1, double lat2, double lon2) {
     return static_cast<float>(degrees);
 }
 
+
+void drawTargetTriangle(Framebuffer& fb, int cx, int cy, float heading,
+                        uint16_t color, int size) {
+    const float angle = heading * static_cast<float>(kPi) / 180.0f;
+    const int nose_x = cx + static_cast<int>(std::lround(std::sin(angle) * size));
+    const int nose_y = cy - static_cast<int>(std::lround(std::cos(angle) * size));
+    const int left_x = cx + static_cast<int>(std::lround(std::sin(angle + 2.4f) * size));
+    const int left_y = cy - static_cast<int>(std::lround(std::cos(angle + 2.4f) * size));
+    const int right_x = cx + static_cast<int>(std::lround(std::sin(angle - 2.4f) * size));
+    const int right_y = cy - static_cast<int>(std::lround(std::cos(angle - 2.4f) * size));
+    fb.drawLine(nose_x, nose_y, left_x, left_y, color);
+    fb.drawLine(left_x, left_y, right_x, right_y, color);
+    fb.drawLine(right_x, right_y, nose_x, nose_y, color);
+}
 
 const char* navStatusLabel(int status) {
     switch (status) {
@@ -481,29 +495,22 @@ void AisUIRenderer::renderPlot(
             fb_.drawLine((x + ex) / 2, (y + ey) / 2, ex, ey, theme_.dim);
         }
 
-        ais_ui::PlotTargetKind kind = ais_ui::PlotTargetKind::Generic;
         if (vessel.base_station) {
-            kind = ais_ui::PlotTargetKind::Base;
+            fb_.drawRect(x - 2, y - 2, 5, 5, color);
         } else if (vessel.aton) {
-            kind = ais_ui::PlotTargetKind::Aton;
+            drawCircleOutline(fb_, x, y, 2, color);
         } else if (vessel.class_b) {
-            kind = ais_ui::PlotTargetKind::ClassB;
-        } else if (vessel.ship_type >= 60 && vessel.ship_type < 70) {
-            kind = ais_ui::PlotTargetKind::Passenger;
-        } else if (vessel.ship_type >= 70 && vessel.ship_type < 80) {
-            kind = ais_ui::PlotTargetKind::Cargo;
-        } else if (vessel.ship_type >= 80 && vessel.ship_type < 90) {
-            kind = ais_ui::PlotTargetKind::Tanker;
-        }
-
-        const uint16_t sprite_dim =
-            selected ? 0x8200 : (alarm ? 0x8000 : theme_.grid);
-        const uint16_t sprite_highlight =
-            (selected || alarm) ? 0xFFFF : theme_.text;
-        ais_ui::drawPlotTarget(fb_, x, y,
+            fb_.drawLine(x, y - 4, x + 4, y, color);
+            fb_.drawLine(x + 4, y, x, y + 4, color);
+            fb_.drawLine(x, y + 4, x - 4, y, color);
+            fb_.drawLine(x - 4, y, x, y - 4, color);
+        } else {
+            drawTargetTriangle(fb_, x, y,
                                vessel.cog >= 0.0f ? vessel.cog
                                                   : vessel.bearing_deg,
-                               kind, color, sprite_dim, sprite_highlight);
+                               color, selected ? 5 : 4);
+        }
+        fb_.drawPixel(x, y, color);
 
         if (selected) {
             constexpr int r = 7;
@@ -615,174 +622,142 @@ void AisUIRenderer::renderDossier(const ais::VesselState* vessel,
                                   uint64_t total_messages,
                                   float messages_per_second,
                                   int gain_tenths, bool agc) {
+    (void)total_messages;
     fb_.fillRect(0, 0, kScreenWidth, 170, theme_.bg);
-    renderStatusBar(total_messages, messages_per_second, gain_tenths, agc,
-                    vessel_count);
+
+    ais_ui::drawDossierPortrait(fb_, vessel, theme_.accent, theme_.dim,
+                                theme_.text, 0xFD20);
+
+    fb_.fillRect(199, 4, 1, 162, theme_.grid);
+
+    char buffer[64];
+    std::snprintf(buffer, sizeof(buffer), "AIS %zu", vessel_count);
+    drawSmallText(204, 3, buffer, theme_.accent);
+    if (udp_enabled_) drawSmallText(282, 3, "UDP", 0x07E0);
 
     if (vessel == nullptr) {
-        drawText(104, 72, "NO TARGET", theme_.dim);
-    } else {
-        constexpr int panel_x = 2;
-        constexpr int panel_y = 22;
-        constexpr int panel_w = 104;
-        constexpr int panel_h = 126;
-        fb_.fillRect(panel_x, panel_y, panel_w, panel_h, theme_.panel);
-        fb_.drawRect(panel_x, panel_y, panel_w, panel_h, theme_.grid);
-
-        uint16_t sprite_bright = theme_.accent;
-        uint16_t sprite_dim = 0x02AA;
-        uint16_t sprite_highlight = theme_.text;
-        if (vessel->base_station || vessel->aton) {
-            sprite_bright = 0xFD20;
-            sprite_dim = 0x8200;
-        }
-        ais_ui::drawDossierShip(fb_, 6, 28, 96, 72, *vessel,
-                                sprite_bright, sprite_dim, sprite_highlight);
-
-        const int length = (vessel->to_bow >= 0 && vessel->to_stern >= 0)
-                               ? vessel->to_bow + vessel->to_stern
-                               : -1;
-        const int beam = (vessel->to_port >= 0 && vessel->to_starboard >= 0)
-                             ? vessel->to_port + vessel->to_starboard
-                             : -1;
-        char dim[32];
-        if (length > 0) {
-            std::snprintf(dim, sizeof(dim), "L %dm", length);
-        } else {
-            std::snprintf(dim, sizeof(dim), "L --");
-        }
-        drawSmallText(6, 106, dim, theme_.dim);
-        if (beam > 0) {
-            std::snprintf(dim, sizeof(dim), "W %dm", beam);
-        } else {
-            std::snprintf(dim, sizeof(dim), "W --");
-        }
-        drawSmallText(6, 116, dim, theme_.dim);
-        if (vessel->draught >= 0.0f) {
-            std::snprintf(dim, sizeof(dim), "D %.1fm", vessel->draught);
-        } else {
-            std::snprintf(dim, sizeof(dim), "D --");
-        }
-        drawSmallText(6, 126, dim, theme_.dim);
-
-        char name[24];
-        std::snprintf(name, sizeof(name), "%.18s",
-                      vessel->name.empty() ? "UNKNOWN" : vessel->name.c_str());
-        drawText(112, 23, name, theme_.text);
-
-        int y = 42;
-        char buffer[96];
-        std::snprintf(buffer, sizeof(buffer), "MMSI %09u", vessel->mmsi);
-        drawSmallText(112, y, buffer, theme_.accent);
-        y += 9;
-
-        char class_line[40];
-        if (vessel->base_station) {
-            std::snprintf(class_line, sizeof(class_line), "BASE STATION");
-        } else if (vessel->aton) {
-            std::snprintf(class_line, sizeof(class_line), "AID TO NAVIGATION");
-        } else {
-            const char* type = ais::AisStore::shipTypeLabel(vessel->ship_type);
-            if (type[0] == '\0') {
-                std::snprintf(class_line, sizeof(class_line), "%s",
-                              vessel->class_b ? "CLASS B" : "CLASS A");
-            } else {
-                std::snprintf(class_line, sizeof(class_line), "%s  %s", type,
-                              vessel->class_b ? "CLASS B" : "CLASS A");
-            }
-        }
-        drawSmallText(112, y, class_line, theme_.text);
-        y += 9;
-
-        char imo[16];
-        if (vessel->imo != 0) {
-            std::snprintf(imo, sizeof(imo), "%07u", vessel->imo);
-        } else {
-            std::snprintf(imo, sizeof(imo), "--");
-        }
-        std::snprintf(buffer, sizeof(buffer), "CALL %s  IMO %s",
-                      vessel->callsign.empty() ? "--" : vessel->callsign.c_str(),
-                      imo);
-        drawSmallText(112, y, buffer, theme_.dim);
-        y += 9;
-
-        std::snprintf(buffer, sizeof(buffer), "STATUS %s",
-                      navStatusLabel(vessel->nav_status));
-        drawSmallText(112, y, buffer, theme_.dim);
-        y += 9;
-
-        if (vessel->has_position) {
-            std::snprintf(buffer, sizeof(buffer), "POS %.5f,%.5f",
-                          vessel->latitude, vessel->longitude);
-        } else {
-            std::snprintf(buffer, sizeof(buffer), "POS --");
-        }
-        drawSmallText(112, y, buffer, theme_.dim);
-        y += 9;
-
-        char sog[16], cog[16], hdg[16];
-        if (vessel->sog >= 0.0f) std::snprintf(sog, sizeof(sog), "%.1f", vessel->sog);
-        else std::snprintf(sog, sizeof(sog), "--");
-        if (vessel->cog >= 0.0f) std::snprintf(cog, sizeof(cog), "%.0f", vessel->cog);
-        else std::snprintf(cog, sizeof(cog), "--");
-        if (vessel->heading >= 0) std::snprintf(hdg, sizeof(hdg), "%d", vessel->heading);
-        else std::snprintf(hdg, sizeof(hdg), "--");
-        std::snprintf(buffer, sizeof(buffer), "SOG %skn  COG %s  HDG %s",
-                      sog, cog, hdg);
-        drawSmallText(112, y, buffer, theme_.text);
-        y += 9;
-
-        if (vessel->distance_nm >= 0.0f) {
-            std::snprintf(buffer, sizeof(buffer), "RNG %.1fNM  BRG %03.0f",
-                          vessel->distance_nm, vessel->bearing_deg);
-        } else {
-            std::snprintf(buffer, sizeof(buffer), "RNG --");
-        }
-        drawSmallText(112, y, buffer, theme_.text);
-        y += 9;
-
-        if (vessel->cpa_nm >= 0.0f) {
-            if (vessel->tcpa_min >= 0.0f) {
-                std::snprintf(buffer, sizeof(buffer), "CPA %.1fNM  T%.0fm",
-                              vessel->cpa_nm, vessel->tcpa_min);
-            } else {
-                std::snprintf(buffer, sizeof(buffer), "CPA %.1fNM  T--",
-                              vessel->cpa_nm);
-            }
-        } else {
-            std::snprintf(buffer, sizeof(buffer), "CPA --");
-        }
-        drawSmallText(112, y, buffer, theme_.text);
-        y += 9;
-
-        std::snprintf(buffer, sizeof(buffer), "DEST %.20s",
-                      vessel->destination.empty() ? "--"
-                                                  : vessel->destination.c_str());
-        drawSmallText(112, y, buffer, theme_.dim);
-        y += 9;
-
-        if (vessel->eta_month > 0) {
-            std::snprintf(buffer, sizeof(buffer), "ETA %02d-%02d %02d:%02d",
-                          vessel->eta_month, vessel->eta_day,
-                          vessel->eta_hour, vessel->eta_minute);
-        } else {
-            std::snprintf(buffer, sizeof(buffer), "ETA --");
-        }
-        drawSmallText(112, y, buffer, theme_.dim);
-        y += 9;
-
-        std::snprintf(buffer, sizeof(buffer), "AGE %lds  MSG %u",
-                      static_cast<long>(time(nullptr) - vessel->last_seen),
-                      vessel->messages);
-        drawSmallText(112, y, buffer, theme_.dim);
+        drawSmallText(204, 18, "NO VESSEL SELECTED", theme_.dim);
+        return;
     }
 
-    fb_.fillRect(0, 152, kScreenWidth, 18, theme_.status_bg);
-    fb_.fillRect(0, 152, kScreenWidth, 1, theme_.grid);
-    drawSmallText(2, 157, "DOSSIER", theme_.dim);
-    drawSmallText(72, 157, "<> TGT  ENTER NEXT", theme_.text);
-    drawSmallText(kScreenWidth - smallTextWidth("H HELP") - 2, 157, "H HELP",
-                  theme_.accent);
+    char name[24];
+    std::snprintf(name, sizeof(name), "%.12s",
+                  vessel->name.empty() ? "UNKNOWN" : vessel->name.c_str());
+    drawText(204, 14, name, theme_.text);
+
+    int y = 34;
+    std::snprintf(buffer, sizeof(buffer), "MMSI %09u", vessel->mmsi);
+    drawSmallText(204, y, buffer, theme_.accent);
+    y += 9;
+
+    char class_line[28];
+    if (vessel->base_station) {
+        std::snprintf(class_line, sizeof(class_line), "BASE STATION");
+    } else if (vessel->aton) {
+        std::snprintf(class_line, sizeof(class_line), "AID TO NAV");
+    } else {
+        const char* type = ais::AisStore::shipTypeLabel(vessel->ship_type);
+        if (type[0] == '\0') {
+            std::snprintf(class_line, sizeof(class_line), "%s",
+                          vessel->class_b ? "CLASS B" : "CLASS A");
+        } else {
+            std::snprintf(class_line, sizeof(class_line), "%s %s", type,
+                          vessel->class_b ? "B" : "A");
+        }
+    }
+    drawSmallText(204, y, class_line, theme_.text);
+    y += 9;
+
+    std::snprintf(buffer, sizeof(buffer), "CALL %.7s",
+                  vessel->callsign.empty() ? "--" : vessel->callsign.c_str());
+    drawSmallText(204, y, buffer, theme_.dim);
+    y += 9;
+
+    if (vessel->imo != 0) {
+        std::snprintf(buffer, sizeof(buffer), "IMO %07u", vessel->imo);
+    } else {
+        std::snprintf(buffer, sizeof(buffer), "IMO --");
+    }
+    drawSmallText(204, y, buffer, theme_.dim);
+    y += 9;
+
+    std::snprintf(buffer, sizeof(buffer), "STATUS %s",
+                  navStatusLabel(vessel->nav_status));
+    drawSmallText(204, y, buffer, theme_.dim);
+    y += 9;
+
+    if (vessel->has_position) {
+        std::snprintf(buffer, sizeof(buffer), "LAT %.3f", vessel->latitude);
+    } else {
+        std::snprintf(buffer, sizeof(buffer), "LAT --");
+    }
+    drawSmallText(204, y, buffer, theme_.text);
+    y += 9;
+
+    if (vessel->has_position) {
+        std::snprintf(buffer, sizeof(buffer), "LON %.3f", vessel->longitude);
+    } else {
+        std::snprintf(buffer, sizeof(buffer), "LON --");
+    }
+    drawSmallText(204, y, buffer, theme_.text);
+    y += 9;
+
+    char sog[16], cog[16];
+    if (vessel->sog >= 0.0f) std::snprintf(sog, sizeof(sog), "%.1f", vessel->sog);
+    else std::snprintf(sog, sizeof(sog), "--");
+    if (vessel->cog >= 0.0f) std::snprintf(cog, sizeof(cog), "%.0f", vessel->cog);
+    else std::snprintf(cog, sizeof(cog), "--");
+    std::snprintf(buffer, sizeof(buffer), "SOG %s COG %s", sog, cog);
+    drawSmallText(204, y, buffer, theme_.text);
+    y += 9;
+
+    if (vessel->distance_nm >= 0.0f) {
+        std::snprintf(buffer, sizeof(buffer), "RNG %.1f BRG %03.0f",
+                      vessel->distance_nm, vessel->bearing_deg);
+    } else {
+        std::snprintf(buffer, sizeof(buffer), "RNG --");
+    }
+    drawSmallText(204, y, buffer, theme_.text);
+    y += 9;
+
+    if (vessel->cpa_nm >= 0.0f && vessel->tcpa_min >= 0.0f) {
+        std::snprintf(buffer, sizeof(buffer), "CPA %.1f T%.0fm",
+                      vessel->cpa_nm, vessel->tcpa_min);
+    } else if (vessel->cpa_nm >= 0.0f) {
+        std::snprintf(buffer, sizeof(buffer), "CPA %.1f T--", vessel->cpa_nm);
+    } else {
+        std::snprintf(buffer, sizeof(buffer), "CPA --");
+    }
+    drawSmallText(204, y, buffer, theme_.text);
+    y += 9;
+
+    std::snprintf(buffer, sizeof(buffer), "DEST %.11s",
+                  vessel->destination.empty() ? "--" : vessel->destination.c_str());
+    drawSmallText(204, y, buffer, theme_.dim);
+    y += 9;
+
+    if (vessel->eta_month > 0) {
+        std::snprintf(buffer, sizeof(buffer), "ETA %02d-%02d %02d:%02d",
+                      vessel->eta_month, vessel->eta_day,
+                      vessel->eta_hour, vessel->eta_minute);
+    } else {
+        std::snprintf(buffer, sizeof(buffer), "ETA --");
+    }
+    drawSmallText(204, y, buffer, theme_.dim);
+    y += 9;
+
+    std::snprintf(buffer, sizeof(buffer), "AGE %lds",
+                  static_cast<long>(time(nullptr) - vessel->last_seen));
+    drawSmallText(204, y, buffer, theme_.dim);
+
+    if (agc) {
+        std::snprintf(buffer, sizeof(buffer), "%.1f/S AUTO", messages_per_second);
+    } else {
+        std::snprintf(buffer, sizeof(buffer), "%.1f/S %.1fDB",
+                      messages_per_second, gain_tenths / 10.0f);
+    }
+    drawSmallText(204, 152, buffer, theme_.dim);
+    drawSmallText(204, 161, "ENTER CONSOLE", theme_.dim);
 }
 
 void AisUIRenderer::renderHelp() {
@@ -800,12 +775,12 @@ void AisUIRenderer::renderHelp() {
         "+/-    GAIN",
         "G      AUTO / MANUAL",
         "U      UDP NMEA 10110",
-        "S      SCREENSHOT",
+        "FN+P   SCREENSHOT",
         "TAB    PAGES",
         "ESC    CLOSE HELP",
     };
     for (int i = 0; i < 9; ++i) {
-        drawSmallText(24, 56 + i * 11, lines[i],
+        drawSmallText(24, 54 + i * 10, lines[i],
                       i == 0 ? theme_.text : theme_.dim);
     }
 }

@@ -1,4 +1,5 @@
 #include "core/page_manager.h"
+#include "screenshot.h"
 #include "system_volume.h"
 #include "font.h"
 #include <iostream>
@@ -101,6 +102,13 @@ int PageManager::run() {
 
         // Handle input
         AppKeyCode key = input_.pollKey();
+
+        // Fn+P works on every page and over every overlay. Swallow the key
+        // here and save once the frame below has been rendered.
+        if (key == APPKEY_SCREENSHOT) {
+            screenshot_requested_ = true;
+            key = APPKEY_NONE;
+        }
 
         // ESC requires a two second hold so a stray tap cannot close the
         // viewer; there is no single-key quit.
@@ -237,6 +245,16 @@ int PageManager::run() {
             restoreSnapshot(page_menu_snapshot_);
             drawPageMenu();
             fb_.update();
+        }
+
+        if (screenshot_requested_) {
+            screenshot_requested_ = false;
+            const std::string path = makeScreenshotPath();
+            if (fb_.saveScreenshot(path.c_str())) {
+                std::cout << "Screenshot saved: " << path << std::endl;
+            } else {
+                std::cerr << "Screenshot failed" << std::endl;
+            }
         }
 
         // Frame rate control (~33 FPS)

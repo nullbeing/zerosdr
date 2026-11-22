@@ -37,7 +37,7 @@ enum AppKeyCode {
     APPKEY_RES,  // Shift+R: cycle FFT resolution
     APPKEY_BW,   // Shift+B: cycle demodulation bandwidth
     APPKEY_ZOOM, // Shift+Z: cycle display zoom
-    APPKEY_SCREENSHOT,  // Shift+S: take screenshot
+    APPKEY_SCREENSHOT,  // Fn+P (F12) / Shift+S: take screenshot
     APPKEY_ENTER,
     APPKEY_BACKSPACE,
     APPKEY_DOT,

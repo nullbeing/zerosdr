@@ -2,7 +2,6 @@
 #include "input_handler.h"
 #include "app_config.h"
 #include "system_volume.h"
-#include "screenshot.h"
 #include <iostream>
 #include <algorithm>
 #include <cstring>
@@ -503,15 +502,6 @@ void ADSBPage::handleListInput(AppKeyCode key) {
             std::cout << "ADSBPage: Opening settings menu from list" << std::endl;
             break;
 
-        case APPKEY_SCREENSHOT: {
-            const std::string path = makeScreenshotPath();
-            if (fb_.saveScreenshot(path.c_str())) {
-                std::cout << "Screenshot saved: " << path << std::endl;
-            } else {
-                std::cerr << "Screenshot failed" << std::endl;
-            }
-            break;
-        }
 
         case APPKEY_G:
             // Toggle gain mode
@@ -636,15 +626,6 @@ void ADSBPage::handleDetailInput(AppKeyCode key) {
             break;
 
 
-        case APPKEY_SCREENSHOT: {
-            const std::string path = makeScreenshotPath();
-            if (fb_.saveScreenshot(path.c_str())) {
-                std::cout << "Screenshot saved: " << path << std::endl;
-            } else {
-                std::cerr << "Screenshot failed" << std::endl;
-            }
-            break;
-        }
 
         case APPKEY_L:
             // Open the position editor and come back to this aircraft.
@@ -1476,15 +1457,6 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
             }
             break;
 
-        case APPKEY_SCREENSHOT: {
-            const std::string path = makeScreenshotPath();
-            if (fb_.saveScreenshot(path.c_str())) {
-                std::cout << "Screenshot saved: " << path << std::endl;
-            } else {
-                std::cerr << "Screenshot failed" << std::endl;
-            }
-            break;
-        }
 
         case APPKEY_G:
             // Toggle gain mode
