@@ -1,0 +1,9 @@
+# RTL-SDR USB permissions.
+#
+# The desktop launcher runs zeroSDR as the logged-in user, not as root, so
+# the dongle node must be writable without sudo. Debian's librtlsdr0 ships
+# 60-librtlsdr0.rules with MODE="0660", GROUP="plugdev"; that still fails when
+# the user is not in plugdev. These rules are read later and grant access to
+# the common RTL2832U IDs directly.
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2832", ENV{ID_SOFTWARE_RADIO}="1", MODE="0666"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", ENV{ID_SOFTWARE_RADIO}="1", MODE="0666"

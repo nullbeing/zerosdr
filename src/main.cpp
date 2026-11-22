@@ -153,7 +153,7 @@ int main(int argc, char* argv[]) {
         // Draw dialog
         sdr_ui.renderDialog(
             "RTL-SDR Not Found",
-            "Please connect RTL-SDR device",
+            "Check USB permissions / connection",
             "R: Retry | Q: Quit"
         );
         fb.update();

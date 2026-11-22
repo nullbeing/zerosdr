@@ -604,13 +604,33 @@ real signals come through.
 
 ### RTL-SDR not detected / permission denied
 
+`Please fix the device permissions, e.g. by installing the udev rules file
+rtl-sdr.rules` means the USB node belongs to root and your desktop user cannot
+open it. zeroSDR runs as that user, so `sudo zerosdr` working is not the fix.
+
 ```bash
 lsusb | grep -i 0bda
-ls -l /dev/bus/usb/*/*      # expect root:plugdev 0660
-groups pi                   # expect plugdev, video, audio, input
+ls -l /dev/bus/usb/*/*      # root:plugdev 0660, or root:root 0664
+groups                     # plugdev should be listed
 ```
 
-Re-plug the dongle after installing/updating `librtlsdr0`.
+Add yourself to `plugdev` and log out/in (or reboot), then re-plug the dongle:
+
+```bash
+sudo usermod -aG plugdev "$USER"
+```
+
+The Debian package ships `/lib/udev/rules.d/60-zerosdr.rules`, which grants the
+common RTL2832U IDs (`0bda:2832`, `0bda:2838`) mode 0666 so membership is not
+required. If the rules are missing, create them by hand:
+
+```bash
+sudo tee /etc/udev/rules.d/60-zerosdr.rules >/dev/null <<'EOF'
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2832", MODE="0666"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", MODE="0666"
+EOF
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
 
 ### Device busy
 
