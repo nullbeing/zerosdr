@@ -9,10 +9,9 @@ zeroSDR 是一个面向小屏幕嵌入式 Linux 的开源 SDR 接收程序。频
 framebuffer，音频解调（FM / NFM / AM / USB / LSB）通过 ALSA 输出，并提供
 ADSB、AIS、ACARS 与 RFI 页面。
 
-![ADSB 雷达、PFD 与设置](images/adsb-showcase.png)
+![zeroSDR 页面](images/showcase.png)
 
-*ADSB 雷达地图与红色主题、Tab 菜单里的 RADAR 快捷入口、圆球 / 圆角方形 PFD，
-以及 `H` 设置里的地图源选择。*
+*SDR、ADSB 雷达、AIS 地图、AIS 船舶档案、ACARS 与 RFI 对比。*
 
 > **在 SDR 页面按 `H` 可以随时显示屏幕按键列表。**
 > 在帮助浮层里按 `→` 切到设置页（FM 去加重、音频 AGC、FFT 大小、采样率），

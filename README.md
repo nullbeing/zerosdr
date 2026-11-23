@@ -10,11 +10,9 @@ systems. It renders the spectrum and waterfall straight into the framebuffer,
 demodulates FM / NFM / AM / USB / LSB audio through ALSA, and adds ADSB
 aircraft, AIS vessels and ACARS messages plus an RFI survey page.
 
-![ADSB radar, PFD and settings](images/adsb-showcase.png)
+![zeroSDR pages](images/showcase.png)
 
-*ADSB radar with a map and the red tech theme, the RADAR shortcut in the
-page menu, the round / rounded-square PFD and the map source in the `H`
-settings.*
+*SDR, ADSB radar, AIS plot, AIS dossier, ACARS and the RFI survey.*
 
 > **Press `H` on the SDR page to show the on-screen key list.**
 > Press `→` there to switch to the settings tab (FM de-emphasis, audio AGC,
@@ -347,6 +345,11 @@ API key. Other values for `map.provider`:
 the current sample rate can fill.
 
 ## ADSB page
+
+![ADSB radar, PFD and settings](images/adsb-showcase.png)
+
+*Radar with a map and the red tech theme, the RADAR shortcut, the round /
+rounded-square PFD and the map source in the `H` settings.*
 
 `Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, ACARS, with RADAR and
 AIS on the second row). In the ADSB list, `↑`/`↓` select, `←`/`→` move five
