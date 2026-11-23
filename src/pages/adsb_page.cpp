@@ -202,6 +202,25 @@ void ADSBPage::update(float delta_time) {
     // lost by the time the scope is opened.
     if (imu_enabled_) imu_.update(delta_time);
 
+    // Holding Up/Down in the radar list keeps moving the selection and
+    // accelerates: 130 ms steps, then 80 ms, then 45 ms.
+    if (view_mode_ == VIEW_RADAR && radar_held_key_ != APPKEY_NONE) {
+        const int hold_ms = input_.getHoldDuration(radar_held_key_);
+        if (hold_ms <= 0) {
+            radar_held_key_ = APPKEY_NONE;
+            radar_repeat_accum_ = 0.0f;
+        } else if (hold_ms >= 450) {
+            radar_repeat_accum_ += delta_time;
+            const float interval = hold_ms >= 1800 ? 0.045f
+                                  : (hold_ms >= 900 ? 0.080f : 0.130f);
+            int guard = 0;
+            while (radar_repeat_accum_ >= interval && guard++ < 8) {
+                radar_repeat_accum_ -= interval;
+                handleRadarInput(radar_held_key_, false);
+            }
+        }
+    }
+
     // Update radar sweep angle if in radar view
     if (view_mode_ == VIEW_RADAR) {
         radar_view_age_ += delta_time;
@@ -439,6 +458,10 @@ bool ADSBPage::handleInput(AppKeyCode key) {
     } else if (view_mode_ == VIEW_DETAIL) {
         handleDetailInput(key);
     } else if (view_mode_ == VIEW_RADAR) {
+        if (key != APPKEY_UP && key != APPKEY_DOWN) {
+            radar_held_key_ = APPKEY_NONE;
+            radar_repeat_accum_ = 0.0f;
+        }
         handleRadarInput(key);
     } else if (view_mode_ == VIEW_SETTINGS) {
         handleSettingsInput(key);
@@ -1340,12 +1363,14 @@ void ADSBPage::handleSettingsInput(AppKeyCode key) {
     }
 }
 
-void ADSBPage::handleRadarInput(AppKeyCode key) {
+void ADSBPage::handleRadarInput(AppKeyCode key, bool beep) {
     switch (key) {
         case APPKEY_UP:
             if (selected_index_ > 0) {
                 selected_index_--;
-                beeps_.play(1000.0f, 15, 0.06f);
+                if (beep) beeps_.play(1000.0f, 15, 0.06f);
+                radar_held_key_ = key;
+                radar_repeat_accum_ = 0.0f;
                 // Adjust scroll if needed
                 if (selected_index_ < scroll_offset_) {
                     scroll_offset_ = selected_index_;
@@ -1356,7 +1381,9 @@ void ADSBPage::handleRadarInput(AppKeyCode key) {
         case APPKEY_DOWN:
             if (selected_index_ < (int)aircraft_list_.size() - 1) {
                 selected_index_++;
-                beeps_.play(1000.0f, 15, 0.06f);
+                if (beep) beeps_.play(1000.0f, 15, 0.06f);
+                radar_held_key_ = key;
+                radar_repeat_accum_ = 0.0f;
                 // Adjust scroll if needed
                 int max_visible = 8;  // MAX_VISIBLE_ROWS - 1 (header row)
                 if (selected_index_ >= scroll_offset_ + max_visible) {
