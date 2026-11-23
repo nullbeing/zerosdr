@@ -113,6 +113,10 @@ private:
     // menu/exit overlay) has finished drawing, so the PNG matches the screen.
     bool screenshot_requested_ = false;
 
+    // Brief "SCREENSHOT SAVED" confirmation drawn after the page frame.
+    bool toast_active_ = false;
+    struct timeval toast_until_ {};
+
     /**
      * Perform page transition
      * @param new_index Index of the page to switch to
@@ -130,6 +134,7 @@ private:
     void drawRoundedPanel(int x, int y, int w, int h, int radius,
                           uint16_t color, float alpha);
     void drawText6x8(int x, int y, const char* text, uint16_t color);
+    void drawScreenshotToast();
     void drawCircleOutline(int cx, int cy, int radius, uint16_t color);
 
     // Tab page menu.

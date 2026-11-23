@@ -252,8 +252,28 @@ int PageManager::run() {
             const std::string path = makeScreenshotPath();
             if (fb_.saveScreenshot(path.c_str())) {
                 std::cout << "Screenshot saved: " << path << std::endl;
+                toast_active_ = true;
+                gettimeofday(&toast_until_, nullptr);
+                toast_until_.tv_usec += 1200000;
+                if (toast_until_.tv_usec >= 1000000) {
+                    toast_until_.tv_usec -= 1000000;
+                    toast_until_.tv_sec += 1;
+                }
             } else {
                 std::cerr << "Screenshot failed" << std::endl;
+            }
+        }
+
+        if (toast_active_) {
+            struct timeval now;
+            gettimeofday(&now, nullptr);
+            if (now.tv_sec > toast_until_.tv_sec ||
+                (now.tv_sec == toast_until_.tv_sec &&
+                 now.tv_usec >= toast_until_.tv_usec)) {
+                toast_active_ = false;
+            } else {
+                drawScreenshotToast();
+                fb_.update();
             }
         }
 
@@ -319,6 +339,18 @@ void PageManager::drawText6x8(int x, int y, const char* text,
         }
         x += FONT_6X8_WIDTH;
     }
+}
+
+void PageManager::drawScreenshotToast() {
+    const int w = 148;
+    const int h = 20;
+    const int x = (fb_.getWidth() - w) / 2;
+    const int y = 138;
+    // Rounded, translucent, no border.
+    drawRoundedPanel(x, y, w, h, 7, COLOR_DIALOG_BG, 0.78f);
+    const char* text = "SCREENSHOT SAVED";
+    const int text_w = static_cast<int>(std::strlen(text)) * FONT_6X8_WIDTH;
+    drawText6x8(x + (w - text_w) / 2, y + 6, text, COLOR_TEXT_BRIGHT);
 }
 
 void PageManager::drawRoundedPanel(int x, int y, int w, int h, int radius,
