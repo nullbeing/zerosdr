@@ -517,6 +517,10 @@ void PageManager::handlePageMenuInput(AppKeyCode key) {
     switch (key) {
         case APPKEY_TAB:
         case APPKEY_P:
+            // Tab alone walks through every entry, across both rows.
+            page_menu_selection_ = (page_menu_selection_ + 1) % count;
+            break;
+
         case APPKEY_RIGHT: {
             const int row = page_menu_entries_[page_menu_selection_].row;
             const auto indices = row_entries(row);
