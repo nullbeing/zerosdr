@@ -6,8 +6,9 @@
 **English** | [简体中文](README.zh-CN.md)
 
 zeroSDR is an open source SDR receiver for Linux-based small-screen embedded
-systems. It renders the spectrum and waterfall straight into the framebuffer
-and demodulates FM / NFM / AM / USB / LSB audio through ALSA.
+systems. It renders the spectrum and waterfall straight into the framebuffer,
+demodulates FM / NFM / AM / USB / LSB audio through ALSA, and adds ADSB
+aircraft, AIS vessels and ACARS messages plus an RFI survey page.
 
 ![ADSB radar, PFD and settings](images/adsb-showcase.png)
 
@@ -41,8 +42,14 @@ settings.*
   bank pointer, speed/altitude tapes and an audio variometer
 - AIS vessel tracking: native dual-channel decoder, list / plot / dossier /
   console views, map and CPA display, and a standard NMEA UDP feed
+- ACARS aircraft messages: message list and wrapped detail view; the bundled
+  decoder runs as a separate process and the channels are configurable per
+  region (131.550 / 131.725 / 131.825 by default)
+- RFI survey: compare HF band noise with your equipment switched on and off
+  (10m / 20m / 40m / 80m)
+- Global `Fn`+`P` screenshot on every page
 - System volume from every page (`Fn`+`D` / `Fn`+`S`)
-- Runs as the normal desktop user (no root) via the librtlsdr udev rule
+- Runs as the normal desktop user (no root) via the udev rules shipped with the package
 - Optimized for Raspberry Pi Zero 2W / Pi 5 and the M5Stack Cardputer Zero
 
 ## RFI equipment comparison (experimental)

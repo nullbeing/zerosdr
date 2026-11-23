@@ -6,7 +6,8 @@
 **简体中文** | [English](README.md)
 
 zeroSDR 是一个面向小屏幕嵌入式 Linux 的开源 SDR 接收程序。频谱和瀑布直接画进
-framebuffer，音频解调（FM / NFM / AM / USB / LSB）通过 ALSA 输出。
+framebuffer，音频解调（FM / NFM / AM / USB / LSB）通过 ALSA 输出，并提供
+ADSB、AIS、ACARS 与 RFI 页面。
 
 ![ADSB 雷达、PFD 与设置](images/adsb-showcase.png)
 
@@ -34,8 +35,14 @@ framebuffer，音频解调（FM / NFM / AM / USB / LSB）通过 ALSA 输出。
   `R` / `T` 缩放、红色科技主题（`M`）
 - ADSB 详情 PFD：圆球 / 圆角方形（`M`）、俯仰梯、坡度指针、
   速度/高度带、音频变音器
+- AIS 船舶跟踪：原生双通道解码，LIST / PLOT / DOSSIER / CONSOLE 四种视图，
+  地图与 CPA 显示，以及标准 NMEA UDP 输出
+- ACARS 航空报文：报文列表与自动换行的详情页；解码器作为独立进程运行，
+  频道可按地区配置（默认 131.550 / 131.725 / 131.825）
+- RFI 对比：对比业余无线电设备开关前后的 HF 底噪（10m / 20m / 40m / 80m）
+- 任意页面 `Fn`+`P` 截图
 - 任意页面调节系统音量（`Fn`+`D` / `Fn`+`S`）
-- 通过 librtlsdr udev 规则以普通用户运行（不需要 root）
+- 通过安装包自带的 udev 规则以普通用户运行（不需要 root）
 - 针对 Raspberry Pi Zero 2W / Pi 5 与 M5Stack Cardputer Zero 优化
 
 ## 硬件要求
