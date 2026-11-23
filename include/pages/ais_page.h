@@ -40,6 +40,7 @@ private:
     void stopDecodeThread();
     void loadStation();
     void selectTarget(int direction);
+    void stepVertical(bool up);
     void selectTargetAny(int direction);
     void render();
     void updateRate();
@@ -84,6 +85,8 @@ private:
     bool alarm_active_ = false;
 
     bool sdr_ready_ = false;
+    AppKeyCode held_vertical_key_ = APPKEY_NONE;
+    float vertical_repeat_accum_ = 0.0f;
 };
 
 #endif  // AIS_PAGE_H

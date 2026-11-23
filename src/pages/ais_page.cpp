@@ -183,8 +183,24 @@ void AisPage::updateRate() {
 }
 
 void AisPage::update(float delta_time) {
-    (void)delta_time;
     if (!sdr_ready_) return;
+
+    // Holding Up/Down in the list or console keeps scrolling and
+    // accelerates: 130 ms, then 80 ms, then 45 ms.
+    if ((view_ == View::List || view_ == View::Console) &&
+        held_vertical_key_ != APPKEY_NONE) {
+        const int hold_ms = input_.getHoldDuration(held_vertical_key_);
+        if (hold_ms >= 450) {
+            vertical_repeat_accum_ += delta_time;
+            const float interval = hold_ms >= 1800 ? 0.045f
+                                  : (hold_ms >= 900 ? 0.080f : 0.130f);
+            int guard = 0;
+            while (vertical_repeat_accum_ >= interval && guard++ < 8) {
+                vertical_repeat_accum_ -= interval;
+                stepVertical(held_vertical_key_ == APPKEY_UP);
+            }
+        }
+    }
 
     gps_.poll();
     if (gps_.hasFix()) {
@@ -221,6 +237,23 @@ void AisPage::update(float delta_time) {
     }
 
     render();
+}
+
+void AisPage::stepVertical(bool up) {
+    if (view_ == View::List) {
+        const int count = static_cast<int>(store_.vesselCount());
+        if (up) {
+            if (selected_index_ > 0) --selected_index_;
+        } else if (selected_index_ + 1 < count) {
+            ++selected_index_;
+        }
+    } else if (view_ == View::Console) {
+        if (up) {
+            ++console_scroll_;
+        } else if (console_scroll_ > 0) {
+            --console_scroll_;
+        }
+    }
 }
 
 void AisPage::selectTarget(int direction) {
@@ -306,6 +339,11 @@ void AisPage::render() {
 bool AisPage::handleInput(AppKeyCode key) {
     if (!sdr_ready_) return false;
 
+    if (key != APPKEY_UP && key != APPKEY_DOWN) {
+        held_vertical_key_ = APPKEY_NONE;
+        vertical_repeat_accum_ = 0.0f;
+    }
+
     if (key == APPKEY_H) {
         help_visible_ = !help_visible_;
         return true;
@@ -331,25 +369,20 @@ bool AisPage::handleInput(AppKeyCode key) {
             return true;
 
         case APPKEY_UP:
-            if (view_ == View::List) {
-                if (selected_index_ > 0) --selected_index_;
-            } else if (view_ == View::Plot) {
-                plot_range_nm_ = std::max(0.5f, plot_range_nm_ / 2.0f);
-            } else if (view_ == View::Console) {
-                ++console_scroll_;
+        case APPKEY_DOWN: {
+            const bool up = (key == APPKEY_UP);
+            if (view_ == View::Plot) {
+                plot_range_nm_ = up ? std::max(0.5f, plot_range_nm_ / 2.0f)
+                                    : std::min(32.0f, plot_range_nm_ * 2.0f);
+                held_vertical_key_ = APPKEY_NONE;
+                vertical_repeat_accum_ = 0.0f;
+            } else {
+                stepVertical(up);
+                held_vertical_key_ = key;
+                vertical_repeat_accum_ = 0.0f;
             }
             return true;
-
-        case APPKEY_DOWN:
-            if (view_ == View::List) {
-                const int count = static_cast<int>(store_.vesselCount());
-                if (selected_index_ + 1 < count) ++selected_index_;
-            } else if (view_ == View::Plot) {
-                plot_range_nm_ = std::min(32.0f, plot_range_nm_ * 2.0f);
-            } else if (view_ == View::Console && console_scroll_ > 0) {
-                --console_scroll_;
-            }
-            return true;
+        }
 
         case APPKEY_LEFT:
             if (view_ == View::Plot) {
