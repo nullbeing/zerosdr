@@ -341,7 +341,7 @@ the current sample rate can fill.
 
 ## ADSB page
 
-`Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, AIS and a RADAR
+`Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, AIS, ACARS and a RADAR
 shortcut). In the ADSB list:
 
 | Key | Action |
@@ -527,9 +527,51 @@ Offline tools:
 ./build/nmea_encoder_test
 ```
 
+## ACARS aircraft messages
+
+| ACARS list | ACARS detail |
+| --- | --- |
+| ![ACARS message list](images/acars-list.png) | ![ACARS detail](images/acars-detail.png) |
+
+The ACARS page decodes VHF ACARS text messages from aircraft. The decoder is
+the bundled `acarsdec` binary at `/usr/lib/zerosdr/acarsdec`. It is
+GPLv2-only while zeroSDR is GPL-3.0, so it is executed as a separate process
+and its JSON output is read over loopback UDP; no code is linked into the
+application.
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Open the selected message / back to the list |
+| `↑` / `↓` | Select a message, or scroll the detail view |
+| `R` | Restart the decoder |
+| `H` | Key list |
+| `Tab` | Page menu |
+| `Esc` | Back to the list (hold on the list to exit) |
+
+ACARS frequencies depend on the region. `131.550 MHz` is the common primary
+channel; `129.125` carries a large share of the traffic in some regions, and
+the defaults also listen on `131.725` and `131.825`. Override them
+in `~/.config/zerosdr/config.json`:
+
+```json
+"acars": {
+  "channels": [131.550, 131.725, 131.825],
+  "gain": 40,
+  "udp_port": 5556
+}
+```
+
+The three default channels span 275 kHz; the decoder runs at 1.536 Msps and
+covers them with one tuner setting. ACARS traffic is much sparser than AIS,
+so the page can sit on `WAITING FOR ACARS` for a while between messages.
+Use a VHF antenna; a quarter wave at 131 MHz is about 57 cm.
+
+Each row shows time, flight, registration, label and the first line of text;
+`Enter` opens the full message with word wrapping and scrolling.
+
 ## Wideband spectrum page
 
-`Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, AIS, plus a RADAR
+`Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, AIS, ACARS, plus a RADAR
 shortcut on the second row). The spectrum page is a
 swept analyzer in the style of qspectrumanalyzer: it retunes the RTL-SDR
 across a user supplied range, stitches the slices into one wide spectrum and draws a yellow trace
