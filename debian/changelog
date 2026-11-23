@@ -8,6 +8,8 @@ zerosdr (0.5.0) trixie; urgency=medium
   * acarsdec is GPLv2-only, so it is installed as a separate executable at
     /usr/lib/zerosdr/acarsdec and never linked into zeroSDR
   * Page menu grows to six pages, with an ACARS tile and icon
+  * Install the udev rules as 99-zerosdr.rules so Kismet's 99-kismet-*.rules
+    cannot override the dongle permissions
   * README: ACARS usage, regional channels and licensing notes
 
  -- Weiming Feng <bestedwin@gmail.com>  Sun, 22 Nov 2026 23:10:00 +0800

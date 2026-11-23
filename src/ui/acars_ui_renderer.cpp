@@ -260,14 +260,15 @@ void AcarsUIRenderer::renderHelp() {
         "ENTER   OPEN MESSAGE",
         "UP/DN   SELECT OR SCROLL",
         "R       RESTART DECODER",
+        "FN+P    SCREENSHOT",
         "TAB     PAGE MENU",
         "ESC     BACK / CLOSE",
         "",
         "CHANNELS ARE SET IN config.json",
         "ACARS CHANNELS DEPEND ON REGION",
     };
-    for (int i = 0; i < 8; ++i) {
-        drawSmall(24, 54 + i * 10, lines[i], i < 5 ? kText : kDim);
+    for (int i = 0; i < 9; ++i) {
+        drawSmall(24, 52 + i * 10, lines[i], i < 6 ? kText : kDim);
     }
 }
 

@@ -666,17 +666,21 @@ Add yourself to `plugdev` and log out/in (or reboot), then re-plug the dongle:
 sudo usermod -aG plugdev "$USER"
 ```
 
-The Debian package ships `/usr/lib/udev/rules.d/60-zerosdr.rules`, which grants the
+The Debian package ships `/usr/lib/udev/rules.d/99-zerosdr.rules`, which grants the
 common RTL2832U IDs (`0bda:2832`, `0bda:2838`) mode 0666 so membership is not
 required. If the rules are missing, create them by hand:
 
 ```bash
-sudo tee /etc/udev/rules.d/60-zerosdr.rules >/dev/null <<'EOF'
+sudo tee /etc/udev/rules.d/99-zerosdr.rules >/dev/null <<'EOF'
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2832", MODE="0666"
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", MODE="0666"
 EOF
 sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
+
+The rule is installed as `99-zerosdr.rules` so it is applied after the
+`99-kismet-*.rules` that Kismet uses to put SDR devices in its own group. If
+Kismet is installed and you want both, add your user to `kismet` instead.
 
 ### Device busy
 
