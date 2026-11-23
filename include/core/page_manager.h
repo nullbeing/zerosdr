@@ -96,6 +96,7 @@ private:
     struct PageMenuEntry {
         int page_index;
         bool radar_shortcut;
+        int row;
     };
     bool page_menu_open_ = false;
     std::vector<PageMenuEntry> page_menu_entries_;

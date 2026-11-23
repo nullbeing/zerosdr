@@ -341,23 +341,9 @@ the current sample rate can fill.
 
 ## ADSB page
 
-`Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, AIS, ACARS and a RADAR
-shortcut). In the ADSB list:
-
-| Key | Action |
-|-----|--------|
-| `↑` / `↓` | Select aircraft |
-| Hold `F` (up) | Jump to the top of the list |
-| `←` / `→` | Move 5 rows |
-| `Enter` | Cycle views: radar → detail → list → radar |
-| `I` | Toggle heading-up / north-up radar (needs the IMU compass) |
-| `0` | Zero the compass: point the top edge north, then press |
-| `H` | Key list + settings (latitude, longitude, map source, clear position) |
-| `L` | Settings: observer position + map source |
-| `G` / `+` / `-` | Radar gain mode / gain (list and detail) |
-| `M` | PFD shape (detail) / red radar theme (radar view) |
-| `R` / `T` | Zoom the radar scope out / in (radar view) |
-| `Tab` | Page menu |
+`Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, ACARS, with RADAR and
+AIS on the second row). In the ADSB list, `↑`/`↓` select, `←`/`→` move five
+rows and `Enter` cycles radar → detail → list. `H` shows every key.
 
 The list is sorted by distance, nearest first; aircraft without a decoded
 position go last. The radar's left panel lists `ICAO` / altitude / distance,
@@ -459,24 +445,8 @@ a dedicated thread.
 | **DOSSIER** | **CONSOLE** |
 | ![AIS dossier with the porthole ship portrait](images/ais-dossier.png) | ![AIS console](images/ais-console.png) |
 
-Select **AIS** in the `Tab` page menu. `Enter` cycles:
-
-```text
-LIST -> PLOT -> DOSSIER -> CONSOLE -> LIST
-```
-
-| Key | Action |
-|-----|--------|
-| `Enter` | Cycle list / plot / dossier / console |
-| `↑` / `↓` | List scroll, plot range, console scroll |
-| `←` / `→` | Select a target in plot and dossier |
-| `+` / `-` | Manual gain |
-| `G` | Tuner AGC / manual gain |
-| `U` | Toggle NMEA UDP export |
-| `H` | Key list |
-| `Fn`+`P` | Screenshot (any page; `Shift+S` on a PC) |
-| `Tab` | Page menu |
-| `Esc` | Return to the list / close help |
+Select **AIS** in the `Tab` page menu. `Enter` cycles LIST → PLOT → DOSSIER
+→ CONSOLE; `↑`/`↓` scroll, `←`/`→` change target, and `H` shows every key.
 
 - **LIST** — MMSI, name, SOG, COG, distance and age, nearest first. Class A,
   Class B, AtoN and base stations use different markers.
@@ -529,9 +499,7 @@ Offline tools:
 
 ## ACARS aircraft messages
 
-| ACARS list | ACARS detail |
-| --- | --- |
-| ![ACARS message list](images/acars-list.png) | ![ACARS detail](images/acars-detail.png) |
+![ACARS message list and detail](images/acars.png)
 
 The ACARS page decodes VHF ACARS text messages from aircraft. The decoder is
 the bundled `acarsdec` binary at `/usr/lib/zerosdr/acarsdec`. It is
@@ -539,14 +507,8 @@ GPLv2-only while zeroSDR is GPL-3.0, so it is executed as a separate process
 and its JSON output is read over loopback UDP; no code is linked into the
 application.
 
-| Key | Action |
-|-----|--------|
-| `Enter` | Open the selected message / back to the list |
-| `↑` / `↓` | Select a message, or scroll the detail view |
-| `R` | Restart the decoder |
-| `H` | Key list |
-| `Tab` | Page menu |
-| `Esc` | Back to the list (hold on the list to exit) |
+`Enter` opens a message, `↑`/`↓` select or scroll, `R` restarts the decoder,
+and `H` shows every key.
 
 ACARS frequencies depend on the region. `131.550 MHz` is the common primary
 channel; `129.125` carries a large share of the traffic in some regions, and
@@ -571,8 +533,8 @@ Each row shows time, flight, registration, label and the first line of text;
 
 ## Wideband spectrum page
 
-`Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, AIS, ACARS, plus a RADAR
-shortcut on the second row). The spectrum page is a
+`Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, ACARS, with RADAR and
+AIS on the second row). The spectrum page is a
 swept analyzer in the style of qspectrumanalyzer: it retunes the RTL-SDR
 across a user supplied range, stitches the slices into one wide spectrum and draws a yellow trace
 with a waterfall below it. The RTL-SDR V4 range is 24–1766 MHz.
@@ -582,17 +544,8 @@ On first use it asks for START and STOP in MHz. Use the digits and `.`,
 saved to the `spectrum` section of `~/.config/zerosdr/config.json` and
 reused afterwards.
 
-| Key | Action |
-|-----|--------|
-| `←` / `→` | Pan the visible window |
-| `↑` / `↓` or `+` / `-` | Zoom in / out |
-| `Enter` | Reset to the full configured range |
-| `M` | Toggle max hold (red peak trace, decays at 1.5 dB/s) |
-| `Space` | Toggle display smoothing (median over ~1 MHz) |
-| `R` | Edit the start/stop range |
-| `H` | Toggle the translucent help overlay |
-| `Tab` | Page menu (select with arrows, `Enter` opens) |
-| `Esc` (hold 2 s) | Quit, with the centered progress prompt |
+`←`/`→` pan, `↑`/`↓` zoom, `Enter` resets the span, `R` edits the range and
+`H` shows the key list.
 
 Notes:
 

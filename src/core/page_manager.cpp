@@ -445,20 +445,25 @@ void PageManager::openPageMenu() {
     if (pages_.empty()) return;
 
     page_menu_entries_.clear();
+
+    int adsb_index = -1;
+    int ais_index = -1;
     for (int i = 0; i < (int)pages_.size(); ++i) {
-        page_menu_entries_.push_back({i, false});
+        if (std::strcmp(pages_[i]->getName(), "ADSB") == 0) adsb_index = i;
+        if (std::strcmp(pages_[i]->getName(), "AIS") == 0) ais_index = i;
     }
 
-    // Second row: a direct radar shortcut when the ADSB page exists.
-    int adsb_index = -1;
+    // First row: SDR, Spectrum, RFI, ADSB, ACARS. AIS moves to the second
+    // row, after the RADAR shortcut, so the first row keeps five tiles.
     for (int i = 0; i < (int)pages_.size(); ++i) {
-        if (std::strcmp(pages_[i]->getName(), "ADSB") == 0) {
-            adsb_index = i;
-            break;
-        }
+        if (i == ais_index && adsb_index >= 0) continue;
+        page_menu_entries_.push_back({i, false, 0});
     }
     if (adsb_index >= 0) {
-        page_menu_entries_.push_back({adsb_index, true});
+        page_menu_entries_.push_back({adsb_index, true, 1});
+        if (ais_index >= 0) {
+            page_menu_entries_.push_back({ais_index, false, 1});
+        }
     }
 
     page_menu_selection_ = 0;
@@ -492,33 +497,56 @@ void PageManager::handlePageMenuInput(AppKeyCode key) {
         closePageMenu(false);
         return;
     }
-    const size_t page_count = pages_.size();
-    const bool has_shortcut = (count > page_count);
+
+    const auto row_entries = [&](int row) {
+        std::vector<size_t> indices;
+        for (size_t i = 0; i < count; ++i) {
+            if (page_menu_entries_[i].row == row) indices.push_back(i);
+        }
+        return indices;
+    };
+    const auto position_in_row = [&](size_t selection) {
+        const int row = page_menu_entries_[selection].row;
+        const auto indices = row_entries(row);
+        for (size_t i = 0; i < indices.size(); ++i) {
+            if (indices[i] == selection) return i;
+        }
+        return size_t{0};
+    };
 
     switch (key) {
         case APPKEY_TAB:
         case APPKEY_P:
-        case APPKEY_RIGHT:
-            page_menu_selection_ = (page_menu_selection_ + 1) % count;
+        case APPKEY_RIGHT: {
+            const int row = page_menu_entries_[page_menu_selection_].row;
+            const auto indices = row_entries(row);
+            size_t pos = position_in_row(page_menu_selection_);
+            pos = (pos + 1) % indices.size();
+            page_menu_selection_ = indices[pos];
             break;
+        }
 
-        case APPKEY_LEFT:
-            page_menu_selection_ = (page_menu_selection_ + count - 1) % count;
+        case APPKEY_LEFT: {
+            const int row = page_menu_entries_[page_menu_selection_].row;
+            const auto indices = row_entries(row);
+            size_t pos = position_in_row(page_menu_selection_);
+            pos = (pos + indices.size() - 1) % indices.size();
+            page_menu_selection_ = indices[pos];
             break;
+        }
 
         case APPKEY_DOWN:
-            // Row 0 (pages) -> row 1 (radar shortcut).
-            if (has_shortcut && page_menu_selection_ < page_count) {
-                page_menu_selection_ = page_count;
+        case APPKEY_UP: {
+            const int row = page_menu_entries_[page_menu_selection_].row;
+            const int target_row = (row == 0) ? 1 : 0;
+            const auto target = row_entries(target_row);
+            if (!target.empty()) {
+                size_t pos = position_in_row(page_menu_selection_);
+                if (pos >= target.size()) pos = target.size() - 1;
+                page_menu_selection_ = target[pos];
             }
             break;
-
-        case APPKEY_UP:
-            // Row 1 -> the page above the shortcut.
-            if (has_shortcut && page_menu_selection_ >= page_count) {
-                page_menu_selection_ = page_count - 1;
-            }
-            break;
+        }
 
         case APPKEY_ENTER: {
             const PageMenuEntry entry = page_menu_entries_[page_menu_selection_];
@@ -622,82 +650,88 @@ void PageManager::drawPageMenu() {
     const int h = fb_.getHeight();
     if (w <= 0 || h <= 0 || pages_.empty()) return;
 
-    // Dim the frozen page, then lay the translucent bar on top.
+    // Dim the frozen page, then lay the translucent panel on top.
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             fb_.blendPixel(x, y, COLOR_BLACK, 0.45f);
         }
     }
 
-    const int page_count = (int)pages_.size();
-    const bool has_shortcut =
-        page_menu_entries_.size() > (size_t)page_count;
+    int row0_count = 0;
+    int row1_count = 0;
+    for (const auto& entry : page_menu_entries_) {
+        if (entry.row == 0) ++row0_count;
+        else ++row1_count;
+    }
+
     const int tile_h = 46;
     const int gap = 5;
-    // Four pages fit at the original 70 px tile. Five or more have to
-    // shrink so the panel stays inside the 320 px display.
+    const int columns = std::max(row0_count, row1_count);
     int tile_w = 70;
-    if (page_count > 4) {
-        // Six pages still have to fit the 320 px panel: 46 px tiles plus
-        // five 5 px gaps and the 18 px padding come to 319 px.
-        tile_w = std::max(46, (w - 18 - (page_count - 1) * gap) / page_count);
+    if (columns > 4) {
+        // Five columns: 46 px tiles plus four 5 px gaps and 18 px padding
+        // still fit inside 320 px (56 px each).
+        tile_w = std::max(46, (w - 18 - (columns - 1) * gap) / columns);
     }
-    const int panel_w = page_count * tile_w + (page_count - 1) * gap + 18;
-    const int panel_h = has_shortcut ? 122 : 74;
+    const int panel_w = columns * tile_w + (columns - 1) * gap + 18;
+    const int panel_h = (row1_count > 0) ? 124 : 74;
     const int px = (w - panel_w) / 2;
     const int py = (h - panel_h) / 2;
     drawRoundedPanel(px, py, panel_w, panel_h, 10, COLOR_DIALOG_BG, 0.86f);
 
-    int x = px + 9;
-    const int tile_y = py + 6;
-    for (int i = 0; i < page_count; ++i) {
-        const bool selected =
-            (page_menu_entries_.size() > (size_t)i &&
-             page_menu_selection_ == (size_t)i);
-        const bool current = (i == (int)current_page_index_);
+    const auto draw_tile = [&](size_t index, int x, int y) {
+        const PageMenuEntry& entry = page_menu_entries_[index];
+        const bool selected = (page_menu_selection_ == index);
+        const bool current = !entry.radar_shortcut &&
+                             entry.page_index == (int)current_page_index_;
 
         if (selected) {
-            drawRoundedPanel(x, tile_y, tile_w, tile_h, 7,
+            drawRoundedPanel(x, y, tile_w, tile_h, 7,
                              COLOR_SELECTED, 0.95f);
-            fb_.fillRect(x + 6, tile_y, tile_w - 12, 1, COLOR_SPECTRUM);
+            fb_.fillRect(x + 6, y, tile_w - 12, 1, COLOR_SPECTRUM);
         }
 
         const uint16_t icon_color =
             selected ? COLOR_SPECTRUM : COLOR_TEXT_DIM;
-        drawPageIcon(i, x + (tile_w - 18) / 2, tile_y + 5, icon_color);
+        if (entry.radar_shortcut) {
+            drawRadarIcon(x + tile_w / 2, y + 14, icon_color);
+        } else {
+            drawPageIcon(entry.page_index, x + (tile_w - 18) / 2, y + 5,
+                         icon_color);
+        }
 
-        const char* name = pages_[i]->getName();
-        const int label_w = (int)std::strlen(name) * FONT_6X8_WIDTH;
-        drawText6x8(x + (tile_w - label_w) / 2, tile_y + 30, name,
+        const char* label = entry.radar_shortcut
+                                ? "RADAR"
+                                : pages_[(size_t)entry.page_index]->getName();
+        const int label_w = (int)std::strlen(label) * FONT_6X8_WIDTH;
+        drawText6x8(x + (tile_w - label_w) / 2, y + 30, label,
                     selected ? COLOR_WHITE : COLOR_TEXT_DIM);
 
         if (current) {
-            fb_.fillRect(x + tile_w / 2 - 1, tile_y + tile_h - 5, 2, 2,
+            fb_.fillRect(x + tile_w / 2 - 1, y + tile_h - 5, 2, 2,
                          selected ? COLOR_SPECTRUM : COLOR_TEXT_BRIGHT);
         }
+    };
+
+    // First row.
+    int x = px + 9;
+    const int row0_y = py + 6;
+    for (size_t i = 0; i < page_menu_entries_.size(); ++i) {
+        if (page_menu_entries_[i].row != 0) continue;
+        draw_tile(i, x, row0_y);
         x += tile_w + gap;
     }
 
-    // Second row: radar shortcut.
-    if (has_shortcut) {
-        const bool selected = (page_menu_selection_ >= (size_t)page_count);
-        const int rx = px + (panel_w - tile_w) / 2;
-        const int ry = tile_y + tile_h + 6;
-
-        if (selected) {
-            drawRoundedPanel(rx, ry, tile_w, tile_h, 7,
-                             COLOR_SELECTED, 0.95f);
-            fb_.fillRect(rx + 6, ry, tile_w - 12, 1, COLOR_SPECTRUM);
+    // Second row, centered.
+    if (row1_count > 0) {
+        const int row1_w = row1_count * tile_w + (row1_count - 1) * gap;
+        int rx = (w - row1_w) / 2;
+        const int row1_y = row0_y + tile_h + 6;
+        for (size_t i = 0; i < page_menu_entries_.size(); ++i) {
+            if (page_menu_entries_[i].row != 1) continue;
+            draw_tile(i, rx, row1_y);
+            rx += tile_w + gap;
         }
-
-        const uint16_t icon_color =
-            selected ? COLOR_SPECTRUM : COLOR_TEXT_DIM;
-        drawRadarIcon(rx + tile_w / 2, ry + 14, icon_color);
-
-        const char* label = "RADAR";
-        const int label_w = (int)std::strlen(label) * FONT_6X8_WIDTH;
-        drawText6x8(rx + (tile_w - label_w) / 2, ry + 30, label,
-                    selected ? COLOR_WHITE : COLOR_TEXT_DIM);
     }
 
     const char* hint = "<> SELECT  UP/DOWN ROW  ENTER  ESC";
