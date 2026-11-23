@@ -192,23 +192,23 @@ void SDRUIRenderer::renderStatusBar(uint32_t freq, uint32_t span, int gain, cons
         drawText(58, STATUSBAR_Y + 3, "--", COLOR_TEXT_DIM);
     }
 
-    // 3. Tuning step (just after demod mode, dim if Auto)
+    // 3. Tuning step (fixed column so 3-letter modes do not collide)
     if (step_label != nullptr) {
         uint16_t step_color = (step_label[0] == 'A') ? COLOR_TEXT_DIM : COLOR_TEXT_BRIGHT;
-        drawText(74, STATUSBAR_Y + 3, step_label, step_color);
+        drawText(81, STATUSBAR_Y + 3, step_label, step_color);
     }
 
     // 4. AGC/Gain (right of step)
     char gain_str[16];
     if (agc_enabled) {
         snprintf(gain_str, sizeof(gain_str), "AGC");
-        drawTextBg(104, STATUSBAR_Y + 3, gain_str, COLOR_BLACK, COLOR_WHITE);
+        drawTextBg(112, STATUSBAR_Y + 3, gain_str, COLOR_BLACK, COLOR_WHITE);
     } else if (gain >= 0) {
         snprintf(gain_str, sizeof(gain_str), "+%ddB", gain / 10);
-        drawTextBg(104, STATUSBAR_Y + 3, gain_str, COLOR_BLACK, COLOR_WHITE);
+        drawTextBg(112, STATUSBAR_Y + 3, gain_str, COLOR_BLACK, COLOR_WHITE);
     } else {
         snprintf(gain_str, sizeof(gain_str), "AUTO");
-        drawText(104, STATUSBAR_Y + 3, gain_str, COLOR_TEXT_DIM);
+        drawText(112, STATUSBAR_Y + 3, gain_str, COLOR_TEXT_DIM);
     }
 
     // 4. Span (center, dim)
@@ -218,9 +218,7 @@ void SDRUIRenderer::renderStatusBar(uint32_t freq, uint32_t span, int gain, cons
     } else {
         snprintf(span_str, sizeof(span_str), "%dk", span / 1000);
     }
-    int span_len = strlen(span_str);
-    int span_width = span_len * 7;  // Approximate character width
-    int span_x = (320 - span_width) / 2;  // Center horizontally
+    int span_x = 151;  // fixed slot between gain and SQ
     drawText(span_x, STATUSBAR_Y + 3, span_str, COLOR_TEXT_DIM);
 
     // 4.5 Squelch indicator (between span and VOL, right of center)
@@ -230,7 +228,7 @@ void SDRUIRenderer::renderStatusBar(uint32_t freq, uint32_t span, int gain, cons
     } else {
         snprintf(sq_str, sizeof(sq_str), "SQ:%d%%", (int)(squelch * 100));
     }
-    drawText(190, STATUSBAR_Y + 3, sq_str, COLOR_TEXT_DIM);
+    drawText(183, STATUSBAR_Y + 3, sq_str, COLOR_TEXT_DIM);
 
     // 5. Volume bar (right-aligned) - with "VOL" label
     if (audio_enabled) {
