@@ -11,7 +11,8 @@ ADSB、AIS、ACARS 与 RFI 页面。
 
 ![zeroSDR 页面](images/showcase.png)
 
-*SDR、ADSB 雷达、AIS 地图、AIS 船舶档案、ACARS 与 RFI 对比。*
+*SDR 与宽带频谱、ADSB 雷达 / PFD / 设置、AIS 地图与船舶档案、
+ACARS 报文与 RFI 对比。*
 
 > **在 SDR 页面按 `H` 可以随时显示屏幕按键列表。**
 > 在帮助浮层里按 `→` 切到设置页（FM 去加重、音频 AGC、FFT 大小、采样率），
