@@ -342,15 +342,15 @@ void PageManager::drawText6x8(int x, int y, const char* text,
 }
 
 void PageManager::drawScreenshotToast() {
-    const int w = 148;
-    const int h = 20;
-    const int x = (fb_.getWidth() - w) / 2;
-    const int y = 138;
-    // Rounded, translucent, no border.
-    drawRoundedPanel(x, y, w, h, 7, COLOR_DIALOG_BG, 0.78f);
     const char* text = "SCREENSHOT SAVED";
     const int text_w = static_cast<int>(std::strlen(text)) * FONT_6X8_WIDTH;
-    drawText6x8(x + (w - text_w) / 2, y + 6, text, COLOR_TEXT_BRIGHT);
+    const int w = text_w + 10;
+    const int h = FONT_6X8_HEIGHT + 6;
+    const int x = (fb_.getWidth() - w) / 2;
+    const int y = (fb_.getHeight() - h) / 2;
+    // Rounded, translucent, no border, centered on the screen.
+    drawRoundedPanel(x, y, w, h, 5, COLOR_DIALOG_BG, 0.78f);
+    drawText6x8(x + 5, y + 3, text, COLOR_TEXT_BRIGHT);
 }
 
 void PageManager::drawRoundedPanel(int x, int y, int w, int h, int radius,
