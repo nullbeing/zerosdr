@@ -1,3 +1,27 @@
+zerosdr (0.5.1) trixie; urgency=medium
+
+  * ACARS: the detail view now shows the usual label meaning plus the
+    sublabel, block id, message number and channel
+  * ACARS: left/right steps to the previous/next message; the selection is
+    tracked by sequence, so new frames no longer replace the message being
+    read
+  * ACARS: append decoded messages to daily JSONL files under
+    ~/.local/share/zerosdr/acars (YYYY-MM-DD.jsonl), reload the newest 500
+    on entry and insert date separators in the list
+  * Spectrum: fixed 55-unit vertical window with per-slice noise-floor
+    alignment, so tuner AGC steps no longer move the whole trace; the scale
+    locks on the first frame instead of sliding in
+  * Spectrum: P toggles max hold, M cycles the waterfall palette, L tags
+    the strongest peaks with their frequency; the theme and label choices
+    are saved in config.json
+  * Spectrum: the waterfall now runs to the bottom of the screen and the
+    status bar overlays it at 70% transparency
+  * Screenshots: freeze the page for the confirmation toast and give Fn+P
+    priority when a chord delivers several events in one batch
+  * Do not abort when the ACARS decoder has already exited
+
+ -- Weiming Feng <bestedwin@gmail.com>  Wed, 25 Nov 2026 20:40:51 +0800
+
 zerosdr (0.5.0) trixie; urgency=medium
 
   * ACARS page: decoded aircraft messages with the bundled acarsdec
