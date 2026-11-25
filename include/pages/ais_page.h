@@ -86,7 +86,9 @@ private:
 
     bool sdr_ready_ = false;
     AppKeyCode held_vertical_key_ = APPKEY_NONE;
+    AppKeyCode held_horizontal_key_ = APPKEY_NONE;
     float vertical_repeat_accum_ = 0.0f;
+    float horizontal_repeat_accum_ = 0.0f;
 };
 
 #endif  // AIS_PAGE_H

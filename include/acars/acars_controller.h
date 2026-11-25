@@ -49,6 +49,7 @@ public:
     bool isRunning() const { return running_.load(); }
 
     std::vector<Message> snapshot() const;
+    size_t messageCount() const;
     uint64_t totalMessages() const { return total_.load(); }
     float messagesPerSecond() const { return rate_.load(); }
     const std::string& lastError() const { return last_error_; }

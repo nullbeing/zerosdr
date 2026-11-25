@@ -77,6 +77,10 @@ private:
     int detail_scroll_offset_;  // Scroll offset for detail view
     AppKeyCode radar_held_key_ = APPKEY_NONE;
     float radar_repeat_accum_ = 0.0f;
+    AppKeyCode list_held_key_ = APPKEY_NONE;
+    float list_repeat_accum_ = 0.0f;
+    AppKeyCode detail_held_key_ = APPKEY_NONE;
+    float detail_repeat_accum_ = 0.0f;
     uint32_t selected_icao_;  // ICAO address of selected aircraft in detail view
     bool pfd_square_ = false; // PFD attitude shape: false = round, true = square
     int radar_theme_ = 0;     // 0 = green scope, 1 = red tech scope
@@ -179,7 +183,7 @@ private:
     void updateVarioSound();
     float calculateMaxRange();
     void renderCurrentView();
-    void handleListInput(AppKeyCode key);
+    void handleListInput(AppKeyCode key, bool beep = true);
     void handleDetailInput(AppKeyCode key);
     void handleRadarInput(AppKeyCode key, bool beep = true);
     void handleSettingsInput(AppKeyCode key);

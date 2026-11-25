@@ -202,6 +202,27 @@ void AisPage::update(float delta_time) {
         }
     }
 
+    if ((view_ == View::Plot || view_ == View::Dossier) &&
+        held_horizontal_key_ != APPKEY_NONE) {
+        const int hold_ms = input_.getHoldDuration(held_horizontal_key_);
+        if (hold_ms >= 450) {
+            horizontal_repeat_accum_ += delta_time;
+            const float interval = hold_ms >= 1800 ? 0.045f
+                                  : (hold_ms >= 900 ? 0.080f : 0.130f);
+            int guard = 0;
+            while (horizontal_repeat_accum_ >= interval && guard++ < 8) {
+                horizontal_repeat_accum_ -= interval;
+                const int delta =
+                    held_horizontal_key_ == APPKEY_LEFT ? -1 : 1;
+                if (view_ == View::Plot) {
+                    selectTarget(delta);
+                } else {
+                    selectTargetAny(delta);
+                }
+            }
+        }
+    }
+
     gps_.poll();
     if (gps_.hasFix()) {
         store_.setStation(gps_.latitude(), gps_.longitude(), true);
@@ -343,6 +364,10 @@ bool AisPage::handleInput(AppKeyCode key) {
         held_vertical_key_ = APPKEY_NONE;
         vertical_repeat_accum_ = 0.0f;
     }
+    if (key != APPKEY_LEFT && key != APPKEY_RIGHT) {
+        held_horizontal_key_ = APPKEY_NONE;
+        horizontal_repeat_accum_ = 0.0f;
+    }
 
     if (key == APPKEY_H) {
         help_visible_ = !help_visible_;
@@ -387,10 +412,14 @@ bool AisPage::handleInput(AppKeyCode key) {
         case APPKEY_LEFT:
             if (view_ == View::Plot) {
                 selectTarget(-1);
+                held_horizontal_key_ = key;
+                horizontal_repeat_accum_ = 0.0f;
                 return true;
             }
             if (view_ == View::Dossier) {
                 selectTargetAny(-1);
+                held_horizontal_key_ = key;
+                horizontal_repeat_accum_ = 0.0f;
                 return true;
             }
             return false;
@@ -398,10 +427,14 @@ bool AisPage::handleInput(AppKeyCode key) {
         case APPKEY_RIGHT:
             if (view_ == View::Plot) {
                 selectTarget(1);
+                held_horizontal_key_ = key;
+                horizontal_repeat_accum_ = 0.0f;
                 return true;
             }
             if (view_ == View::Dossier) {
                 selectTargetAny(1);
+                held_horizontal_key_ = key;
+                horizontal_repeat_accum_ = 0.0f;
                 return true;
             }
             return false;

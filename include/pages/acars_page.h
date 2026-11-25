@@ -40,6 +40,8 @@ private:
     int indexOfSeq(const std::vector<acars::Message>& messages,
                    uint64_t seq) const;
     void stepDetail(const std::vector<acars::Message>& messages, int delta);
+    void applyNavKey(AppKeyCode key);
+    void updateHoldRepeat(float delta_time);
 
     Framebuffer& fb_;
     SDRController& sdr_;
@@ -52,6 +54,8 @@ private:
     uint64_t detail_seq_ = 0;
     int detail_scroll_ = 0;
     bool help_visible_ = false;
+    AppKeyCode held_nav_key_ = APPKEY_NONE;
+    float nav_repeat_accum_ = 0.0f;
 
     std::vector<float> channels_;
     float gain_db_ = 40.0f;

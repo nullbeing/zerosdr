@@ -204,7 +204,7 @@ AppKeyCode InputHandler::pollKey() {
             if (is_nav || is_squelch) {
                 last_nav_key = code;
                 key_is_held = true;
-                gettimeofday(&key_press_time, nullptr);
+                key_press_time = ev.time;
                 // Clear previous release record
                 last_released_key = APPKEY_NONE;
                 last_released_hold_ms = 0;
@@ -235,10 +235,9 @@ AppKeyCode InputHandler::pollKey() {
             // Key release - HIGHEST PRIORITY
             if (code == last_nav_key) {
                 // Calculate hold duration before resetting
-                struct timeval now;
-                gettimeofday(&now, nullptr);
-                last_released_hold_ms = (now.tv_sec - key_press_time.tv_sec) * 1000
-                                      + (now.tv_usec - key_press_time.tv_usec) / 1000;
+                last_released_hold_ms =
+                    (ev.time.tv_sec - key_press_time.tv_sec) * 1000
+                    + (ev.time.tv_usec - key_press_time.tv_usec) / 1000;
                 last_released_key = code;
 
                 last_nav_key = APPKEY_NONE;

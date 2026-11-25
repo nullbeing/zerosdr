@@ -110,14 +110,61 @@ void AcarsPage::onExit() {
 }
 
 void AcarsPage::update(float delta_time) {
-    (void)delta_time;
+    updateHoldRepeat(delta_time);
     const auto now = std::chrono::steady_clock::now();
     if (now - last_render_ < std::chrono::milliseconds(100)) return;
     last_render_ = now;
     render();
 }
 
+void AcarsPage::applyNavKey(AppKeyCode key) {
+    if (view_ == View::List) {
+        const int count = static_cast<int>(controller_.messageCount());
+        if (key == APPKEY_UP) {
+            if (selected_index_ > 0) --selected_index_;
+        } else if (key == APPKEY_DOWN) {
+            if (selected_index_ + 1 < count) ++selected_index_;
+        }
+        return;
+    }
+
+    if (key == APPKEY_UP) {
+        if (detail_scroll_ > 0) --detail_scroll_;
+    } else if (key == APPKEY_DOWN) {
+        ++detail_scroll_;
+    } else if (key == APPKEY_LEFT || key == APPKEY_RIGHT) {
+        const auto messages = controller_.snapshot();
+        stepDetail(messages, key == APPKEY_LEFT ? -1 : 1);
+    }
+}
+
+void AcarsPage::updateHoldRepeat(float delta_time) {
+    if (held_nav_key_ == APPKEY_NONE) return;
+    const int hold_ms = input_.getHoldDuration(held_nav_key_);
+    if (hold_ms <= 0) {
+        held_nav_key_ = APPKEY_NONE;
+        nav_repeat_accum_ = 0.0f;
+        return;
+    }
+    if (hold_ms < 450) return;
+
+    nav_repeat_accum_ += delta_time;
+    const float interval = hold_ms >= 1500 ? 0.045f
+                          : (hold_ms >= 900 ? 0.080f : 0.130f);
+    int guard = 0;
+    while (nav_repeat_accum_ >= interval && guard++ < 8) {
+        nav_repeat_accum_ -= interval;
+        applyNavKey(held_nav_key_);
+    }
+}
+
 bool AcarsPage::handleInput(AppKeyCode key) {
+    if (key != APPKEY_UP && key != APPKEY_DOWN && key != APPKEY_LEFT &&
+        key != APPKEY_RIGHT) {
+        held_nav_key_ = APPKEY_NONE;
+        nav_repeat_accum_ = 0.0f;
+    }
+
     if (key == APPKEY_H) {
         help_visible_ = !help_visible_;
         return true;
@@ -146,24 +193,15 @@ bool AcarsPage::handleInput(AppKeyCode key) {
 
         case APPKEY_LEFT:
         case APPKEY_RIGHT:
-            if (view_ != View::Detail) return false;
-            stepDetail(messages, key == APPKEY_LEFT ? -1 : 1);
-            return true;
-
         case APPKEY_UP:
-            if (view_ == View::List) {
-                if (selected_index_ > 0) --selected_index_;
-            } else if (detail_scroll_ > 0) {
-                --detail_scroll_;
-            }
-            return true;
-
         case APPKEY_DOWN:
-            if (view_ == View::List) {
-                if (selected_index_ + 1 < count) ++selected_index_;
-            } else {
-                ++detail_scroll_;
+            if ((key == APPKEY_LEFT || key == APPKEY_RIGHT) &&
+                view_ != View::Detail) {
+                return false;
             }
+            applyNavKey(key);
+            held_nav_key_ = key;
+            nav_repeat_accum_ = 0.0f;
             return true;
 
         case APPKEY_PAGEUP:

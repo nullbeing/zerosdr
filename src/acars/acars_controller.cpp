@@ -412,4 +412,9 @@ std::vector<Message> AcarsController::snapshot() const {
     return out;
 }
 
+size_t AcarsController::messageCount() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return messages_.size();
+}
+
 }  // namespace acars

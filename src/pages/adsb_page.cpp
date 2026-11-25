@@ -218,6 +218,34 @@ void ADSBPage::update(float delta_time) {
         }
     }
 
+    // Same acceleration for the plain list and the detail aircraft pager.
+    if (view_mode_ == VIEW_LIST && list_held_key_ != APPKEY_NONE) {
+        const int hold_ms = input_.getHoldDuration(list_held_key_);
+        if (hold_ms >= 450) {
+            list_repeat_accum_ += delta_time;
+            const float interval = hold_ms >= 1800 ? 0.045f
+                                  : (hold_ms >= 900 ? 0.080f : 0.130f);
+            int guard = 0;
+            while (list_repeat_accum_ >= interval && guard++ < 8) {
+                list_repeat_accum_ -= interval;
+                handleListInput(list_held_key_, false);
+            }
+        }
+    }
+    if (view_mode_ == VIEW_DETAIL && detail_held_key_ != APPKEY_NONE) {
+        const int hold_ms = input_.getHoldDuration(detail_held_key_);
+        if (hold_ms >= 450) {
+            detail_repeat_accum_ += delta_time;
+            const float interval = hold_ms >= 1800 ? 0.045f
+                                  : (hold_ms >= 900 ? 0.080f : 0.130f);
+            int guard = 0;
+            while (detail_repeat_accum_ >= interval && guard++ < 8) {
+                detail_repeat_accum_ -= interval;
+                handleDetailInput(detail_held_key_);
+            }
+        }
+    }
+
     // Update radar sweep angle if in radar view
     if (view_mode_ == VIEW_RADAR) {
         radar_view_age_ += delta_time;
@@ -451,12 +479,29 @@ bool ADSBPage::handleInput(AppKeyCode key) {
     }
 
     if (view_mode_ == VIEW_LIST) {
+        if (key == APPKEY_UP || key == APPKEY_DOWN) {
+            list_held_key_ = key;
+            list_repeat_accum_ = 0.0f;
+        } else {
+            list_held_key_ = APPKEY_NONE;
+            list_repeat_accum_ = 0.0f;
+        }
         handleListInput(key);
     } else if (view_mode_ == VIEW_DETAIL) {
+        if (key == APPKEY_UP || key == APPKEY_DOWN || key == APPKEY_LEFT ||
+            key == APPKEY_RIGHT) {
+            detail_held_key_ = key;
+            detail_repeat_accum_ = 0.0f;
+        } else {
+            detail_held_key_ = APPKEY_NONE;
+            detail_repeat_accum_ = 0.0f;
+        }
         handleDetailInput(key);
     } else if (view_mode_ == VIEW_RADAR) {
         if (key != APPKEY_UP && key != APPKEY_DOWN) {
             radar_held_key_ = APPKEY_NONE;
+            radar_repeat_accum_ = 0.0f;
+        } else {
             radar_repeat_accum_ = 0.0f;
         }
         handleRadarInput(key);
@@ -466,12 +511,12 @@ bool ADSBPage::handleInput(AppKeyCode key) {
     return true;
 }
 
-void ADSBPage::handleListInput(AppKeyCode key) {
+void ADSBPage::handleListInput(AppKeyCode key, bool beep) {
     switch (key) {
         case APPKEY_UP:
             if (selected_index_ > 0) {
                 selected_index_--;
-                beeps_.play(1000.0f, 15, 0.06f);
+                if (beep) beeps_.play(1000.0f, 15, 0.06f);
                 // Adjust scroll if needed
                 if (selected_index_ < scroll_offset_) {
                     scroll_offset_ = selected_index_;
@@ -482,7 +527,7 @@ void ADSBPage::handleListInput(AppKeyCode key) {
         case APPKEY_DOWN:
             if (selected_index_ < (int)aircraft_list_.size() - 1) {
                 selected_index_++;
-                beeps_.play(1000.0f, 15, 0.06f);
+                if (beep) beeps_.play(1000.0f, 15, 0.06f);
                 // Adjust scroll if needed
                 int max_visible = 6;  // MAX_VISIBLE_ROWS from renderer
                 if (selected_index_ >= scroll_offset_ + max_visible) {
@@ -495,14 +540,14 @@ void ADSBPage::handleListInput(AppKeyCode key) {
         case APPKEY_LEFT:
             selected_index_ = std::max(0, selected_index_ - 5);
             scroll_offset_ = std::max(0, scroll_offset_ - 5);
-            beeps_.play(1320.0f, 15, 0.06f);
+            if (beep) beeps_.play(1320.0f, 15, 0.06f);
             break;
 
         case APPKEY_RIGHT:
             selected_index_ = std::min((int)aircraft_list_.size() - 1, selected_index_ + 5);
             scroll_offset_ = std::min((int)aircraft_list_.size() - 6, scroll_offset_ + 5);
             if (scroll_offset_ < 0) scroll_offset_ = 0;
-            beeps_.play(1320.0f, 15, 0.06f);
+            if (beep) beeps_.play(1320.0f, 15, 0.06f);
             break;
 
         case APPKEY_ENTER:
@@ -1367,7 +1412,6 @@ void ADSBPage::handleRadarInput(AppKeyCode key, bool beep) {
                 selected_index_--;
                 if (beep) beeps_.play(1000.0f, 15, 0.06f);
                 radar_held_key_ = key;
-                radar_repeat_accum_ = 0.0f;
                 // Adjust scroll if needed
                 if (selected_index_ < scroll_offset_) {
                     scroll_offset_ = selected_index_;
@@ -1380,7 +1424,6 @@ void ADSBPage::handleRadarInput(AppKeyCode key, bool beep) {
                 selected_index_++;
                 if (beep) beeps_.play(1000.0f, 15, 0.06f);
                 radar_held_key_ = key;
-                radar_repeat_accum_ = 0.0f;
                 // Adjust scroll if needed
                 int max_visible = 8;  // MAX_VISIBLE_ROWS - 1 (header row)
                 if (selected_index_ >= scroll_offset_ + max_visible) {
