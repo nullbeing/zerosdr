@@ -1,5 +1,7 @@
 #include "acars/acars_controller.h"
 
+#include "acars/acars_log.h"
+
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -22,7 +24,7 @@
 namespace acars {
 namespace {
 
-constexpr size_t kMaxMessages = 120;
+constexpr size_t kMaxMessages = 500;
 constexpr int kMaxText = 2000;
 
 double nowSeconds() {
@@ -184,8 +186,10 @@ bool AcarsController::start(const std::vector<float>& channels_mhz,
         last_error_.clear();
     }
     total_.store(0);
+    session_total_.store(0);
     rate_.store(0.0f);
     started_at_ = nowSeconds();
+    loadHistory(static_cast<int>(kMaxMessages));
     running_.store(true);
     thread_ = std::thread(&AcarsController::receiveLoop, this);
 
@@ -196,14 +200,19 @@ bool AcarsController::start(const std::vector<float>& channels_mhz,
 }
 
 void AcarsController::stop() {
-    if (!running_.exchange(false) && pid_ <= 0) {
+    const bool was_running = running_.exchange(false);
+    // Always reap the receive thread: it can already have exited (decoder
+    // died) while still being joinable, and destroying a joinable
+    // std::thread calls std::terminate.
+    if (thread_.joinable()) thread_.join();
+
+    if (!was_running && pid_ <= 0) {
         if (udp_fd_ >= 0) {
             close(udp_fd_);
             udp_fd_ = -1;
         }
         return;
     }
-    if (thread_.joinable()) thread_.join();
 
     if (pid_ > 0) {
         kill(pid_, SIGTERM);
@@ -227,6 +236,19 @@ void AcarsController::stop() {
         close(udp_fd_);
         udp_fd_ = -1;
     }
+}
+
+void AcarsController::loadHistory(int max_messages) {
+    auto loaded = loadRecentMessages(max_messages);
+    if (loaded.empty()) return;
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (auto& msg : loaded) {
+        msg.seq = ++seq_counter_;
+        messages_.push_front(std::move(msg));
+    }
+    while (messages_.size() > kMaxMessages) messages_.pop_back();
+    total_.fetch_add(loaded.size(), std::memory_order_relaxed);
 }
 
 void AcarsController::receiveLoop() {
@@ -264,7 +286,7 @@ void AcarsController::receiveLoop() {
             }
         }
         const double elapsed = std::max(0.001, nowSeconds() - started_at_);
-        rate_.store(static_cast<float>(total_.load() / elapsed));
+        rate_.store(static_cast<float>(session_total_.load() / elapsed));
     }
 }
 
@@ -338,12 +360,16 @@ void AcarsController::handleJson(const std::string& line) {
     msg.text = sanitizeText(string("text"));
     if (msg.flight.empty() && msg.tail.empty() && msg.text.empty()) return;
 
+    appendMessage(msg);
+
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        msg.seq = ++seq_counter_;
         messages_.push_front(std::move(msg));
         while (messages_.size() > kMaxMessages) messages_.pop_back();
     }
     total_.fetch_add(1);
+    session_total_.fetch_add(1);
 }
 
 std::string AcarsController::sanitizeText(const std::string& text) {
@@ -375,7 +401,15 @@ std::string AcarsController::sanitizeText(const std::string& text) {
 
 std::vector<Message> AcarsController::snapshot() const {
     std::lock_guard<std::mutex> lock(mutex_);
-    return std::vector<Message>(messages_.begin(), messages_.end());
+    std::vector<Message> out(messages_.begin(), messages_.end());
+    // Newest first by message time, not arrival time, so a late/out-of-order
+    // frame cannot split a day's group in the list. Equal timestamps keep
+    // arrival order (stable_sort).
+    std::stable_sort(out.begin(), out.end(),
+                     [](const Message& a, const Message& b) {
+                         return a.timestamp > b.timestamp;
+                     });
+    return out;
 }
 
 }  // namespace acars

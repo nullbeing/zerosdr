@@ -16,7 +16,7 @@ public:
                     int selected_index, uint64_t total, float rate,
                     const std::vector<float>& channels, float gain_db,
                     bool running, const std::string& error);
-    void renderDetail(const acars::Message& message, int scroll);
+    void renderDetail(const acars::Message& message, int& scroll);
     void renderHelp();
     void renderDialog(const char* title, const char* message,
                       const char* hint);

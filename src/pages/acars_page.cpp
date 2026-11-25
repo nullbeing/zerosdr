@@ -60,6 +60,29 @@ void AcarsPage::restartDecoder() {
     startDecoder();
 }
 
+int AcarsPage::indexOfSeq(const std::vector<acars::Message>& messages,
+                          uint64_t seq) const {
+    for (size_t i = 0; i < messages.size(); ++i) {
+        if (messages[i].seq == seq) return static_cast<int>(i);
+    }
+    return -1;
+}
+
+void AcarsPage::stepDetail(const std::vector<acars::Message>& messages,
+                           int delta) {
+    const int count = static_cast<int>(messages.size());
+    if (count == 0) return;
+    int index = indexOfSeq(messages, detail_seq_);
+    if (index < 0) {
+        index = std::max(0, std::min(selected_index_, count - 1));
+    }
+    index = (index + delta) % count;
+    if (index < 0) index += count;
+    selected_index_ = index;
+    detail_seq_ = messages[static_cast<size_t>(index)].seq;
+    detail_scroll_ = 0;
+}
+
 void AcarsPage::onEnter() {
     std::cout << "AcarsPage: Entering ACARS mode" << std::endl;
 
@@ -73,6 +96,7 @@ void AcarsPage::onEnter() {
     loadConfig();
     view_ = View::List;
     selected_index_ = 0;
+    detail_seq_ = 0;
     detail_scroll_ = 0;
     help_visible_ = false;
     last_render_ = std::chrono::steady_clock::now();
@@ -111,11 +135,19 @@ bool AcarsPage::handleInput(AppKeyCode key) {
             if (view_ == View::List && count > 0) {
                 selected_index_ = std::max(
                     0, std::min(selected_index_, count - 1));
+                detail_seq_ =
+                    messages[static_cast<size_t>(selected_index_)].seq;
                 detail_scroll_ = 0;
                 view_ = View::Detail;
             } else if (view_ == View::Detail) {
                 view_ = View::List;
             }
+            return true;
+
+        case APPKEY_LEFT:
+        case APPKEY_RIGHT:
+            if (view_ != View::Detail) return false;
+            stepDetail(messages, key == APPKEY_LEFT ? -1 : 1);
             return true;
 
         case APPKEY_UP:
@@ -135,12 +167,20 @@ bool AcarsPage::handleInput(AppKeyCode key) {
             return true;
 
         case APPKEY_PAGEUP:
-            selected_index_ = std::max(0, selected_index_ - 5);
+            if (view_ == View::Detail) {
+                stepDetail(messages, -5);
+            } else {
+                selected_index_ = std::max(0, selected_index_ - 5);
+            }
             return true;
 
         case APPKEY_PAGEDOWN:
-            selected_index_ = std::min(std::max(0, count - 1),
-                                       selected_index_ + 5);
+            if (view_ == View::Detail) {
+                stepDetail(messages, 5);
+            } else {
+                selected_index_ = std::min(std::max(0, count - 1),
+                                           selected_index_ + 5);
+            }
             return true;
 
         case APPKEY_R:
@@ -163,9 +203,14 @@ void AcarsPage::render() {
     if (view_ == View::Detail) {
         const auto messages = controller_.snapshot();
         if (!messages.empty()) {
-            const int index = std::max(
-                0, std::min(selected_index_,
-                            static_cast<int>(messages.size()) - 1));
+            int index = indexOfSeq(messages, detail_seq_);
+            if (index < 0) {
+                index = std::max(
+                    0, std::min(selected_index_,
+                                static_cast<int>(messages.size()) - 1));
+                detail_seq_ = messages[static_cast<size_t>(index)].seq;
+            }
+            selected_index_ = index;
             ui_.renderDetail(messages[static_cast<size_t>(index)],
                              detail_scroll_);
             if (help_visible_) ui_.renderHelp();

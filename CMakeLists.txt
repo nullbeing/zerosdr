@@ -101,6 +101,8 @@ set(SOURCES
 
     # ACARS integration (external acarsdec subprocess)
     src/acars/acars_controller.cpp
+    src/acars/acars_labels.cpp
+    src/acars/acars_log.cpp
 
     # ADSB integration
     src/adsb/readsb_controller.cpp

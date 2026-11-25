@@ -1,5 +1,6 @@
 #include "ui/acars_ui_renderer.h"
 
+#include "acars/acars_labels.h"
 #include "font.h"
 
 #include <algorithm>
@@ -17,6 +18,17 @@ std::string clockString(double timestamp) {
     char buffer[16];
     std::snprintf(buffer, sizeof(buffer), "%02d:%02d:%02d", local.tm_hour,
                   local.tm_min, local.tm_sec);
+    return buffer;
+}
+
+std::string dateString(double timestamp) {
+    time_t seconds = static_cast<time_t>(timestamp);
+    if (seconds <= 0) seconds = time(nullptr);
+    struct tm local {};
+    localtime_r(&seconds, &local);
+    char buffer[16];
+    std::snprintf(buffer, sizeof(buffer), "%04d-%02d-%02d",
+                  local.tm_year + 1900, local.tm_mon + 1, local.tm_mday);
     return buffer;
 }
 
@@ -152,15 +164,45 @@ void AcarsUIRenderer::renderList(
     } else {
         const int count = static_cast<int>(messages.size());
         const int selected = std::max(0, std::min(selected_index, count - 1));
-        int first = 0;
-        constexpr int kRows = 9;
-        if (selected >= kRows) first = selected - kRows + 1;
+        constexpr int kListTop = 33;
+        constexpr int kListBottom = 150;
+        constexpr int kMsgHeight = 13;
+        constexpr int kDateHeight = 11;
+        constexpr int kViewport = kListBottom - kListTop;
 
-        for (int row = 0; row < kRows; ++row) {
-            const int index = first + row;
-            if (index >= count) break;
+        const auto startsDay = [&messages](int index) {
+            if (index <= 0) return true;
+            return dateString(
+                       messages[static_cast<size_t>(index)].timestamp) !=
+                   dateString(
+                       messages[static_cast<size_t>(index - 1)].timestamp);
+        };
+
+        // Walk backwards until the selected row plus the date headers above
+        // it fill the viewport.
+        int first = selected;
+        int used = kMsgHeight + (startsDay(selected) ? kDateHeight : 0);
+        while (first > 0) {
+            const int height =
+                kMsgHeight + (startsDay(first - 1) ? kDateHeight : 0);
+            if (used + height > kViewport) break;
+            used += height;
+            --first;
+        }
+
+        int y = kListTop;
+        for (int index = first; index < count; ++index) {
+            if (startsDay(index)) {
+                if (y + kDateHeight > kListBottom) break;
+                const std::string date = dateString(
+                    messages[static_cast<size_t>(index)].timestamp);
+                fb_.fillRect(0, y, 320, kDateHeight, kAccent);
+                drawSmall(3, y + 2, date.c_str(), 0x0000);
+                y += kDateHeight;
+            }
+            if (y + kMsgHeight > kListBottom) break;
+
             const acars::Message& msg = messages[static_cast<size_t>(index)];
-            const int y = 33 + row * 13;
             const bool is_selected = index == selected;
             if (is_selected) {
                 fb_.fillRect(0, y - 1, 320, 12, kPanel);
@@ -186,6 +228,8 @@ void AcarsUIRenderer::renderList(
             std::string snippet = firstLine(msg.text);
             if (snippet.size() > 18) snippet.resize(18);
             drawSmall(192, y, snippet.c_str(), color);
+
+            y += kMsgHeight;
         }
     }
 
@@ -204,7 +248,7 @@ void AcarsUIRenderer::renderList(
 }
 
 void AcarsUIRenderer::renderDetail(const acars::Message& message,
-                                   int scroll) {
+                                   int& scroll) {
     fb_.fillRect(0, 0, 320, 170, kBg);
 
     std::string title = message.flight;
@@ -212,26 +256,41 @@ void AcarsUIRenderer::renderDetail(const acars::Message& message,
     drawText(2, 2, title.c_str(), kAccent);
 
     std::string label = message.label.empty() ? "--" : message.label;
-    char right[32];
+    char right[40];
     std::snprintf(right, sizeof(right), "%s  %.3f", label.c_str(),
                   message.freq_mhz);
     drawSmall(320 - smallWidth(right) - 2, 6, right, kText);
+
+    const std::string meaning = acars::labelDescription(message.label);
+    if (!meaning.empty()) {
+        drawSmall(2, 19, meaning.c_str(), kAccent);
+    }
 
     char meta[64];
     std::snprintf(meta, sizeof(meta), "%s  %s  L:%d",
                   clockString(message.timestamp).c_str(),
                   message.tail.empty() ? "--" : message.tail.c_str(),
                   static_cast<int>(message.level));
-    drawSmall(2, 21, meta, kDim);
+    drawSmall(2, 28, meta, kDim);
+
     char meta2[48];
     std::snprintf(meta2, sizeof(meta2), "MODE %s  ERR %d%s",
                   message.mode.empty() ? "-" : message.mode.c_str(),
                   message.error, message.ack ? "  ACK" : "");
-    drawSmall(320 - smallWidth(meta2) - 2, 21, meta2, kDim);
-    fb_.fillRect(0, 31, 320, 1, kGrid);
+    drawSmall(320 - smallWidth(meta2) - 2, 28, meta2, kDim);
+
+    // acarsdec reports a zero-based channel index.
+    char meta3[64];
+    std::snprintf(meta3, sizeof(meta3), "SUB %s  BLK %s  MSG %s  CH %d",
+                  message.sublabel.empty() ? "--" : message.sublabel.c_str(),
+                  message.block_id.empty() ? "-" : message.block_id.c_str(),
+                  message.msgno.empty() ? "---" : message.msgno.c_str(),
+                  message.channel + 1);
+    drawSmall(2, 38, meta3, kDim);
+    fb_.fillRect(0, 47, 320, 1, kGrid);
 
     const auto lines = wrapText(message.text, 45);
-    constexpr int kVisible = 12;
+    constexpr int kVisible = 10;
     const int max_scroll =
         std::max(0, static_cast<int>(lines.size()) - kVisible);
     scroll = std::max(0, std::min(scroll, max_scroll));
@@ -239,17 +298,17 @@ void AcarsUIRenderer::renderDetail(const acars::Message& message,
     for (int i = 0; i < kVisible; ++i) {
         const int index = scroll + i;
         if (index >= static_cast<int>(lines.size())) break;
-        drawSmall(2, 35 + i * 10, lines[static_cast<size_t>(index)].c_str(),
+        drawSmall(2, 50 + i * 10, lines[static_cast<size_t>(index)].c_str(),
                   kText);
     }
 
+    drawSmall(2, 160, "UP/DN SCROLL  L/R MSG  ESC  H", kDim);
     if (max_scroll > 0) {
         char scroll_text[24];
         std::snprintf(scroll_text, sizeof(scroll_text), "%d/%d", scroll + 1,
                       max_scroll + 1);
-        drawSmall(320 - smallWidth(scroll_text) - 2, 148, scroll_text, kDim);
+        drawSmall(320 - smallWidth(scroll_text) - 2, 160, scroll_text, kDim);
     }
-    drawSmall(2, 160, "UP/DN SCROLL   ESC BACK   H HELP", kDim);
 }
 
 void AcarsUIRenderer::renderHelp() {
@@ -257,18 +316,19 @@ void AcarsUIRenderer::renderHelp() {
     fb_.fillRect(12, 26, 296, 1, kAccent);
     drawText(22, 32, "ACARS KEYS", kAccent);
     const char* lines[] = {
-        "ENTER   OPEN MESSAGE",
+        "ENTER   OPEN / CLOSE MESSAGE",
         "UP/DN   SELECT OR SCROLL",
+        "LEFT/RIGHT  PREV / NEXT MSG",
         "R       RESTART DECODER",
         "FN+P    SCREENSHOT",
         "TAB     PAGE MENU",
         "ESC     BACK / CLOSE",
         "",
-        "CHANNELS ARE SET IN config.json",
-        "ACARS CHANNELS DEPEND ON REGION",
+        "LOG  ~/.local/share/zerosdr/acars",
+        "CHANNELS IN config.json",
     };
-    for (int i = 0; i < 9; ++i) {
-        drawSmall(24, 52 + i * 10, lines[i], i < 6 ? kText : kDim);
+    for (int i = 0; i < 10; ++i) {
+        drawSmall(24, 48 + i * 10, lines[i], i < 7 ? kText : kDim);
     }
 }
 

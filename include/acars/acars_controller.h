@@ -12,6 +12,7 @@
 namespace acars {
 
 struct Message {
+    uint64_t seq = 0;  // stable identity for selection while new rows arrive
     double timestamp = 0.0;
     float freq_mhz = 0.0f;
     int channel = 0;
@@ -58,12 +59,15 @@ public:
 private:
     void receiveLoop();
     void handleJson(const std::string& line);
+    void loadHistory(int max_messages);
     void noteExit(int status);
     static std::string sanitizeText(const std::string& text);
 
     mutable std::mutex mutex_;
     std::deque<Message> messages_;
     std::atomic<uint64_t> total_{0};
+    std::atomic<uint64_t> session_total_{0};  // excludes loaded history
+    uint64_t seq_counter_ = 0;  // guarded by mutex_
 
     std::thread thread_;
     std::atomic<bool> running_{false};

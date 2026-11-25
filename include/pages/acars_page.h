@@ -37,6 +37,9 @@ private:
     void startDecoder();
     void restartDecoder();
     void render();
+    int indexOfSeq(const std::vector<acars::Message>& messages,
+                   uint64_t seq) const;
+    void stepDetail(const std::vector<acars::Message>& messages, int delta);
 
     Framebuffer& fb_;
     SDRController& sdr_;
@@ -46,6 +49,7 @@ private:
 
     View view_ = View::List;
     int selected_index_ = 0;
+    uint64_t detail_seq_ = 0;
     int detail_scroll_ = 0;
     bool help_visible_ = false;
 
