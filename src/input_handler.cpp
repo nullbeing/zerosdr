@@ -153,6 +153,7 @@ AppKeyCode InputHandler::pollKey() {
     static bool alt_pressed = false;
     AppKeyCode result = APPKEY_NONE;
     bool found_event = false;
+    bool screenshot_seen = false;
 
     // Read ALL available events, keep only the last relevant one
     // This prevents event queue buildup causing drift after key release
@@ -193,6 +194,7 @@ AppKeyCode InputHandler::pollKey() {
 
         if (ev.value == 1) {
             // Fresh key press — start hold timer for nav keys
+            if (code == APPKEY_SCREENSHOT) screenshot_seen = true;
             bool is_nav = (code == APPKEY_UP || code == APPKEY_DOWN ||
                            code == APPKEY_LEFT || code == APPKEY_RIGHT ||
                            code == APPKEY_LEFT_COARSE ||
@@ -254,6 +256,9 @@ AppKeyCode InputHandler::pollKey() {
         }
     }
 
+    // A chord can deliver several events in one batch (Fn down, key down,
+    // key up, Fn up). The screenshot key must survive later events.
+    if (screenshot_seen) return APPKEY_SCREENSHOT;
     return found_event ? result : APPKEY_NONE;
 }
 
@@ -307,6 +312,8 @@ AppKeyCode InputHandler::translateCardputerZero(int linux_keycode,
         case KEY_PLAYPAUSE:  return APPKEY_SPACE;       // fn+Q
         case KEY_INSERT:     return APPKEY_BW;          // fn+B
         case KEY_F12:        return APPKEY_SCREENSHOT;  // fn+P (F12)
+        case KEY_SYSRQ:      return APPKEY_SCREENSHOT;  // some fn layers
+        case KEY_PRINT:      return APPKEY_SCREENSHOT;
         case KEY_HELP:       return APPKEY_H;           // fn+H
 
         // Letter alias kept from the previous map (no fn needed).

@@ -45,7 +45,7 @@ private:
     static constexpr int kAxisY = 92;
     static constexpr int kAxisH = 12;
     static constexpr int kWaterfallY = 104;
-    static constexpr int kWaterfallH = 52;
+    static constexpr int kWaterfallH = 66;
     static constexpr int kStatusY = 156;
     static constexpr size_t kFftSize = 512;
     static constexpr uint32_t kSampleRate = 1024000;
@@ -54,6 +54,8 @@ private:
 
     void loadRange();
     void saveRange() const;
+    void saveTheme() const;
+    void savePeakLabels() const;
     void rebuildGeometry();
 
     void startSweep();
@@ -72,6 +74,7 @@ private:
     void drawRoundedPanel(int x, int y, int w, int h, int radius,
                           uint16_t color, float alpha);
     void drawSpectrum();
+    void drawPeakLabels();
     void drawAxis();
     void drawWaterfall();
     void drawStatusBar();
@@ -99,10 +102,18 @@ private:
     std::vector<float> disp_db_;
     std::vector<float> max_hold_db_;
     std::vector<float> hold_row_db_;
+    // Per-slice noise floor, used to remove tuner-AGC gain steps between
+    // stitched slices. -1000 means "not measured yet".
+    std::vector<float> slice_floor_db_;
+    float reference_floor_db_ = -1000.0f;
     std::atomic<bool> max_hold_active_{true};
     // Display-only median smoothing (Space). It does not change the captured
     // bins or the max-hold data, only the drawn trace and waterfall row.
     bool smooth_display_ = false;
+    // Waterfall palette index (M key); persisted as spectrum.theme.
+    int theme_index_ = 0;
+    // Tag the strongest visible peaks with their frequency (L key).
+    bool peak_labels_ = true;
     // Decay of the red max-hold envelope, in dB per second. 0 keeps the
     // classic "hold forever" behaviour; the default lets stale peaks fall.
     float max_hold_decay_db_s_ = 1.5f;
@@ -111,6 +122,7 @@ private:
     std::vector<float> row_db_;
     float floor_db_ = -100.0f;
     float ceil_db_ = -20.0f;
+    bool scale_initialized_ = false;
     float render_accum_ = 0.0f;
 
     size_t view_start_ = 0;

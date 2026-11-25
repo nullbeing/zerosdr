@@ -116,6 +116,7 @@ private:
 
     // Brief "SCREENSHOT SAVED" confirmation drawn after the page frame.
     bool toast_active_ = false;
+    std::vector<uint16_t> toast_snapshot_;
     struct timeval toast_until_ {};
 
     /**

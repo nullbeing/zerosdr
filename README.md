@@ -514,8 +514,8 @@ GPLv2-only while zeroSDR is GPL-3.0, so it is executed as a separate process
 and its JSON output is read over loopback UDP; no code is linked into the
 application.
 
-`Enter` opens a message, `↑`/`↓` select or scroll, `R` restarts the decoder,
-and `H` shows every key.
+`Enter` opens a message, `↑`/`↓` select or scroll, `←`/`→` step to the
+previous/next message, `R` restarts the decoder, and `H` shows every key.
 
 ACARS frequencies depend on the region. `131.550 MHz` is the common primary
 channel; `129.125` carries a large share of the traffic in some regions, and
@@ -536,7 +536,16 @@ so the page can sit on `WAITING FOR ACARS` for a while between messages.
 Use a VHF antenna; a quarter wave at 131 MHz is about 57 cm.
 
 Each row shows time, flight, registration, label and the first line of text;
-`Enter` opens the full message with word wrapping and scrolling.
+`Enter` opens the full message with word wrapping and scrolling. The detail
+view also spells out the usual meaning of the label (`H1` position/weather,
+`Q0` link test, `5Z` airline-defined, ...) and shows the sublabel, block id,
+message number and channel. Airline-specific labels are hints, not
+authoritative decodes.
+
+Messages are appended to daily JSONL files under
+`~/.local/share/zerosdr/acars/` (`YYYY-MM-DD.jsonl`, one object per line), so
+the log is split by date and survives restarts. The list reloads the newest
+500 messages and inserts a date header whenever the day changes.
 
 ## Wideband spectrum page
 
@@ -569,10 +578,16 @@ Notes:
   signal. The captured bins, max hold and its decay are not changed; only the
   trace and the new waterfall row are filtered. The status bar shows `SM`
   while it is on.
-- Max hold is on by default (red envelope); `M` toggles it and clears the
+- Max hold is on by default (red envelope); `P` toggles it and clears the
   stored peaks. The envelope decays at 1.5 dB/s
   (`spectrum.max_hold_decay_db_s`; set 0 to hold forever), so stale peaks
   fall away while a persistent signal keeps refreshing its level.
+- `M` cycles the waterfall palette: CLASSIC, DEFAULT, TURBO, INFERNO,
+  VIRIDIS and PLASMA. The choice is saved as `spectrum.theme` and restored
+  on the next start.
+- `L` toggles peak labels: the strongest local maxima in the visible trace
+  are tagged with their frequency in MHz (up to three, kept apart so the
+  labels do not overlap). The choice is saved as `spectrum.peak_labels`.
 - The waterfall window is cleared when you pan or zoom so stale history from
   another part of the band is not shown.
 - The page stops the SDR capture when you leave it, releasing the dongle for

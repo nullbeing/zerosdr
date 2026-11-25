@@ -30,6 +30,41 @@ uint16_t lerpRgb565(uint16_t a, uint16_t b, float t) {
     return static_cast<uint16_t>((r << 11) | (g << 5) | bl);
 }
 
+struct WfStop {
+    float pos;
+    uint16_t color;
+};
+
+struct WfTheme {
+    const char* name;
+    WfStop stops[8];
+};
+
+// Waterfall ramps. CLASSIC keeps the original blue/green/yellow/red look;
+// the others match the SDR page's palettes.
+constexpr WfTheme kWfThemes[] = {
+    {"CLASSIC", {{0.00f, 0x0000}, {0.18f, 0x0010}, {0.34f, 0x001F},
+                 {0.50f, 0x03FF}, {0.64f, 0x07E0}, {0.80f, 0xFFE0},
+                 {0.90f, 0xFC00}, {1.00f, 0xF800}}},
+    {"DEFAULT", {{0.00f, 0x0862}, {0.14f, 0x1045}, {0.28f, 0x188A},
+                 {0.42f, 0x1958}, {0.56f, 0x22DF}, {0.70f, 0x455F},
+                 {0.85f, 0x96DF}, {1.00f, 0xFFFF}}},
+    {"TURBO", {{0.00f, 0x3087}, {0.14f, 0x4235}, {0.28f, 0x3D1F},
+               {0.42f, 0x1E7A}, {0.56f, 0x67ED}, {0.70f, 0xD746},
+               {0.85f, 0xFCC5}, {1.00f, 0xB0C0}}},
+    {"INFERNO", {{0.00f, 0x0000}, {0.14f, 0x1868}, {0.28f, 0x486D},
+                 {0.42f, 0x78ED}, {0.56f, 0xA16C}, {0.70f, 0xEB44},
+                 {0.85f, 0xF687}, {1.00f, 0xFFF4}}},
+    {"VIRIDIS", {{0.00f, 0x400A}, {0.14f, 0x3A51}, {0.28f, 0x3351},
+                 {0.42f, 0x1CF1}, {0.56f, 0x35AF}, {0.70f, 0x6E6B},
+                 {0.85f, 0xB6E5}, {1.00f, 0xFF24}}},
+    {"PLASMA", {{0.00f, 0x0850}, {0.14f, 0x4013}, {0.28f, 0x7015},
+                {0.42f, 0x98B3}, {0.56f, 0xB9B0}, {0.70f, 0xDAAD},
+                {0.85f, 0xEBCA}, {1.00f, 0xF7C4}}},
+};
+
+constexpr int kWfThemeCount = sizeof(kWfThemes) / sizeof(kWfThemes[0]);
+
 }  // namespace
 
 SpectrumPage::SpectrumPage(Framebuffer& fb, SDRController& sdr,
@@ -60,6 +95,10 @@ void SpectrumPage::loadRange() {
     if (max_hold_decay_db_s_ < 0.0f) max_hold_decay_db_s_ = 0.0f;
     if (max_hold_decay_db_s_ > 20.0f) max_hold_decay_db_s_ = 20.0f;
 
+    theme_index_ = spectrum.value("theme", 0);
+    if (theme_index_ < 0 || theme_index_ >= kWfThemeCount) theme_index_ = 0;
+    peak_labels_ = spectrum.value("peak_labels", true);
+
     if (!spectrum.value("configured", false)) return;
 
     const uint32_t start = spectrum.value("start_hz", 88000000u);
@@ -84,6 +123,24 @@ void SpectrumPage::saveRange() const {
     AppConfig::instance().save();
 }
 
+void SpectrumPage::saveTheme() const {
+    auto& data = AppConfig::instance().data();
+    if (!data.contains("spectrum") || !data["spectrum"].is_object()) {
+        data["spectrum"] = nlohmann::json::object();
+    }
+    data["spectrum"]["theme"] = theme_index_;
+    AppConfig::instance().save();
+}
+
+void SpectrumPage::savePeakLabels() const {
+    auto& data = AppConfig::instance().data();
+    if (!data.contains("spectrum") || !data["spectrum"].is_object()) {
+        data["spectrum"] = nlohmann::json::object();
+    }
+    data["spectrum"]["peak_labels"] = peak_labels_;
+    AppConfig::instance().save();
+}
+
 void SpectrumPage::rebuildGeometry() {
     const double range =
         stop_hz_ > start_hz_ ? static_cast<double>(stop_hz_ - start_hz_)
@@ -105,10 +162,13 @@ void SpectrumPage::rebuildGeometry() {
         max_hold_db_.assign(total_bins_, -120.0f);
     }
     std::fill(hold_row_db_.begin(), hold_row_db_.end(), -120.0f);
+    slice_floor_db_.assign(step_count_, -1000.0f);
+    reference_floor_db_ = -1000.0f;
     view_start_ = 0;
     view_bins_ = total_bins_;
     floor_db_ = -100.0f;
     ceil_db_ = -20.0f;
+    scale_initialized_ = false;
     clearWaterfall();
 }
 
@@ -203,6 +263,9 @@ void SpectrumPage::sweepLoop() {
         const size_t steps = step_count_;
         const size_t sbins = slice_bins_;
         const double shz = slice_hz_;
+        if (slice_floor_db_.size() != steps) {
+            slice_floor_db_.assign(steps, -1000.0f);
+        }
         const int first_bin =
             static_cast<int>(kFftSize / 2) - static_cast<int>(sbins / 2);
 
@@ -229,6 +292,33 @@ void SpectrumPage::sweepLoop() {
             }
 
             if (frames > 0) {
+                std::vector<float> values(sbins);
+                for (size_t j = 0; j < sbins; ++j) {
+                    values[j] = acc[j] / static_cast<float>(frames);
+                }
+
+                // Per-slice noise floor (20th percentile). The tuner AGC can
+                // pick a different gain for a slice with strong signals,
+                // which would otherwise show as a step in the stitched trace.
+                std::vector<float> sorted = values;
+                const size_t floor_idx =
+                    std::min(sbins - 1, std::max<size_t>(1, sbins / 5));
+                std::nth_element(sorted.begin(), sorted.begin() + floor_idx,
+                                 sorted.end());
+                const float floor_now = sorted[floor_idx];
+                if (s < slice_floor_db_.size()) {
+                    float& stored = slice_floor_db_[s];
+                    stored = stored < -900.0f
+                                 ? floor_now
+                                 : 0.85f * stored + 0.15f * floor_now;
+                }
+                float offset = 0.0f;
+                if (reference_floor_db_ > -900.0f &&
+                    s < slice_floor_db_.size()) {
+                    offset = reference_floor_db_ - slice_floor_db_[s];
+                    offset = std::clamp(offset, -20.0f, 20.0f);
+                }
+
                 std::lock_guard<std::mutex> lock(data_mutex_);
                 const size_t off = s * sbins;
                 if (off + sbins <= bins_db_.size()) {
@@ -236,8 +326,7 @@ void SpectrumPage::sweepLoop() {
                     const bool have_hold = hold && off + sbins <= max_hold_db_.size();
                     const float decay = max_hold_decay_db_s_ * sweep_period;
                     for (size_t j = 0; j < sbins; ++j) {
-                        const float value =
-                            acc[j] / static_cast<float>(frames);
+                        const float value = values[j] + offset;
                         bins_db_[off + j] = value;
                         if (have_hold) {
                             // Age the envelope once per sweep, then let the
@@ -255,6 +344,25 @@ void SpectrumPage::sweepLoop() {
 
             sweep_progress_ =
                 static_cast<int>((s + 1) * 100 / std::max<size_t>(1, steps));
+        }
+
+        // Anchor the per-slice offsets to a slowly moving common floor.
+        {
+            std::vector<float> floors;
+            floors.reserve(slice_floor_db_.size());
+            for (float f : slice_floor_db_) {
+                if (f > -900.0f) floors.push_back(f);
+            }
+            if (!floors.empty()) {
+                const size_t mid = floors.size() / 2;
+                std::nth_element(floors.begin(), floors.begin() + mid,
+                                 floors.end());
+                const float median = floors[mid];
+                reference_floor_db_ =
+                    reference_floor_db_ < -900.0f
+                        ? median
+                        : 0.95f * reference_floor_db_ + 0.05f * median;
+            }
         }
 
         // Short pause before starting the next sweep.
@@ -324,14 +432,32 @@ bool SpectrumPage::handleInput(AppKeyCode key) {
             toast_until_ = std::chrono::steady_clock::now() +
                            std::chrono::milliseconds(1500);
             return true;
-        case APPKEY_M: {
+        case APPKEY_P: {
             const bool next = !max_hold_active_.load();
             max_hold_active_ = next;
             std::lock_guard<std::mutex> lock(data_mutex_);
             std::fill(max_hold_db_.begin(), max_hold_db_.end(), -120.0f);
             std::fill(hold_row_db_.begin(), hold_row_db_.end(), -120.0f);
+            toast_ = next ? "MAX HOLD ON" : "MAX HOLD OFF";
+            toast_until_ = std::chrono::steady_clock::now() +
+                           std::chrono::milliseconds(1500);
             return true;
         }
+        case APPKEY_M: {
+            theme_index_ = (theme_index_ + 1) % kWfThemeCount;
+            toast_ = std::string("THEME: ") + kWfThemes[theme_index_].name;
+            toast_until_ = std::chrono::steady_clock::now() +
+                           std::chrono::milliseconds(1500);
+            saveTheme();
+            return true;
+        }
+        case APPKEY_L:
+            peak_labels_ = !peak_labels_;
+            toast_ = peak_labels_ ? "PEAK LABELS ON" : "PEAK LABELS OFF";
+            toast_until_ = std::chrono::steady_clock::now() +
+                           std::chrono::milliseconds(1500);
+            savePeakLabels();
+            return true;
         case APPKEY_R:
             openEditor();
             return true;
@@ -479,24 +605,18 @@ std::string SpectrumPage::formatMhz(uint32_t hz, int decimals) const {
 }
 
 uint16_t SpectrumPage::heatColor(float t) const {
-    struct Stop {
-        float pos;
-        uint16_t color;
-    };
-    static const Stop stops[] = {
-        {0.00f, 0x0000}, {0.18f, 0x0010}, {0.34f, 0x001F},
-        {0.50f, 0x03FF}, {0.64f, 0x07E0}, {0.80f, 0xFFE0},
-        {0.90f, 0xFC00}, {1.00f, 0xF800},
-    };
+    const WfTheme& theme = kWfThemes[theme_index_];
     t = std::clamp(t, 0.0f, 1.0f);
-    for (size_t i = 1; i < sizeof(stops) / sizeof(stops[0]); ++i) {
-        if (t <= stops[i].pos) {
-            const float span = stops[i].pos - stops[i - 1].pos;
-            const float k = span > 0.0f ? (t - stops[i - 1].pos) / span : 0.0f;
-            return lerpRgb565(stops[i - 1].color, stops[i].color, k);
+    for (size_t i = 1; i < 8; ++i) {
+        if (t <= theme.stops[i].pos) {
+            const float span = theme.stops[i].pos - theme.stops[i - 1].pos;
+            const float k =
+                span > 0.0f ? (t - theme.stops[i - 1].pos) / span : 0.0f;
+            return lerpRgb565(theme.stops[i - 1].color,
+                              theme.stops[i].color, k);
         }
     }
-    return stops[sizeof(stops) / sizeof(stops[0]) - 1].color;
+    return theme.stops[7].color;
 }
 
 void SpectrumPage::drawDisplay() {
@@ -539,7 +659,7 @@ void SpectrumPage::drawHelpOverlay() {
     }
 
     const int panel_w = 252;
-    const int panel_h = 138;
+    const int panel_h = 158;
     const int radius = 9;
     const int px = (kWidth - panel_w) / 2;
     const int py = (170 - panel_h) / 2;
@@ -550,18 +670,20 @@ void SpectrumPage::drawHelpOverlay() {
     ui_.drawText(px + (panel_w - title_w) / 2, py + 8, title, COLOR_YELLOW);
 
     static const char* const keys[] = {
-        "LEFT/RIGHT", "UP/DN +/-", "ENTER",  "M",     "SPACE",
-        "R",          "TAB",       "FN+D/S", "FN+P",  "HOLD ESC",
-        "H",
+        "LEFT/RIGHT", "UP/DN +/-", "ENTER",  "P",     "M",
+        "L",          "SPACE",     "R",      "TAB",   "FN+D/S",
+        "FN+P",       "HOLD ESC",  "H",
     };
     static const char* const actions[] = {
-        "PAN",       "ZOOM",     "FULL SPAN", "MAX HOLD (DECAY)", "SMOOTH",
-        "SET RANGE", "MENU",     "VOLUME",    "SCREENSHOT", "EXIT",
+        "PAN",             "ZOOM",        "FULL SPAN",
+        "MAX HOLD (DECAY)", "WATERFALL THEME", "PEAK LABELS",
+        "SMOOTH",          "SET RANGE",   "MENU",
+        "VOLUME",          "SCREENSHOT",  "EXIT",
         "CLOSE",
     };
 
-    const int row_y = py + 26;
-    const int row_step = 10;
+    const int row_y = py + 22;
+    const int row_step = 9;
     for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
         const int y = row_y + static_cast<int>(i) * row_step;
         ui_.drawText(px + 16, y, keys[i], COLOR_YELLOW);
@@ -672,31 +794,31 @@ void SpectrumPage::drawSpectrum() {
         }
     }
 
-    float min_db = 1e9f;
-    float max_db = -1e9f;
-    for (int x = 0; x < kWidth; ++x) {
-        if (row_db_[x] > -119.0f) {
-            min_db = std::min(min_db, row_db_[x]);
-            max_db = std::max(max_db, row_db_[x]);
+    // Vertical scale: track the median noise floor and keep a fixed 55-unit
+    // window. A single strong peak (often at the right edge) can no longer
+    // move the whole trace up and down.
+    {
+        std::vector<float> valid;
+        valid.reserve(kWidth);
+        for (int x = 0; x < kWidth; ++x) {
+            if (row_db_[x] > -119.0f) valid.push_back(row_db_[x]);
         }
-        if (hold_active && hold_smoothed[x] > -119.0f) {
-            min_db = std::min(min_db, hold_smoothed[x]);
-            max_db = std::max(max_db, hold_smoothed[x]);
+        if (!valid.empty()) {
+            const size_t idx = valid.size() / 2;
+            std::nth_element(valid.begin(), valid.begin() + idx,
+                             valid.end());
+            const float target = valid[idx] - 10.0f;
+            if (!scale_initialized_) {
+                // Lock the scale on the first frame instead of sliding in
+                // from -100 dB over several seconds.
+                floor_db_ = target;
+                scale_initialized_ = true;
+            } else {
+                floor_db_ = 0.9f * floor_db_ + 0.1f * target;
+            }
         }
     }
-
-    if (min_db > max_db) {
-        min_db = -100.0f;
-        max_db = -20.0f;
-    }
-    if (max_db - min_db < 10.0f) {
-        const float mid = (max_db + min_db) * 0.5f;
-        min_db = mid - 5.0f;
-        max_db = mid + 5.0f;
-    }
-    floor_db_ = 0.9f * floor_db_ + 0.1f * min_db;
-    ceil_db_ = 0.9f * ceil_db_ + 0.1f * max_db;
-    if (ceil_db_ - floor_db_ < 5.0f) ceil_db_ = floor_db_ + 5.0f;
+    ceil_db_ = floor_db_ + 55.0f;
 
     // Grid.
     for (int i = 1; i <= 3; ++i) {
@@ -727,6 +849,115 @@ void SpectrumPage::drawSpectrum() {
 
     if (hold_active) draw_curve(hold_smoothed, COLOR_RED);
     draw_curve(row_db_, 0xFFE0);
+    drawPeakLabels();
+}
+
+void SpectrumPage::drawPeakLabels() {
+    if (!peak_labels_) return;
+
+    struct Peak {
+        int x;
+        int y;
+        float value;
+    };
+    std::vector<Peak> peaks;
+    const float span_db = std::max(1.0f, ceil_db_ - floor_db_);
+    const auto y_for = [&](float value) {
+        const float norm =
+            std::clamp((value - floor_db_) / span_db, 0.0f, 1.0f);
+        return kSpectrumH - 1 -
+               static_cast<int>(norm * static_cast<float>(kSpectrumH - 3));
+    };
+
+    for (int x = 6; x < kWidth - 6; ++x) {
+        const float value = row_db_[x];
+        if (value < floor_db_ + 15.0f) continue;
+        if (value <= row_db_[x - 1] || value < row_db_[x + 1]) continue;
+        float neighbour = 1e9f;
+        for (int k = -6; k <= 6; ++k) {
+            neighbour = std::min(
+                neighbour, row_db_[std::clamp(x + k, 0, kWidth - 1)]);
+        }
+        if (value - neighbour < 8.0f) continue;
+        peaks.push_back({x, y_for(value), value});
+    }
+    if (peaks.empty()) return;
+
+    std::sort(peaks.begin(), peaks.end(),
+              [](const Peak& a, const Peak& b) {
+                  return a.value > b.value;
+              });
+
+    const double range = static_cast<double>(stop_hz_ - start_hz_);
+    const double bin_hz =
+        range / static_cast<double>(std::max<size_t>(1, total_bins_));
+    const double view_span =
+        bin_hz * static_cast<double>(std::max<size_t>(1, view_bins_));
+    const double hz_per_px = view_span / static_cast<double>(kWidth);
+    int decimals = 1;
+    if (hz_per_px > 200000.0) {
+        decimals = 1;
+    } else if (hz_per_px > 20000.0) {
+        decimals = 2;
+    } else {
+        decimals = 3;
+    }
+
+    struct Box {
+        int x0;
+        int x1;
+    };
+    std::vector<Box> used;
+    int drawn = 0;
+    for (const Peak& peak : peaks) {
+        if (drawn >= 3) break;
+
+        // Use the strongest raw bin inside this screen column for the label.
+        size_t bin = view_start_ +
+                     (static_cast<size_t>(peak.x) * view_bins_) / kWidth;
+        {
+            std::lock_guard<std::mutex> lock(data_mutex_);
+            if (bin >= bins_db_.size() && !bins_db_.empty()) {
+                bin = bins_db_.size() - 1;
+            }
+            size_t end = view_start_ +
+                         (static_cast<size_t>(peak.x + 1) * view_bins_) /
+                             kWidth;
+            if (end <= bin) end = bin + 1;
+            end = std::min(end, bins_db_.size());
+            for (size_t i = bin + 1; i < end; ++i) {
+                if (bins_db_[i] > bins_db_[bin]) bin = i;
+            }
+        }
+
+        const uint32_t hz = start_hz_ +
+            static_cast<uint32_t>(std::llround(bin * bin_hz));
+        const std::string label = formatMhz(hz, decimals);
+        const int label_w = static_cast<int>(label.size()) * 7;
+        int lx = peak.x - label_w / 2;
+        lx = std::clamp(lx, 1, kWidth - label_w - 1);
+
+        bool overlaps = false;
+        for (const Box& box : used) {
+            if (lx < box.x1 + 4 && lx + label_w + 4 > box.x0) {
+                overlaps = true;
+                break;
+            }
+        }
+        if (overlaps) continue;
+
+        used.push_back({lx, lx + label_w});
+        int ly = peak.y - 11;
+        if (ly < 1) ly = 1;
+
+        fb_.fillRect(lx - 1, ly - 1, label_w + 2, 10, 0x0000);
+        ui_.drawText(lx, ly, label.c_str(), 0xFFE0);
+        for (int y = ly + 10; y < peak.y - 1; ++y) {
+            fb_.drawPixel(peak.x, y, 0x8410);
+        }
+        fb_.fillRect(peak.x, peak.y, 1, 2, 0xFFFF);
+        ++drawn;
+    }
 }
 
 void SpectrumPage::drawAxis() {
@@ -795,7 +1026,13 @@ void SpectrumPage::onVolumeChanged(int percent) {
 }
 
 void SpectrumPage::drawStatusBar() {
-    fb_.fillRect(0, kStatusY, kWidth, 170 - kStatusY, COLOR_STATUSBAR);
+    // 70% transparent (alpha 0.3) so the page/waterfall behind the bar shows
+    // through instead of a solid strip.
+    for (int y = kStatusY; y < 170; ++y) {
+        for (int x = 0; x < kWidth; ++x) {
+            fb_.blendPixel(x, y, COLOR_STATUSBAR, 0.3f);
+        }
+    }
 
     const double range = static_cast<double>(stop_hz_ - start_hz_);
     const double bin_hz = range / std::max<size_t>(1, total_bins_);

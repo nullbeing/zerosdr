@@ -171,9 +171,10 @@ int PageManager::run() {
             }
         }
 
-        // Update current page (frozen while an overlay is up).
+        // Update current page (frozen while an overlay or toast is up).
         IPage* current_page = getCurrentPage();
-        if (current_page && !exit_hold_active_ && !page_menu_open_) {
+        if (current_page && !toast_active_ && !exit_hold_active_ &&
+            !page_menu_open_) {
             current_page->update(delta_time);
         }
 
@@ -252,6 +253,8 @@ int PageManager::run() {
             const std::string path = makeScreenshotPath();
             if (fb_.saveScreenshot(path.c_str())) {
                 std::cout << "Screenshot saved: " << path << std::endl;
+                toast_snapshot_.assign(fb_.pixels(),
+                                       fb_.pixels() + fb_.pixelCount());
                 toast_active_ = true;
                 gettimeofday(&toast_until_, nullptr);
                 toast_until_.tv_usec += 1200000;
@@ -271,7 +274,14 @@ int PageManager::run() {
                 (now.tv_sec == toast_until_.tv_sec &&
                  now.tv_usec >= toast_until_.tv_usec)) {
                 toast_active_ = false;
+                toast_snapshot_.clear();
             } else {
+                // Keep the frozen page under the toast; redrawing the toast
+                // over the same frame would accumulate its alpha.
+                if (toast_snapshot_.size() == fb_.pixelCount()) {
+                    std::memcpy(fb_.pixels(), toast_snapshot_.data(),
+                                toast_snapshot_.size() * sizeof(uint16_t));
+                }
                 drawScreenshotToast();
                 fb_.update();
             }
@@ -291,7 +301,7 @@ void PageManager::stop() {
 }
 
 bool PageManager::isPageSwitchKey(AppKeyCode key) const {
-    return (key == APPKEY_TAB || key == APPKEY_P);
+    return key == APPKEY_TAB;
 }
 
 void PageManager::transitionToPage(size_t new_index) {
@@ -516,7 +526,6 @@ void PageManager::handlePageMenuInput(AppKeyCode key) {
 
     switch (key) {
         case APPKEY_TAB:
-        case APPKEY_P:
             // Tab alone walks through every entry, across both rows.
             page_menu_selection_ = (page_menu_selection_ + 1) % count;
             break;
