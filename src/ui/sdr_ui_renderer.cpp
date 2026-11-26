@@ -405,6 +405,109 @@ void SDRUIRenderer::drawFreqAxis(uint32_t center_freq, uint32_t span, int y, int
         const uint16_t color = (i == 2) ? COLOR_TEXT_BRIGHT : COLOR_TEXT_DIM;
         drawText(label_x[i], y + 4, labels[i], color);
     }
+
+    // Small marks for saved frequency memories.
+    if (span > 0 && !memory_marks_.empty()) {
+        const uint32_t low = center_freq > span / 2 ? center_freq - span / 2
+                                                    : 0;
+        for (size_t i = 0; i < memory_marks_.size(); ++i) {
+            const uint32_t freq = memory_marks_[i];
+            if (freq < low || freq > center_freq + span / 2) continue;
+            const int x = static_cast<int>(
+                (static_cast<uint64_t>(freq - low) * 319ULL) / span);
+            const uint16_t color =
+                (static_cast<int>(i) == memory_current_) ? COLOR_YELLOW
+                                                         : COLOR_TEXT_DIM;
+            fb_.drawPixel(x, y + 1, color);
+            fb_.drawPixel(x, y + 2, color);
+            if (static_cast<int>(i) == memory_current_) {
+                fb_.drawPixel(x, y + 3, color);
+            }
+        }
+    }
+}
+
+void SDRUIRenderer::setMemoryMarks(const std::vector<uint32_t>& freqs,
+                                   int current_index) {
+    memory_marks_ = freqs;
+    memory_current_ = current_index;
+}
+
+void SDRUIRenderer::renderMemoryPanel(
+    const std::vector<SdrMemoryView>& rows, int selected, bool confirm_delete) {
+    const int top = WATERFALL_Y;
+    fb_.fillRect(0, top, 320, 170 - top, COLOR_BG_DARK);
+    fb_.fillRect(0, top, 320, 1, COLOR_GRID);
+
+    drawText(4, top + 3, "MEMORIES", COLOR_YELLOW);
+    char count[16];
+    snprintf(count, sizeof(count), "%d", static_cast<int>(rows.size()));
+    drawText(320 - static_cast<int>(strlen(count)) * 7 - 4, top + 3, count,
+             COLOR_TEXT_DIM);
+    fb_.fillRect(0, top + 12, 320, 1, COLOR_GRID);
+
+    if (rows.empty()) {
+        drawText(108, top + 31, "NO MEMORIES", COLOR_TEXT_BRIGHT);
+        drawText(50, top + 47, "S SAVES THE CURRENT TUNE", COLOR_TEXT_DIM);
+        drawText(4, 160, "S SAVE   P / ESC CLOSE", COLOR_TEXT_DIM);
+        return;
+    }
+
+    const int visible = 5;
+    const int first = std::max(0, selected - visible + 1);
+    for (int i = 0; i < visible; ++i) {
+        const int index = first + i;
+        if (index >= static_cast<int>(rows.size())) break;
+        const int y = top + 15 + i * 13;
+        const bool is_selected = index == selected;
+        if (is_selected) {
+            fb_.fillRect(0, y - 1, 320, 12, 0x10A2);
+            fb_.fillRect(0, y - 1, 2, 12, COLOR_YELLOW);
+        }
+
+        const SdrMemoryView& row = rows[static_cast<size_t>(index)];
+        if (row.current) {
+            drawText(2, y, "*", COLOR_YELLOW);
+        }
+
+        char slot[8];
+        snprintf(slot, sizeof(slot), "%02d", index + 1);
+        drawText(12, y, slot, COLOR_TEXT_DIM);
+
+        char freq[16];
+        snprintf(freq, sizeof(freq), "%7.3f", row.freq / 1e6);
+        const uint16_t text_color = is_selected ? 0xFFFF : COLOR_TEXT_BRIGHT;
+        drawText(28, y, freq, text_color);
+
+        drawText(88, y, row.mode != nullptr ? row.mode : "--",
+                 is_selected ? 0xFFFF : COLOR_YELLOW);
+
+        char bw[12];
+        if (row.bandwidth >= 1000000) {
+            snprintf(bw, sizeof(bw), "%.1fM", row.bandwidth / 1e6);
+        } else if (row.bandwidth >= 100000) {
+            snprintf(bw, sizeof(bw), "%.0fk", row.bandwidth / 1000.0);
+        } else if (row.bandwidth >= 1000) {
+            snprintf(bw, sizeof(bw), "%.1fk", row.bandwidth / 1000.0);
+        } else {
+            snprintf(bw, sizeof(bw), "%uh", row.bandwidth);
+        }
+        drawText(110, y, bw, COLOR_TEXT_DIM);
+
+        char squelch[8];
+        snprintf(squelch, sizeof(squelch), "Q%02d", row.squelch);
+        drawText(150, y, squelch, COLOR_TEXT_DIM);
+
+        if (row.name != nullptr && row.name[0] != '\0') {
+            drawText(177, y, row.name, text_color);
+        }
+    }
+
+    if (confirm_delete) {
+        drawText(24, 160, "DELETE MEMORY?  ENTER YES  ESC NO", COLOR_RED);
+    } else {
+        drawText(4, 160, "S SAVE  ENTER TUNE  BKSP DEL  ESC", COLOR_TEXT_DIM);
+    }
 }
 
 void SDRUIRenderer::drawDbScale(int x, int y, int h, float db_min, float db_max) {
@@ -690,6 +793,7 @@ void SDRUIRenderer::renderKeyHelp() {
         {"0-9 .",  "FREQ INPUT"},
         {"ENTER",  "APPLY"},
         {"ESC",    "CANCEL"},
+        {"P",      "MEMORIES"},
         {nullptr,  "VIEW"},
         {"F / X",  "GAIN - / +"},
         {"D",      "DEMOD MODE"},

@@ -15,6 +15,8 @@
 #include <atomic>
 #include <mutex>
 #include <thread>
+#include <string>
+#include <chrono>
 
 /**
  * SDRPage - SDR spectrum analyzer page
@@ -119,6 +121,31 @@ private:
     // Spectrum/waterfall colour theme (M key).
     int theme_index_ = 0;
 
+    // Frequency memories (P key). Each entry stores the frequency plus the
+    // demodulation, bandwidth and squelch that should be restored with it.
+    struct Memory {
+        uint32_t freq = 0;
+        int mode = 0;
+        uint32_t bandwidth = 0;
+        float squelch = 0.0f;
+        std::string name;
+    };
+    std::vector<Memory> memories_;
+    bool memory_panel_ = false;
+    bool memory_confirm_delete_ = false;
+    int memory_selected_ = 0;
+    int memory_scroll_ = 0;
+    std::string memory_toast_;
+    std::chrono::steady_clock::time_point memory_toast_until_{};
+
+    // Last tune, restored on the next start unless -f overrides it.
+    bool resume_pending_ = false;
+    uint32_t last_saved_freq_ = 0;
+    int last_saved_mode_ = -1;
+    uint32_t last_saved_bw_ = 0;
+    float last_saved_squelch_ = -1.0f;
+    std::chrono::steady_clock::time_point last_tune_save_{};
+
     // Software hold-repeat for left/right tuning: the Cardputer keyboard
     // does not emit kernel auto-repeat events, so the page repeats the step
     // itself while the key is held.
@@ -137,8 +164,7 @@ private:
     static const int num_step_sizes_;
 
     // H key: full-screen key reference + settings tab
-    bool help_visible_ = false;
-    int help_tab_ = 0;        // 0 = key list, 1 = settings
+    bool help_visible_ = false;    int help_tab_ = 0;        // 0 = key list, 1 = settings
     int settings_index_ = 0;  // highlighted row on the settings tab
     bool audio_agc_ = true;   // audio AGC (moved out of the hotkeys)
     uint32_t saved_sample_rate_ = 0;  // from sdr_settings.json, 0 = not set
@@ -157,12 +183,26 @@ private:
     void handleOverlayInput(AppKeyCode key);
     void cycleSetting(int index);
     void loadSettings();
-    void saveSettings() const;
+    void saveSettings();
     void handleFrequencyInput(AppKeyCode key);
     void handleNavigationKeys(AppKeyCode key);
     void handleAudioControls(AppKeyCode key);
     void refreshSystemVolume();
     void handleModeControls(AppKeyCode key);
+
+    // Frequency memories / last tune.
+    void handleMemoryPanelInput(AppKeyCode key);
+    void toggleMemoryPanel();
+    void saveCurrentMemory();
+    void recallMemory(const Memory& memory);
+    void deleteSelectedMemory();
+    void sortMemories();
+    int currentMemoryIndex() const;
+    void setDemodBandwidthIndex(int mode, uint32_t bandwidth);
+    void applyTuneState();
+    void saveLastTune();
+    const char* autoMemoryName(uint32_t freq) const;
+    static std::string formatBandwidth(uint32_t hz);
 
     void startAudioThread();
     void stopAudioThread();

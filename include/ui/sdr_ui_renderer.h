@@ -32,6 +32,16 @@ struct SdrSettingsView {
     int selected;        // highlighted row
 };
 
+// One row of the P-key memory panel.
+struct SdrMemoryView {
+    uint32_t freq;
+    const char* mode;
+    uint32_t bandwidth;
+    int squelch;         // 0..100
+    const char* name;
+    bool current;        // the live tune matches this memory
+};
+
 class SDRUIRenderer : public BaseUIRenderer {
 public:
     explicit SDRUIRenderer(Framebuffer& fb);
@@ -71,8 +81,15 @@ public:
     // Settings tab of the same overlay
     void renderSettings(const SdrSettingsView& view);
 
+    // Frequency memories (P key).
+    void setMemoryMarks(const std::vector<uint32_t>& freqs, int current_index);
+    void renderMemoryPanel(const std::vector<SdrMemoryView>& rows,
+                           int selected, bool confirm_delete);
+
 private:
     int theme_index_ = 0;  // index into the spectrum/waterfall palettes
+    std::vector<uint32_t> memory_marks_;
+    int memory_current_ = -1;
 
     // Waterfall: direct pixel buffer for the waterfall region
     std::vector<uint16_t> wf_pixels_; // WATERFALL_H * 320 pixels

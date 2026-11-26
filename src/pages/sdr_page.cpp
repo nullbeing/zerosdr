@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <cstdio>
 #include <ctime>
 #include <unistd.h>
 #include <fstream>
@@ -89,10 +90,10 @@ bool SDRPage::init() {
                   << ")" << std::endl;
     }
     demod_.setSquelch(squelch_);
-    demod_.setMode(AudioDemodulator::MODE_FM);
+    demod_.setMode((AudioDemodulator::DemodMode)demod_mode_);
     demod_.setDeemphasisTau(deemphasis_tau_us_);
     demod_.setAudioAGC(audio_agc_);
-    demod_.setDemodBandwidth(fm_bandwidths_[fm_bw_index_]);
+    demod_.setDemodBandwidth(getCurrentDemodBandwidth());
     fft_.setFFTSize(fft_sizes_[fft_index_]);
     setSpanToSampleRate();
     std::cout << "SDR settings: deemphasis " << (int)deemphasis_tau_us_
@@ -106,6 +107,7 @@ bool SDRPage::init() {
 
 void SDRPage::cleanup() {
     std::cout << "SDRPage: Cleaning up..." << std::endl;
+    saveSettings();
     stopAudioThread();
 }
 
@@ -119,8 +121,20 @@ void SDRPage::onEnter() {
     // If so, we're coming from startup or another SDR-using page
     if (sdr_.isCapturing()) {
         std::cout << "SDRPage: SDR already capturing, no reinitialization needed" << std::endl;
-        // Sync our state from the SDR's current configuration (preserves CLI args)
-        center_freq_ = sdr_.getFrequency();
+        // Sync our state from the SDR's current configuration. A CLI -f
+        // wins; if the tuner is still on the built-in default, restore the
+        // tune saved at the last exit instead.
+        const uint32_t current = sdr_.getFrequency();
+        if (resume_pending_) {
+            if (current != 100000000u) {
+                center_freq_ = current;
+            } else {
+                sdr_.setFrequency(center_freq_);
+            }
+            resume_pending_ = false;
+        } else {
+            center_freq_ = current;
+        }
         sample_rate_ = sdr_.getSampleRate();
         // Restore the saved sample rate unless the command line overrode it
         // (1024000 is the built-in default used by main()).
@@ -177,6 +191,7 @@ void SDRPage::onEnter() {
 
     sdr_.setFrequency(center_freq_);
     sdr_.setSampleRate(sample_rate_);
+    resume_pending_ = false;
     if (gain_ >= 0) {
         // Manual mode first, gain last: setAGCMode(false) resets the
         // LNA/mixer to zero, so setting the gain before it would be lost.
@@ -196,6 +211,7 @@ void SDRPage::onEnter() {
 
 void SDRPage::onExit() {
     std::cout << "SDRPage: Exiting SDR mode" << std::endl;
+    saveSettings();
     stopAudioThread();
 }
 
@@ -204,7 +220,7 @@ void SDRPage::update(float delta_time) {
     // already tuned once; after a short delay repeat the same step, then
     // accelerate. A key release (getHoldDuration() == 0) ends the repeat.
     if (held_tune_key_ != APPKEY_NONE) {
-        if (help_visible_ || freq_input_len_ > 0) {
+        if (help_visible_ || memory_panel_ || freq_input_len_ > 0) {
             held_tune_key_ = APPKEY_NONE;
             tune_repeat_accum_ = 0.0f;
         } else {
@@ -241,6 +257,18 @@ void SDRPage::update(float delta_time) {
         if (sdr_.getLatestSamplesSnapshot(fft_samples_, fft_bytes)) {
             fft_.process(fft_samples_.data(), fft_bytes, magnitude_);
             renderFrame();
+        }
+    }
+
+    // Persist the last tune after the user stops turning the dial, so a
+    // restart resumes where they left off even if the app is killed.
+    const uint32_t bandwidth = getCurrentDemodBandwidth();
+    if (center_freq_ != last_saved_freq_ ||
+        demod_mode_ != last_saved_mode_ || bandwidth != last_saved_bw_ ||
+        std::fabs(squelch_ - last_saved_squelch_) > 0.001f) {
+        const auto now = std::chrono::steady_clock::now();
+        if (now - last_tune_save_ > std::chrono::milliseconds(1500)) {
+            saveSettings();
         }
     }
 }
@@ -326,6 +354,11 @@ void SDRPage::audioLoop() {
 }
 
 bool SDRPage::handleInput(AppKeyCode key) {
+    if (memory_panel_) {
+        if (key == APPKEY_H) return true;  // keep the panel modal
+        handleMemoryPanelInput(key);
+        return true;
+    }
     if (key == APPKEY_H) {
         help_visible_ = !help_visible_;
         help_tab_ = 0;
@@ -334,6 +367,10 @@ bool SDRPage::handleInput(AppKeyCode key) {
     }
     if (help_visible_) {
         handleOverlayInput(key);
+        return true;
+    }
+    if (key == APPKEY_P) {
+        toggleMemoryPanel();
         return true;
     }
     if (key >= APPKEY_0 && key <= APPKEY_9) {
@@ -434,6 +471,11 @@ void SDRPage::renderFrame() {
     // span so the axis labels, red center marker and waterfall agree.
     uint32_t effective_span = std::min(display_span_, sample_rate);
 
+    std::vector<uint32_t> memory_marks;
+    memory_marks.reserve(memories_.size());
+    for (const auto& memory : memories_) memory_marks.push_back(memory.freq);
+    ui_.setMemoryMarks(memory_marks, currentMemoryIndex());
+
     ui_.renderSpectrum(magnitude_, sdr_.getFrequency(), effective_span, sample_rate,
                        demod_mode_, current_demod_bw);
     ui_.renderWaterfall(magnitude_, effective_span, sample_rate);
@@ -462,6 +504,33 @@ void SDRPage::renderFrame() {
             ui_.renderSettings(view);
         }
     }
+
+    if (memory_panel_) {
+        std::vector<SdrMemoryView> views;
+        views.reserve(memories_.size());
+        const int current = currentMemoryIndex();
+        for (size_t i = 0; i < memories_.size(); ++i) {
+            const Memory& memory = memories_[i];
+            views.push_back({
+                memory.freq,
+                demod_names_[memory.mode],
+                memory.bandwidth,
+                static_cast<int>(std::lround(memory.squelch * 100.0f)),
+                memory.name.c_str(),
+                static_cast<int>(i) == current,
+            });
+        }
+        ui_.renderMemoryPanel(views, memory_selected_, memory_confirm_delete_);
+    }
+
+    if (!memory_toast_.empty() &&
+        std::chrono::steady_clock::now() < memory_toast_until_) {
+        const int width = static_cast<int>(memory_toast_.size()) * 7 + 8;
+        fb_.fillRect(2, 2, width, 12, COLOR_BG_DARK);
+        fb_.drawRect(2, 2, width, 12, COLOR_GRID);
+        ui_.drawText(6, 4, memory_toast_.c_str(), COLOR_YELLOW);
+    }
+
     fb_.update();
 }
 
@@ -688,6 +757,227 @@ void SDRPage::handleModeControls(AppKeyCode key) {
 }
 
 // ---------------------------------------------------------------------------
+// Frequency memories (P key)
+// ---------------------------------------------------------------------------
+
+void SDRPage::sortMemories() {
+    std::sort(memories_.begin(), memories_.end(),
+              [](const Memory& a, const Memory& b) {
+                  if (a.freq != b.freq) return a.freq < b.freq;
+                  return a.mode < b.mode;
+              });
+}
+
+int SDRPage::currentMemoryIndex() const {
+    for (size_t i = 0; i < memories_.size(); ++i) {
+        if (memories_[i].freq == center_freq_ &&
+            memories_[i].mode == demod_mode_) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+const char* SDRPage::autoMemoryName(uint32_t freq) const {
+    if (freq >= 162400000u && freq <= 162600000u) return "WX";
+    if (freq >= 161900000u && freq <= 162100000u) return "AIS";
+    if (freq >= 156000000u && freq <= 163000000u) return "MARINE";
+    if (freq >= 118000000u && freq <= 137000000u) return "AIR";
+    if (freq >= 87500000u && freq <= 108000000u) return "FM";
+    if (freq >= 144000000u && freq <= 148000000u) return "2M";
+    if (freq >= 430000000u && freq <= 440000000u) return "70CM";
+    if (freq >= 902000000u && freq <= 928000000u) return "ISM";
+    return "";
+}
+
+std::string SDRPage::formatBandwidth(uint32_t hz) {
+    char buffer[16];
+    if (hz >= 1000000u) {
+        snprintf(buffer, sizeof(buffer), "%.1fM", hz / 1e6);
+    } else if (hz >= 100000u) {
+        snprintf(buffer, sizeof(buffer), "%.0fk", hz / 1000.0);
+    } else if (hz >= 1000u) {
+        snprintf(buffer, sizeof(buffer), "%.1fk", hz / 1000.0);
+    } else {
+        snprintf(buffer, sizeof(buffer), "%uh", hz);
+    }
+    return std::string(buffer);
+}
+
+void SDRPage::setDemodBandwidthIndex(int mode, uint32_t bandwidth) {
+    if (bandwidth == 0) return;
+    const auto find = [](const uint32_t* values, int count,
+                         uint32_t wanted) {
+        for (int i = 0; i < count; ++i) {
+            if (values[i] == wanted) return i;
+        }
+        return -1;
+    };
+    switch (mode) {
+        case 0: {
+            const int index = find(fm_bandwidths_, 5, bandwidth);
+            if (index >= 0) fm_bw_index_ = index;
+            break;
+        }
+        case 1: {
+            const int index = find(nfm_bandwidths_, 3, bandwidth);
+            if (index >= 0) nfm_bw_index_ = index;
+            break;
+        }
+        case 2: {
+            const int index = find(am_bandwidths_, 3, bandwidth);
+            if (index >= 0) am_bw_index_ = index;
+            break;
+        }
+        case 3:
+        case 4: {
+            const int index = find(ssb_bandwidths_, 3, bandwidth);
+            if (index >= 0) ssb_bw_index_ = index;
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+void SDRPage::applyTuneState() {
+    sdr_.setFrequency(center_freq_);
+    std::lock_guard<std::mutex> lock(demod_mutex_);
+    demod_.setMode((AudioDemodulator::DemodMode)demod_mode_);
+    demod_.setSquelch(squelch_);
+    demod_.setDemodBandwidth(getCurrentDemodBandwidth());
+}
+
+void SDRPage::toggleMemoryPanel() {
+    memory_panel_ = !memory_panel_;
+    memory_confirm_delete_ = false;
+    if (memory_panel_) {
+        sortMemories();
+        const int current = currentMemoryIndex();
+        memory_selected_ = current >= 0 ? current : 0;
+        if (memory_selected_ >= static_cast<int>(memories_.size())) {
+            memory_selected_ = std::max(0,
+                static_cast<int>(memories_.size()) - 1);
+        }
+    }
+}
+
+void SDRPage::handleMemoryPanelInput(AppKeyCode key) {
+    if (key == APPKEY_P || key == APPKEY_ESC) {
+        if (memory_confirm_delete_) {
+            memory_confirm_delete_ = false;
+        } else {
+            memory_panel_ = false;
+        }
+        return;
+    }
+    if (memory_confirm_delete_) {
+        if (key == APPKEY_ENTER) deleteSelectedMemory();
+        return;
+    }
+
+    switch (key) {
+        case APPKEY_UP:
+            if (memory_selected_ > 0) --memory_selected_;
+            break;
+        case APPKEY_DOWN:
+            if (memory_selected_ + 1 < static_cast<int>(memories_.size())) {
+                ++memory_selected_;
+            }
+            break;
+        case APPKEY_ENTER:
+            if (!memories_.empty()) {
+                const int index = std::clamp(
+                    memory_selected_, 0,
+                    static_cast<int>(memories_.size()) - 1);
+                recallMemory(memories_[static_cast<size_t>(index)]);
+                memory_panel_ = false;
+            }
+            break;
+        case APPKEY_S:
+            saveCurrentMemory();
+            break;
+        case APPKEY_BACKSPACE:
+            if (!memories_.empty()) memory_confirm_delete_ = true;
+            break;
+        default:
+            break;
+    }
+}
+
+void SDRPage::saveCurrentMemory() {
+    Memory memory;
+    memory.freq = center_freq_;
+    memory.mode = demod_mode_;
+    memory.bandwidth = getCurrentDemodBandwidth();
+    memory.squelch = squelch_;
+    memory.name = autoMemoryName(memory.freq);
+
+    bool replaced = false;
+    for (auto& existing : memories_) {
+        if (existing.freq == memory.freq && existing.mode == memory.mode) {
+            existing = memory;
+            replaced = true;
+            break;
+        }
+    }
+    if (!replaced) memories_.push_back(memory);
+    sortMemories();
+
+    memory_selected_ = currentMemoryIndex();
+    if (memory_selected_ < 0) memory_selected_ = 0;
+    saveSettings();
+
+    char toast[32];
+    snprintf(toast, sizeof(toast), "MEM %02d %s", memory_selected_ + 1,
+             replaced ? "UPDATED" : "SAVED");
+    memory_toast_ = toast;
+    memory_toast_until_ = std::chrono::steady_clock::now() +
+                          std::chrono::milliseconds(1500);
+}
+
+void SDRPage::recallMemory(const Memory& memory) {
+    center_freq_ = memory.freq;
+    demod_mode_ = memory.mode;
+    squelch_values_[demod_mode_] = std::clamp(memory.squelch, 0.0f, 1.0f);
+    squelch_ = squelch_values_[demod_mode_];
+    setDemodBandwidthIndex(demod_mode_, memory.bandwidth);
+    applyTuneState();
+    saveSettings();
+
+    const int index = currentMemoryIndex();
+    char toast[40];
+    snprintf(toast, sizeof(toast), "MEM %02d %.3f %s", index + 1,
+             center_freq_ / 1e6, demod_names_[demod_mode_]);
+    memory_toast_ = toast;
+    memory_toast_until_ = std::chrono::steady_clock::now() +
+                          std::chrono::milliseconds(1500);
+}
+
+void SDRPage::deleteSelectedMemory() {
+    if (memories_.empty()) {
+        memory_confirm_delete_ = false;
+        return;
+    }
+    const int index = std::clamp(memory_selected_, 0,
+                                 static_cast<int>(memories_.size()) - 1);
+    memories_.erase(memories_.begin() + index);
+    if (memory_selected_ >= static_cast<int>(memories_.size())) {
+        memory_selected_ = std::max(0,
+            static_cast<int>(memories_.size()) - 1);
+    }
+    memory_confirm_delete_ = false;
+    saveSettings();
+    memory_toast_ = "MEMORY DELETED";
+    memory_toast_until_ = std::chrono::steady_clock::now() +
+                          std::chrono::milliseconds(1500);
+}
+
+void SDRPage::saveLastTune() {
+    saveSettings();
+}
+
+// ---------------------------------------------------------------------------
 // Help / settings overlay
 // ---------------------------------------------------------------------------
 
@@ -763,6 +1053,49 @@ void SDRPage::loadSettings() {
     theme_index_ = sdr.value("theme", 0);
     if (theme_index_ < 0 || theme_index_ >= ui_.themeCount()) theme_index_ = 0;
 
+    memories_.clear();
+    if (sdr.contains("memories") && sdr["memories"].is_array()) {
+        for (const auto& item : sdr["memories"]) {
+            if (!item.is_object()) continue;
+            Memory memory;
+            memory.freq = item.value("freq", 0u);
+            memory.mode = item.value("mode", 0);
+            memory.bandwidth = item.value("bandwidth", 0u);
+            memory.squelch = item.value("squelch", 0.0f);
+            memory.name = item.value("name", std::string());
+            if (memory.freq == 0 || memory.mode < 0 || memory.mode > 4) {
+                continue;
+            }
+            if (memory.bandwidth == 0) memory.bandwidth = 12500;
+            memory.squelch = std::clamp(memory.squelch, 0.0f, 1.0f);
+            if (memory.name.empty()) {
+                memory.name = autoMemoryName(memory.freq);
+            }
+            memories_.push_back(std::move(memory));
+        }
+    }
+    sortMemories();
+
+    if (sdr.contains("last") && sdr["last"].is_object()) {
+        const auto& last = sdr["last"];
+        const uint32_t freq = last.value("freq", 0u);
+        const int mode = last.value("mode", 0);
+        if (freq > 0 && mode >= 0 && mode <= 4) {
+            center_freq_ = freq;
+            demod_mode_ = mode;
+            squelch_values_[mode] = std::clamp(
+                last.value("squelch", 0.0f), 0.0f, 1.0f);
+            squelch_ = squelch_values_[mode];
+            setDemodBandwidthIndex(mode, last.value("bandwidth", 0u));
+            resume_pending_ = true;
+        }
+    }
+
+    last_saved_freq_ = center_freq_;
+    last_saved_mode_ = demod_mode_;
+    last_saved_bw_ = getCurrentDemodBandwidth();
+    last_saved_squelch_ = squelch_;
+
     const long long fft = sdr.value("fft_size", 1024);
     for (int i = 0; i < num_fft_sizes_; ++i) {
         if (static_cast<long long>(fft_sizes_[i]) == fft) {
@@ -782,7 +1115,7 @@ void SDRPage::loadSettings() {
               << std::endl;
 }
 
-void SDRPage::saveSettings() const {
+void SDRPage::saveSettings() {
     auto& data = AppConfig::instance().data();
     if (!data.contains("sdr") || !data["sdr"].is_object()) {
         data["sdr"] = nlohmann::json::object();
@@ -793,5 +1126,29 @@ void SDRPage::saveSettings() const {
     sdr["fft_size"] = fft_sizes_[fft_index_];
     sdr["sample_rate"] = sample_rates_[rate_index_];
     sdr["theme"] = theme_index_;
+
+    sdr["memories"] = nlohmann::json::array();
+    for (const auto& memory : memories_) {
+        sdr["memories"].push_back({
+            {"freq", memory.freq},
+            {"mode", memory.mode},
+            {"bandwidth", memory.bandwidth},
+            {"squelch", memory.squelch},
+            {"name", memory.name},
+        });
+    }
+    sdr["last"] = {
+        {"freq", center_freq_},
+        {"mode", demod_mode_},
+        {"bandwidth", getCurrentDemodBandwidth()},
+        {"squelch", squelch_},
+    };
+
+    last_saved_freq_ = center_freq_;
+    last_saved_mode_ = demod_mode_;
+    last_saved_bw_ = getCurrentDemodBandwidth();
+    last_saved_squelch_ = squelch_;
+    last_tune_save_ = std::chrono::steady_clock::now();
+
     AppConfig::instance().save();
 }

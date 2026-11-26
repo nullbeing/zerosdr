@@ -234,6 +234,7 @@ codes, and plain letters are used for the SDR controls.
 | `Enter` | Apply frequency |
 | `Backspace` | Delete last digit |
 | `Esc` | Cancel input |
+| `P` | Frequency memories (`S` save, `Enter` recall, `Backspace` delete) |
 | `D` | Cycle demodulation mode (FM/NFM/AM/USB/LSB) |
 | `B` / `Fn`+`B` | Cycle demodulation bandwidth |
 | `Fn`+`D` | System volume up (any page) |
@@ -249,6 +250,19 @@ codes, and plain letters are used for the SDR controls.
 | `Tab` | Page menu (select with arrows, `Enter` opens) |
 | `Esc` (hold 2 s) | Quit, with a centered progress prompt |
 
+### Frequency memories
+
+`P` opens a bottom sheet over the waterfall; the spectrum stays visible.
+`S` saves the current frequency, demodulation, bandwidth and squelch,
+`Enter` recalls the highlighted memory, and `Backspace` deletes it after a
+confirmation. Memories are sorted by frequency and named from the band
+(`FM`, `AIR`, `2M`, `70CM`, ...). They are stored in the `sdr.memories`
+array in `~/.config/zerosdr/config.json`.
+
+The last tune (`sdr.last`) is restored on the next start, including the
+demodulation, bandwidth and squelch. A command-line `-f` still takes
+precedence over the saved frequency.
+
 ### PC keyboard
 
 | Key | Action |
@@ -256,6 +270,7 @@ codes, and plain letters are used for the SDR controls.
 | `←` `→` | Tune (Alt = coarse); hold to repeat and accelerate |
 | `Alt`+`Z`/`C` | Coarse tune (step × 10) |
 | `↑` `↓` | Gain |
+| `P` | Frequency memories |
 | `D` | Demodulation mode |
 | `B` / `Shift+B` | Demodulation bandwidth |
 | `Space` | Audio on/off |
