@@ -58,330 +58,6 @@ void drawDashedCircle(Framebuffer& fb, int cx, int cy, int radius,
     }
 }
 
-void drawStationSymbol(Framebuffer& fb, int x, int y, char table, char symbol,
-                       float course, uint16_t color, bool large) {
-    const aprs::SymbolKind kind = aprs::symbolKind(table, symbol);
-    const float angle =
-        (course >= 0.0f ? course : 0.0f) * static_cast<float>(kPi) / 180.0f;
-    const float dx = std::sin(angle);
-    const float dy = -std::cos(angle);
-    const float px = std::cos(angle);
-    const float py = std::sin(angle);
-    const int scale = large ? 1 : 0;
-
-    switch (kind) {
-        case aprs::SymbolKind::Aircraft:
-        case aprs::SymbolKind::Helicopter:
-        case aprs::SymbolKind::Glider: {
-            const int nose = 6 + scale;
-            const int tail = 4;
-            const int wing = 5 + scale;
-            fb.drawLine(x + static_cast<int>(std::lround(dx * nose)),
-                        y + static_cast<int>(std::lround(dy * nose)),
-                        x - static_cast<int>(std::lround(dx * tail)),
-                        y - static_cast<int>(std::lround(dy * tail)), color);
-            fb.drawLine(x + static_cast<int>(std::lround(px * wing)),
-                        y + static_cast<int>(std::lround(py * wing)),
-                        x - static_cast<int>(std::lround(px * wing)),
-                        y - static_cast<int>(std::lround(py * wing)), color);
-            fb.drawLine(x - static_cast<int>(std::lround(dx * tail)),
-                        y - static_cast<int>(std::lround(dy * tail)),
-                        x - static_cast<int>(std::lround(dx * tail) +
-                                             std::lround(px * 3)),
-                        y - static_cast<int>(std::lround(dy * tail) +
-                                             std::lround(py * 3)), color);
-            fb.drawLine(x - static_cast<int>(std::lround(dx * tail)),
-                        y - static_cast<int>(std::lround(dy * tail)),
-                        x - static_cast<int>(std::lround(dx * tail) -
-                                             std::lround(px * 3)),
-                        y - static_cast<int>(std::lround(dy * tail) -
-                                             std::lround(py * 3)), color);
-            break;
-        }
-        case aprs::SymbolKind::Ship:
-        case aprs::SymbolKind::Yacht:
-        case aprs::SymbolKind::Canoe: {
-            const int nose = 5 + scale;
-            const int rear = 3;
-            const int half = 3;
-            const int nx = x + static_cast<int>(std::lround(dx * nose));
-            const int ny = y + static_cast<int>(std::lround(dy * nose));
-            const int lx = x - static_cast<int>(std::lround(dx * rear)) +
-                           static_cast<int>(std::lround(px * half));
-            const int ly = y - static_cast<int>(std::lround(dy * rear)) +
-                           static_cast<int>(std::lround(py * half));
-            const int rx = x - static_cast<int>(std::lround(dx * rear)) -
-                           static_cast<int>(std::lround(px * half));
-            const int ry = y - static_cast<int>(std::lround(dy * rear)) -
-                           static_cast<int>(std::lround(py * half));
-            fb.drawLine(nx, ny, lx, ly, color);
-            fb.drawLine(nx, ny, rx, ry, color);
-            fb.drawLine(lx, ly, rx, ry, color);
-            fb.drawLine(x - static_cast<int>(std::lround(px * 2)),
-                        y - static_cast<int>(std::lround(py * 2)),
-                        x + static_cast<int>(std::lround(px * 2)),
-                        y + static_cast<int>(std::lround(py * 2)), color);
-            if (kind == aprs::SymbolKind::Yacht) {
-                fb.drawLine(x, y, x, y - 5 - scale, color);
-            }
-            break;
-        }
-        case aprs::SymbolKind::Weather: {
-            fb.drawRect(x - 2, y - 2, 5, 5, color);
-            fb.drawPixel(x, y, color);
-            fb.drawLine(x - 2, y - 2, x + 2, y + 2, color);
-            break;
-        }
-        case aprs::SymbolKind::Digipeater:
-        case aprs::SymbolKind::IGate:
-        case aprs::SymbolKind::Antenna:
-        case aprs::SymbolKind::Node: {
-            fb.drawLine(x, y - 5, x, y + 4, color);
-            fb.drawLine(x, y - 5, x - 3, y + 4, color);
-            fb.drawLine(x, y - 5, x + 3, y + 4, color);
-            fb.drawLine(x - 2, y - 2, x + 2, y - 2, color);
-            fb.drawPixel(x, y - 5, color);
-            break;
-        }
-        case aprs::SymbolKind::House: {
-            fb.drawLine(x - 4, y, x, y - 4, color);
-            fb.drawLine(x, y - 4, x + 4, y, color);
-            fb.drawRect(x - 3, y, 7, 4, color);
-            break;
-        }
-        case aprs::SymbolKind::Car:
-        case aprs::SymbolKind::Truck:
-        case aprs::SymbolKind::Van:
-        case aprs::SymbolKind::Bus:
-        case aprs::SymbolKind::Jeep:
-        case aprs::SymbolKind::Motorcycle:
-        case aprs::SymbolKind::Rover: {
-            const int front = (kind == aprs::SymbolKind::Truck ||
-                               kind == aprs::SymbolKind::Bus)
-                                  ? 6
-                                  : 4;
-            const int rear = 3;
-            const int half = large ? 3 : 2;
-            const int fx = x + static_cast<int>(std::lround(dx * front));
-            const int fy = y + static_cast<int>(std::lround(dy * front));
-            const int bx = x - static_cast<int>(std::lround(dx * rear));
-            const int by = y - static_cast<int>(std::lround(dy * rear));
-            const int flx = fx + static_cast<int>(std::lround(px * half));
-            const int fly = fy + static_cast<int>(std::lround(py * half));
-            const int frx = fx - static_cast<int>(std::lround(px * half));
-            const int fry = fy - static_cast<int>(std::lround(py * half));
-            const int blx = bx + static_cast<int>(std::lround(px * half));
-            const int bly = by + static_cast<int>(std::lround(py * half));
-            const int brx = bx - static_cast<int>(std::lround(px * half));
-            const int bry = by - static_cast<int>(std::lround(py * half));
-            fb.drawLine(flx, fly, frx, fry, color);
-            fb.drawLine(blx, bly, brx, bry, color);
-            fb.drawLine(flx, fly, blx, bly, color);
-            fb.drawLine(frx, fry, brx, bry, color);
-            break;
-        }
-        case aprs::SymbolKind::Bicycle: {
-            drawCircleOutline(fb, x - 2, y + 1, 2, color);
-            drawCircleOutline(fb, x + 2, y + 1, 2, color);
-            fb.drawLine(x - 2, y + 1, x, y - 2, color);
-            fb.drawLine(x, y - 2, x + 2, y + 1, color);
-            break;
-        }
-        case aprs::SymbolKind::Walker: {
-            fb.drawPixel(x, y - 4, color);
-            fb.drawLine(x, y - 2, x, y + 1, color);
-            fb.drawLine(x, y + 1, x - 2, y + 4, color);
-            fb.drawLine(x, y + 1, x + 2, y + 4, color);
-            fb.drawLine(x, y - 1, x - 2, y + 1, color);
-            fb.drawLine(x, y - 1, x + 2, y + 1, color);
-            break;
-        }
-        case aprs::SymbolKind::Satellite: {
-            drawCircleOutline(fb, x, y, 3 + scale, color);
-            fb.drawLine(x - 4, y, x + 4, y, color);
-            fb.drawLine(x, y - 4, x, y + 4, color);
-            break;
-        }
-        case aprs::SymbolKind::Aid:
-        case aprs::SymbolKind::Hospital:
-        case aprs::SymbolKind::Police:
-        case aprs::SymbolKind::Fire: {
-            fb.drawLine(x - 3, y, x + 3, y, color);
-            fb.drawLine(x, y - 3, x, y + 3, color);
-            break;
-        }
-        default: {
-            if (course >= 0.0f) {
-                const int nose = large ? 5 : 4;
-                const int nx = x + static_cast<int>(std::lround(dx * nose));
-                const int ny = y + static_cast<int>(std::lround(dy * nose));
-                const int lx = x + static_cast<int>(
-                                        std::lround(std::sin(angle + 2.5f) * 3));
-                const int ly = y - static_cast<int>(
-                                        std::lround(std::cos(angle + 2.5f) * 3));
-                const int rx = x + static_cast<int>(
-                                        std::lround(std::sin(angle - 2.5f) * 3));
-                const int ry = y - static_cast<int>(
-                                        std::lround(std::cos(angle - 2.5f) * 3));
-                fb.drawLine(nx, ny, lx, ly, color);
-                fb.drawLine(lx, ly, rx, ry, color);
-                fb.drawLine(rx, ry, nx, ny, color);
-            } else {
-                fb.fillRect(x - 1, y - 1, 3, 3, color);
-            }
-            break;
-        }
-    }
-    fb.drawPixel(x, y, color);
-}
-
-void drawListSymbol(Framebuffer& fb, int x, int y, char table, char symbol,
-                    uint16_t color) {
-    switch (aprs::symbolKind(table, symbol)) {
-        case aprs::SymbolKind::Car: {
-            fb.fillRect(x - 5, y - 1, 10, 4, color);
-            fb.fillRect(x - 3, y - 4, 6, 3, color);
-            fb.fillRect(x - 4, y + 3, 2, 2, color);
-            fb.fillRect(x + 2, y + 3, 2, 2, color);
-            break;
-        }
-        case aprs::SymbolKind::Truck: {
-            fb.fillRect(x - 6, y - 1, 11, 4, color);
-            fb.fillRect(x + 2, y - 4, 4, 3, color);
-            fb.fillRect(x - 5, y + 3, 2, 2, color);
-            fb.fillRect(x + 1, y + 3, 2, 2, color);
-            fb.fillRect(x + 4, y + 3, 2, 2, color);
-            break;
-        }
-        case aprs::SymbolKind::Van: {
-            fb.fillRect(x - 5, y - 3, 10, 6, color);
-            fb.fillRect(x - 4, y + 3, 2, 2, color);
-            fb.fillRect(x + 2, y + 3, 2, 2, color);
-            break;
-        }
-        case aprs::SymbolKind::Bus: {
-            fb.fillRect(x - 6, y - 3, 12, 6, color);
-            fb.fillRect(x - 5, y + 3, 2, 2, color);
-            fb.fillRect(x + 3, y + 3, 2, 2, color);
-            break;
-        }
-        case aprs::SymbolKind::Jeep: {
-            fb.fillRect(x - 4, y - 2, 8, 5, color);
-            fb.fillRect(x - 3, y + 3, 2, 2, color);
-            fb.fillRect(x + 1, y + 3, 2, 2, color);
-            fb.fillRect(x - 5, y - 1, 1, 3, color);
-            break;
-        }
-        case aprs::SymbolKind::Motorcycle: {
-            drawCircleOutline(fb, x - 4, y + 2, 2, color);
-            drawCircleOutline(fb, x + 4, y + 2, 2, color);
-            fb.drawLine(x - 2, y + 2, x + 2, y + 2, color);
-            fb.drawLine(x - 1, y, x - 2, y + 2, color);
-            fb.drawLine(x - 1, y, x + 1, y + 2, color);
-            break;
-        }
-        case aprs::SymbolKind::Aircraft:
-        case aprs::SymbolKind::Helicopter:
-        case aprs::SymbolKind::Glider: {
-            fb.drawLine(x - 6, y, x + 6, y, color);
-            fb.drawLine(x - 2, y, x + 2, y - 5, color);
-            fb.drawLine(x - 2, y, x + 2, y + 5, color);
-            fb.drawLine(x - 5, y, x - 3, y - 3, color);
-            fb.drawLine(x - 5, y, x - 3, y + 3, color);
-            if (aprs::symbolKind(table, symbol) ==
-                aprs::SymbolKind::Helicopter) {
-                fb.drawLine(x - 5, y - 3, x + 5, y - 3, color);
-            }
-            break;
-        }
-        case aprs::SymbolKind::Balloon: {
-            drawCircleOutline(fb, x, y - 2, 3, color);
-            fb.fillRect(x - 2, y + 2, 4, 2, color);
-            fb.drawLine(x, y + 4, x, y + 5, color);
-            break;
-        }
-        case aprs::SymbolKind::Ship:
-        case aprs::SymbolKind::Yacht:
-        case aprs::SymbolKind::Canoe: {
-            fb.drawLine(x - 5, y + 2, x + 5, y + 2, color);
-            fb.drawLine(x - 5, y + 2, x + 3, y + 4, color);
-            fb.drawLine(x + 5, y + 2, x + 3, y + 4, color);
-            fb.fillRect(x - 2, y - 2, 4, 4, color);
-            if (aprs::symbolKind(table, symbol) == aprs::SymbolKind::Yacht) {
-                fb.drawLine(x, y - 5, x + 3, y + 1, color);
-                fb.drawLine(x, y - 5, x - 3, y + 1, color);
-            }
-            break;
-        }
-        case aprs::SymbolKind::Weather: {
-            drawCircleOutline(fb, x - 3, y - 1, 2, color);
-            drawCircleOutline(fb, x, y - 2, 2, color);
-            drawCircleOutline(fb, x + 3, y - 1, 2, color);
-            fb.fillRect(x - 4, y - 1, 8, 2, color);
-            fb.drawLine(x - 2, y + 2, x - 3, y + 4, color);
-            fb.drawLine(x + 1, y + 2, x, y + 4, color);
-            break;
-        }
-        case aprs::SymbolKind::Digipeater:
-        case aprs::SymbolKind::IGate:
-        case aprs::SymbolKind::Antenna:
-        case aprs::SymbolKind::Node: {
-            fb.drawLine(x, y - 5, x, y + 4, color);
-            fb.drawLine(x, y - 5, x - 3, y + 4, color);
-            fb.drawLine(x, y - 5, x + 3, y + 4, color);
-            fb.drawLine(x - 2, y - 2, x + 2, y - 2, color);
-            fb.fillRect(x - 1, y - 6, 2, 2, color);
-            if (aprs::symbolKind(table, symbol) == aprs::SymbolKind::IGate) {
-                fb.fillRect(x - 4, y + 4, 8, 1, color);
-            }
-            break;
-        }
-        case aprs::SymbolKind::House: {
-            fb.drawLine(x - 5, y, x, y - 5, color);
-            fb.drawLine(x, y - 5, x + 5, y, color);
-            fb.fillRect(x - 4, y, 8, 5, color);
-            break;
-        }
-        case aprs::SymbolKind::Bicycle: {
-            drawCircleOutline(fb, x - 4, y + 2, 2, color);
-            drawCircleOutline(fb, x + 4, y + 2, 2, color);
-            fb.drawLine(x - 4, y + 2, x, y - 2, color);
-            fb.drawLine(x, y - 2, x + 4, y + 2, color);
-            fb.drawLine(x, y - 2, x - 1, y + 2, color);
-            break;
-        }
-        case aprs::SymbolKind::Walker: {
-            drawCircleOutline(fb, x, y - 4, 1, color);
-            fb.drawLine(x, y - 2, x, y + 1, color);
-            fb.drawLine(x, y + 1, x - 2, y + 4, color);
-            fb.drawLine(x, y + 1, x + 2, y + 4, color);
-            fb.drawLine(x, y - 1, x - 2, y + 1, color);
-            fb.drawLine(x, y - 1, x + 2, y + 1, color);
-            break;
-        }
-        case aprs::SymbolKind::Satellite: {
-            fb.fillRect(x - 2, y - 2, 4, 4, color);
-            fb.drawLine(x - 5, y - 1, x - 3, y - 1, color);
-            fb.drawLine(x - 5, y + 1, x - 3, y + 1, color);
-            fb.drawLine(x + 3, y - 1, x + 5, y - 1, color);
-            fb.drawLine(x + 3, y + 1, x + 5, y + 1, color);
-            break;
-        }
-        case aprs::SymbolKind::Aid:
-        case aprs::SymbolKind::Hospital:
-        case aprs::SymbolKind::Police:
-        case aprs::SymbolKind::Fire: {
-            fb.fillRect(x - 1, y - 4, 2, 8, color);
-            fb.fillRect(x - 4, y - 1, 8, 2, color);
-            break;
-        }
-        default: {
-            fb.fillRect(x - 1, y - 1, 3, 3, color);
-            break;
-        }
-    }
-}
-
 float distanceNm(double lat1, double lon1, double lat2, double lon2) {
     const double dlat = (lat2 - lat1) * kPi / 180.0;
     const double dlon = (lon2 - lon1) * kPi / 180.0;
@@ -584,10 +260,10 @@ void AprsUIRenderer::renderList(
     fb_.fillRect(0, 20, kScreenWidth, 18, theme_.panel);
     drawText(2, 21, "CALL", theme_.dim);
     drawText(86, 21, "TYP", theme_.dim);
-    drawText(132, 21, "KN", theme_.dim);
-    drawText(168, 21, "CRS", theme_.dim);
-    drawText(206, 21, "NM", theme_.dim);
-    drawText(250, 21, "AGE", theme_.dim);
+    drawText(120, 21, "KN", theme_.dim);
+    drawText(148, 21, "CRS", theme_.dim);
+    drawText(196, 21, "NM", theme_.dim);
+    drawText(252, 21, "AGE", theme_.dim);
     fb_.fillRect(0, 37, kScreenWidth, 1, theme_.grid);
 
     const int count = static_cast<int>(stations.size());
@@ -635,29 +311,26 @@ void AprsUIRenderer::renderList(
         std::snprintf(buffer, sizeof(buffer), "%.9s", station.callsign.c_str());
         drawText(2, y, buffer, accent_color);
 
-        const char list_symbol = station.kind == 'W' ? '_' : station.symbol;
-        drawListSymbol(fb_, 92, y + 8, station.symbol_table, list_symbol,
-                       accent_color);
         std::snprintf(buffer, sizeof(buffer), "%s",
                       station.kind == 'W'
                           ? "WX"
                           : aprs::symbolLabel(station.symbol_table,
                                               station.symbol));
-        drawText(102, y, buffer, text_color);
+        drawText(86, y, buffer, text_color);
 
         if (station.speed_knots >= 0.0f) {
             std::snprintf(buffer, sizeof(buffer), "%3.0f", station.speed_knots);
         } else {
             std::snprintf(buffer, sizeof(buffer), "  -");
         }
-        drawText(132, y, buffer, text_color);
+        drawText(118, y, buffer, text_color);
 
         if (station.course >= 0.0f) {
             std::snprintf(buffer, sizeof(buffer), "%03.0f", station.course);
         } else {
             std::snprintf(buffer, sizeof(buffer), "---");
         }
-        drawText(168, y, buffer, text_color);
+        drawText(148, y, buffer, text_color);
 
         if (station.distance_nm >= 0.0f) {
             if (station.distance_nm < 100.0f) {
@@ -670,10 +343,10 @@ void AprsUIRenderer::renderList(
         } else {
             std::snprintf(buffer, sizeof(buffer), "  --");
         }
-        drawText(206, y, buffer, text_color);
+        drawText(196, y, buffer, text_color);
 
         formatAge(now, station.last_seen, buffer, sizeof(buffer));
-        drawText(250, y, buffer, station.stale ? theme_.dim : text_color);
+        drawText(252, y, buffer, station.stale ? theme_.dim : text_color);
     }
 
     renderStatsBar(total_packets, stations.size(), gain_tenths, agc,
@@ -819,9 +492,32 @@ void AprsUIRenderer::renderMap(
                             : colorForKind(station.kind, theme_.accent,
                                            theme_.dim, theme_.alarm));
 
-        const char symbol = station.kind == 'W' ? '_' : station.symbol;
-        drawStationSymbol(fb_, x, y, station.symbol_table, symbol,
-                          station.course, color, selected);
+        if (station.kind == 'W') {
+            fb_.drawRect(x - 2, y - 2, 5, 5, color);
+        } else if (station.kind == 'M') {
+            drawCircleOutline(fb_, x, y, 2, color);
+        } else if (station.course >= 0.0f && station.speed_knots > 0.5f) {
+            const float course =
+                station.course * static_cast<float>(kPi) / 180.0f;
+            const int nose_x =
+                x + static_cast<int>(std::lround(std::sin(course) * 4.0f));
+            const int nose_y =
+                y - static_cast<int>(std::lround(std::cos(course) * 4.0f));
+            const int left_x = x + static_cast<int>(std::lround(
+                std::sin(course + 2.5f) * 3.0f));
+            const int left_y = y - static_cast<int>(std::lround(
+                std::cos(course + 2.5f) * 3.0f));
+            const int right_x = x + static_cast<int>(std::lround(
+                std::sin(course - 2.5f) * 3.0f));
+            const int right_y = y - static_cast<int>(std::lround(
+                std::cos(course - 2.5f) * 3.0f));
+            fb_.drawLine(nose_x, nose_y, left_x, left_y, color);
+            fb_.drawLine(left_x, left_y, right_x, right_y, color);
+            fb_.drawLine(right_x, right_y, nose_x, nose_y, color);
+        } else {
+            fb_.fillRect(x - 1, y - 1, 3, 3, color);
+        }
+        fb_.drawPixel(x, y, color);
 
         if (selected) {
             constexpr int r = 7;
@@ -992,9 +688,26 @@ void AprsUIRenderer::renderTrackPlot(const aprs::StationState& station,
     const float course = station.course >= 0.0f
                              ? station.course
                              : station.trail.back().course;
-    const char end_symbol = station.kind == 'W' ? '_' : station.symbol;
-    drawStationSymbol(fb_, end_x, end_y, station.symbol_table, end_symbol,
-                      course, 0xFD20, true);
+    if (course >= 0.0f) {
+        const float angle = course * static_cast<float>(kPi) / 180.0f;
+        const int nose_x =
+            end_x + static_cast<int>(std::lround(std::sin(angle) * 4.0f));
+        const int nose_y =
+            end_y - static_cast<int>(std::lround(std::cos(angle) * 4.0f));
+        const int left_x = end_x + static_cast<int>(std::lround(
+            std::sin(angle + 2.5f) * 3.0f));
+        const int left_y = end_y - static_cast<int>(std::lround(
+            std::cos(angle + 2.5f) * 3.0f));
+        const int right_x = end_x + static_cast<int>(std::lround(
+            std::sin(angle - 2.5f) * 3.0f));
+        const int right_y = end_y - static_cast<int>(std::lround(
+            std::cos(angle - 2.5f) * 3.0f));
+        fb_.drawLine(nose_x, nose_y, left_x, left_y, 0xFD20);
+        fb_.drawLine(left_x, left_y, right_x, right_y, 0xFD20);
+        fb_.drawLine(right_x, right_y, nose_x, nose_y, 0xFD20);
+    } else {
+        fb_.fillRect(end_x - 1, end_y - 1, 3, 3, 0xFD20);
+    }
 
     static const double kNice[] = {0.005, 0.01, 0.02, 0.05, 0.1, 0.2,
                                    0.5,   1.0,  2.0,  5.0,  10.0, 20.0,

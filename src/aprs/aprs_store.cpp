@@ -14,7 +14,7 @@ constexpr double kPi = 3.14159265358979323846;
 // APRS traffic is sparse compared with AIS: keep stations visible for half
 // an hour after the last packet and drop them after two hours.
 constexpr int kStaleSeconds = 30 * 60;
-constexpr int kRemoveSeconds = 2 * 60 * 60;
+constexpr int kRemoveSeconds = 7 * 24 * 60 * 60;  // one week
 
 // Track history: enough for a long drive, with a distance threshold that
 // ignores GPS jitter while a station is parked.
@@ -150,9 +150,9 @@ double Store::stationLongitude() const {
     return station_lon_;
 }
 
-void Store::apply(const Packet& packet) {
+void Store::apply(const Packet& packet, time_t when) {
     if (packet.source.empty()) return;
-    const time_t now = time(nullptr);
+    const time_t now = when != 0 ? when : time(nullptr);
 
     std::lock_guard<std::mutex> lock(mutex_);
 
@@ -261,7 +261,7 @@ void Store::apply(const Packet& packet) {
     entry.text = packet.info;
     if (entry.text.size() > 160) entry.text.resize(160);
     log_.push_back(std::move(entry));
-    while (log_.size() > 300) log_.pop_front();
+    while (log_.size() > 5000) log_.pop_front();
 
     pruneLocked(now);
 }

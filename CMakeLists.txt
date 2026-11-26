@@ -103,6 +103,7 @@ set(SOURCES
     # APRS
     src/aprs/aprs_decoder.cpp
     src/aprs/aprs_store.cpp
+    src/aprs/aprs_log.cpp
 
     # ACARS integration (external acarsdec subprocess)
     src/acars/acars_controller.cpp
@@ -230,6 +231,16 @@ target_include_directories(aprs_store_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 target_link_libraries(aprs_store_test PRIVATE ${M_LIB})
+
+# APRS daily log persistence/retention test (development helper, not installed).
+add_executable(aprs_log_test
+    tests/aprs_log_test.cpp
+    src/aprs/aprs_log.cpp
+)
+target_include_directories(aprs_log_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(aprs_log_test PRIVATE ${M_LIB})
 
 # Link libraries
 target_link_libraries(zerosdr PRIVATE

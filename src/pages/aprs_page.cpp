@@ -21,6 +21,7 @@ AprsPage::~AprsPage() {
 bool AprsPage::init() {
     std::cout << "AprsPage: Initializing..." << std::endl;
     loadConfig();
+    log_.pruneOlderThan(7);
     map_bg_.loadConfig();
     return true;
 }
@@ -100,6 +101,7 @@ void AprsPage::onEnter() {
 
     decoder_.setPacketCallback([this](const aprs::Packet& packet) {
         store_.apply(packet);
+        log_.append(packet, frequency_, time(nullptr));
         std::cout << "APRS: " << packet.source << " " << packet.info
                   << std::endl;
     });
@@ -107,12 +109,22 @@ void AprsPage::onEnter() {
     // Keep the station table and its tracks when the user leaves the page
     // and comes back on the same frequency. A frequency change or a restart
     // starts clean.
-    if (!store_valid_ || store_frequency_ != frequency_) {
+    const bool need_history =
+        !store_valid_ || store_frequency_ != frequency_;
+    if (need_history) {
         store_.clear();
         store_valid_ = true;
         store_frequency_ = frequency_;
     }
     loadStation();
+    if (need_history) {
+        const auto records = log_.loadRecent(frequency_, 7);
+        for (const auto& record : records) {
+            store_.apply(record.second, record.first);
+        }
+        std::cout << "AprsPage: restored " << records.size()
+                  << " packets from the last 7 days" << std::endl;
+    }
     map_bg_.loadConfig();
     if (store_.hasStation()) {
         map_bg_.request(store_.stationLatitude(), store_.stationLongitude(),
@@ -583,6 +595,10 @@ bool AprsPage::handleInput(AppKeyCode key) {
             store_.clear();
             store_valid_ = true;
             store_frequency_ = frequency_;
+            const auto records = log_.loadRecent(frequency_, 7);
+            for (const auto& record : records) {
+                store_.apply(record.second, record.first);
+            }
             selected_index_ = 0;
             selected_callsign_.clear();
             scroll_offset_ = 0;

@@ -76,7 +76,7 @@ struct LogEntry {
 class Store {
 public:
     void clear();
-    void apply(const Packet& packet);
+    void apply(const Packet& packet, time_t when = 0);
 
     void setStation(double latitude, double longitude, bool valid);
     bool hasStation() const;

@@ -75,6 +75,25 @@ int main() {
     ok = check(std::fabs(stations[0].wind_dir - 220.0f) < 0.1f,
                "weather wind");
 
+    // Historical timestamps: stations older than a week are pruned, while
+    // stations from the last day are retained after a restart/replay.
+    const time_t now = time(nullptr);
+    store.apply(position("OLD-1", 23.1000, 113.1000), now - 8 * 86400);
+    stations = store.snapshot();
+    bool has_old = false;
+    for (const auto& station : stations) {
+        if (station.callsign == "OLD-1") has_old = true;
+    }
+    ok = check(!has_old, "old station pruned after a week");
+
+    store.apply(position("RECENT-1", 23.1100, 113.1100), now - 86400);
+    stations = store.snapshot();
+    bool has_recent = false;
+    for (const auto& station : stations) {
+        if (station.callsign == "RECENT-1") has_recent = true;
+    }
+    ok = check(has_recent, "recent station retained");
+
     if (!ok) {
         std::fprintf(stderr, "APRS store test FAILED\n");
         return 1;

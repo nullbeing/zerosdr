@@ -591,15 +591,15 @@ pressure and the three rain totals) and scrolls with `↑` / `↓`:
 
 ![APRS weather fields](images/aprs-weather.png)
 
-- **LIST** — callsign, APRS symbol, speed, course, distance and age, nearest
-  first; stations without a decoded position are listed last. A callsign
-  dims after 30 minutes without a packet and is removed after two hours.
+- **LIST** — callsign, type, speed, course, distance and age, nearest first;
+  stations without a decoded position are listed last. A callsign dims
+  after 30 minutes without a packet and is removed after seven days.
 - **MAP** — north-up PPI with the cached map background, four range rings
-  and compass ticks. Station symbols are translated to type-shaped icons:
-  cars, trucks, aircraft, ships, weather stations, digipeaters, iGates and
-  houses. The selected station gets a crosshair, a callsign label and a
-  connected track line, while other stations keep faint trail dots.
-  `Up` / `Down` zoom from 1 to 200 NM (starts at 25 NM).
+  and compass ticks. Moving stations are triangles oriented by course,
+  weather stations squares and messages circles. The selected station gets
+  a crosshair, a callsign label and a connected track line, while other
+  stations keep faint trail dots. `Up` / `Down` zoom from 1 to 200 NM
+  (starts at 25 NM).
 - **DETAIL** — a map/track panel on the left and a scrollable station
   column on the right. The panel uses the same cached map, with the
   station's track and start/latest markers. The text lists position,
@@ -610,10 +610,9 @@ pressure and the three rain totals) and scrolls with `↑` / `↓`:
   fields (position, speed/course/altitude, weather, message or status).
 
 The APRS symbol table is decoded instead of showing the raw character.
-Every list row has a small type icon plus a `TYP` label (`CAR`, `TRK`,
-`AIR`, `SHP`, `WX`, `DIG`, `IGT`, `HOM`, `ANT`, ...), the detail spells the
-type out (`House / QTH`, `Weather station`, `iGate / gateway`, ...), and the
-map draws the same matching icon.
+The list has a `TYP` text column (`CAR`, `TRK`, `AIR`, `SHP`, `WX`, `DIG`,
+`IGT`, `HOM`, `ANT`, ...) and the detail spells the type out
+(`House / QTH`, `Weather station`, `iGate / gateway`, ...).
 
 Weather reports are decoded field by field: wind direction/speed, gust,
 temperature, humidity, pressure and rain in the last hour, last 24 hours
@@ -623,7 +622,7 @@ with units throughout (`NM`, `KN`, `FT`, `DEG`, `MPH`, `HPA`, `MM`).
 
 The DETAIL track panel keeps the recent track of the selected station:
 it is drawn on the map, marks the start with a circle and the latest
-position with its type icon, and shows the track length, duration, point
+position with a course arrow, and shows the track length, duration, point
 count and a scale bar (`TRK 0.6NM 1MIN 5PTS`). Up to 120 positions from the
 last two hours are kept; a new point is added when the station moves more
 than about 13 m, so GPS jitter does not fill the history. The same track is
@@ -631,6 +630,13 @@ drawn as a line on the MAP view, with older segments dim and the newest
 part amber. The selection follows the callsign, not the row number, so it
 stays on the same station while new stations appear and the list re-sorts
 by distance.
+
+Every decoded packet is appended to a daily history file under
+`~/.local/share/zerosdr/aprs/` (`YYYY-MM-DD.jsonl`). On startup the last
+seven daily files are replayed into the station table and console, so
+stations, recent tracks, weather and the packet log survive a restart. The
+files are pruned after seven days, and the in-memory station table follows
+the same one-week retention (dimmed after 30 minutes).
 
 The decoder handles uncompressed and compressed positions, Mic-E (the format
 used by most Kenwood/Yaesu mobile trackers), messages (receive-only) and

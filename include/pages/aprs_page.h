@@ -3,6 +3,7 @@
 
 #include "adsb/map_background.h"
 #include "aprs/aprs_decoder.h"
+#include "aprs/aprs_log.h"
 #include "aprs/aprs_store.h"
 #include "core/gps_locator.h"
 #include "core/ipage.h"
@@ -60,6 +61,7 @@ private:
 
     aprs::Decoder decoder_;
     aprs::Store store_;
+    aprs::Log log_;
     GpsLocator gps_;
     MapBackground map_bg_;
 
