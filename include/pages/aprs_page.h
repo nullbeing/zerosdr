@@ -76,6 +76,8 @@ private:
     uint32_t frequency_ = 144640000;  // China APRS
     int gain_tenths_ = 400;
     bool agc_ = true;
+    bool store_valid_ = false;       // keep tracks across page re-entry
+    uint32_t store_frequency_ = 0;
 
     // Rolling one-minute packet rate.
     std::deque<std::pair<time_t, uint64_t>> rate_history_;

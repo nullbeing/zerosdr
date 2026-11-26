@@ -103,7 +103,14 @@ void AprsPage::onEnter() {
                   << std::endl;
     });
 
-    store_.clear();
+    // Keep the station table and its tracks when the user leaves the page
+    // and comes back on the same frequency. A frequency change or a restart
+    // starts clean.
+    if (!store_valid_ || store_frequency_ != frequency_) {
+        store_.clear();
+        store_valid_ = true;
+        store_frequency_ = frequency_;
+    }
     loadStation();
     map_bg_.loadConfig();
     if (store_.hasStation()) {
@@ -516,6 +523,8 @@ bool AprsPage::handleInput(AppKeyCode key) {
             sdr_.flushBuffer();
             decoder_.reset();
             store_.clear();
+            store_valid_ = true;
+            store_frequency_ = frequency_;
             selected_index_ = 0;
             selected_callsign_.clear();
             scroll_offset_ = 0;
