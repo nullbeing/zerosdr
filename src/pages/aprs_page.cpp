@@ -475,10 +475,13 @@ void AprsPage::render() {
                 has_observer ? store_.stationLongitude() : map_longitude;
             const float offset_nm = static_cast<float>(
                 std::hypot(map_offset_east_m, map_offset_north_m)) / 1852.0f;
-            const float request_range_nm =
-                std::max(0.5f, offset_nm + map_range_nm * 2.2f);
-            map_bg_.request(request_latitude, request_longitude,
-                            request_range_nm * 1.852f);
+            const float coverage_nm =
+                std::max(0.1f, offset_nm + map_range_nm * 1.8f);
+            const float coverage_km = coverage_nm * 1.852f;
+            const int zoom =
+                map_bg_.preferredZoom(request_latitude, coverage_km);
+            map_bg_.request(request_latitude, request_longitude, coverage_km,
+                            zoom);
         }
         ui_.renderDetail(selected, stations.size(), total,
                          packets_per_minute_, gain_tenths_, agc_,

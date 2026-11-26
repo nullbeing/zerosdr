@@ -330,13 +330,8 @@ void MapBackground::reload() {
     job_cv_.notify_all();
 }
 
-int MapBackground::zoomForRange(double lat, float range_km) const {
-    if (range_km < 1.0f) range_km = 1.0f;
-    // Circle-only: the patch half-span covers the radar radius with 10%
-    // margin. Full-screen: it must also cover the screen corners at the
-    // normal 1.0x scope size (about 3.2x the radar radius), so fetch a
-    // coarser patch that is still large enough at every zoom level.
-    const double coverage_km = full_screen_ ? 3.5 * range_km : 1.1 * range_km;
+int MapBackground::preferredZoom(double lat, float coverage_km) const {
+    if (coverage_km < 0.1f) coverage_km = 0.1f;
     const double wanted_mpp =
         (2.0 * coverage_km * 1000.0) / (double)patch_size_;
     const double coslat = std::max(0.05, std::cos(lat * kPi / 180.0));
@@ -346,11 +341,23 @@ int MapBackground::zoomForRange(double lat, float range_km) const {
     return z;
 }
 
-void MapBackground::request(double lat, double lon, float range_km) {
+int MapBackground::zoomForRange(double lat, float range_km) const {
+    if (range_km < 1.0f) range_km = 1.0f;
+    // Circle-only: the patch half-span covers the radar radius with 10%
+    // margin. Full-screen: it must also cover the screen corners at the
+    // normal 1.0x scope size (about 3.2x the radar radius), so fetch a
+    // coarser patch that is still large enough at every zoom level.
+    const double coverage_km = full_screen_ ? 3.5 * range_km : 1.1 * range_km;
+    return preferredZoom(lat, static_cast<float>(coverage_km));
+}
+
+void MapBackground::request(double lat, double lon, float range_km,
+                            int zoom_override) {
     if (!enabled_ || range_km <= 0.0f) return;
     if (lat < -85.0 || lat > 85.0 || lon < -180.0 || lon > 180.0) return;
 
-    const int zoom = zoomForRange(lat, range_km);
+    const int zoom =
+        zoom_override > 0 ? zoom_override : zoomForRange(lat, range_km);
     char key[256];
     snprintf(key, sizeof(key), "%s_%.3f_%.3f_z%d", provider_key_.c_str(),
              lat, lon, zoom);

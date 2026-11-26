@@ -659,8 +659,11 @@ void AprsUIRenderer::renderTrackPlot(const aprs::StationState& station,
 
     if (station.trail.size() < 2) {
         const char* message = "NO TRACK YET";
-        drawSmallText(px + (pw - smallTextWidth(message)) / 2,
-                      py + ph / 2 - 4, message, theme_.dim);
+        const int message_width = smallTextWidth(message) + 4;
+        const int message_x = px + (pw - message_width) / 2;
+        const int message_y = py + ph - 15;
+        fb_.fillRect(message_x, message_y, message_width, 10, theme_.panel);
+        drawSmallText(message_x + 2, message_y + 1, message, theme_.dim);
         if (station.has_position) {
             aprs::TrailPoint point;
             point.latitude = station.latitude;

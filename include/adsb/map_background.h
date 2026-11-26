@@ -45,7 +45,11 @@ public:
      * Safe to call every frame: duplicate requests are ignored and failures
      * back off for a minute.
      */
-    void request(double lat, double lon, float range_km);
+    void request(double lat, double lon, float range_km, int zoom = -1);
+
+    /** Zoom that covers a circular area of coverage_km with the current
+     *  patch size, without the full-screen radar margin. */
+    int preferredZoom(double lat, float coverage_km) const;
 
     bool hasImage() const;
     bool enabled() const { return enabled_; }
