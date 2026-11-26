@@ -1,3 +1,20 @@
+zerosdr (0.5.3) trixie; urgency=medium
+
+  * APRS: native receive-only 1200 baud Bell 202 AFSK / AX.25 decoder with
+    Mic-E, compressed and uncompressed positions, messages and weather
+  * APRS: LIST / MAP / DETAIL / CONSOLE views; the DETAIL map is centred on
+    the station track or latest position, Up/Down zooms it and +/- scrolls
+    the weather/status column
+  * APRS: symbol type labels, full weather fields (wind, gust, temperature,
+    humidity, pressure and rain 1h/24h/midnight) and decoded console lines
+  * APRS: 120-point/2-hour trails and a seven-day daily JSONL history under
+    ~/.local/share/zerosdr/aprs, replayed on start and pruned after a week
+  * APRS is the seventh page; the page menu second row is now RADAR/AIS/APRS
+  * Project branding is now ZeroSDR in the application, desktop entries and
+    documentation (paths and package names stay lowercase)
+
+ -- Weiming Feng <bestedwin@gmail.com>  Thu, 26 Nov 2026 21:52:45 +0800
+
 zerosdr (0.5.2) trixie; urgency=medium
 
   * SDR: frequency memories on P. S saves the current frequency,
