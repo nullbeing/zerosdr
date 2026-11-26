@@ -1,3 +1,21 @@
+zerosdr (0.5.2) trixie; urgency=medium
+
+  * SDR: frequency memories on P. S saves the current frequency,
+    demodulation, bandwidth and squelch; Enter recalls the selected entry;
+    Backspace deletes it after a confirmation
+  * SDR: memories are sorted by frequency, auto-named by band and marked on
+    the frequency axis; the panel covers the waterfall so the spectrum
+    stays visible
+  * SDR: restore the last frequency, demodulation, bandwidth and squelch on
+    the next start. A command-line -f still takes precedence
+  * Arrow-key list navigation now repeats and accelerates while held on
+    ACARS (list and detail), ADSB (list, radar and detail) and AIS (plot and
+    dossier)
+  * Fix the ADSB radar repeat accumulator, which was reset inside the
+    handler and defeated the acceleration
+
+ -- Weiming Feng <bestedwin@gmail.com>  Thu, 26 Nov 2026 09:38:46 +0800
+
 zerosdr (0.5.1) trixie; urgency=medium
 
   * ACARS: the detail view now shows the usual label meaning plus the
