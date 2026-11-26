@@ -610,10 +610,10 @@ pressure and the three rain totals) and scrolls with `↑` / `↓`:
   fields (position, speed/course/altitude, weather, message or status).
 
 The APRS symbol table is decoded instead of showing the raw character.
-The list has a `TYP` column (`CAR`, `TRK`, `AIR`, `SHP`, `WX`, `DIG`,
-`IGT`, `HOM`, `ANT`, ...), the detail spells the type out (`House / QTH`,
-`Weather station`, `iGate / gateway`, ...), and the map draws a matching
-icon.
+Every list row has a small type icon plus a `TYP` label (`CAR`, `TRK`,
+`AIR`, `SHP`, `WX`, `DIG`, `IGT`, `HOM`, `ANT`, ...), the detail spells the
+type out (`House / QTH`, `Weather station`, `iGate / gateway`, ...), and the
+map draws the same matching icon.
 
 Weather reports are decoded field by field: wind direction/speed, gust,
 temperature, humidity, pressure and rain in the last hour, last 24 hours

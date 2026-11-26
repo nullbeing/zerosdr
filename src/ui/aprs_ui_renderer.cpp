@@ -437,10 +437,10 @@ void AprsUIRenderer::renderList(
     fb_.fillRect(0, 20, kScreenWidth, 18, theme_.panel);
     drawText(2, 21, "CALL", theme_.dim);
     drawText(86, 21, "TYP", theme_.dim);
-    drawText(120, 21, "KN", theme_.dim);
-    drawText(148, 21, "CRS", theme_.dim);
-    drawText(196, 21, "NM", theme_.dim);
-    drawText(252, 21, "AGE", theme_.dim);
+    drawText(132, 21, "KN", theme_.dim);
+    drawText(168, 21, "CRS", theme_.dim);
+    drawText(206, 21, "NM", theme_.dim);
+    drawText(250, 21, "AGE", theme_.dim);
     fb_.fillRect(0, 37, kScreenWidth, 1, theme_.grid);
 
     const int count = static_cast<int>(stations.size());
@@ -488,26 +488,29 @@ void AprsUIRenderer::renderList(
         std::snprintf(buffer, sizeof(buffer), "%.9s", station.callsign.c_str());
         drawText(2, y, buffer, accent_color);
 
+        const char list_symbol = station.kind == 'W' ? '_' : station.symbol;
+        drawStationSymbol(fb_, 92, y + 8, station.symbol_table, list_symbol,
+                          station.course, accent_color, false);
         std::snprintf(buffer, sizeof(buffer), "%s",
                       station.kind == 'W'
                           ? "WX"
                           : aprs::symbolLabel(station.symbol_table,
                                               station.symbol));
-        drawText(86, y, buffer, text_color);
+        drawText(102, y, buffer, text_color);
 
         if (station.speed_knots >= 0.0f) {
             std::snprintf(buffer, sizeof(buffer), "%3.0f", station.speed_knots);
         } else {
             std::snprintf(buffer, sizeof(buffer), "  -");
         }
-        drawText(118, y, buffer, text_color);
+        drawText(132, y, buffer, text_color);
 
         if (station.course >= 0.0f) {
             std::snprintf(buffer, sizeof(buffer), "%03.0f", station.course);
         } else {
             std::snprintf(buffer, sizeof(buffer), "---");
         }
-        drawText(148, y, buffer, text_color);
+        drawText(168, y, buffer, text_color);
 
         if (station.distance_nm >= 0.0f) {
             if (station.distance_nm < 100.0f) {
@@ -520,10 +523,10 @@ void AprsUIRenderer::renderList(
         } else {
             std::snprintf(buffer, sizeof(buffer), "  --");
         }
-        drawText(196, y, buffer, text_color);
+        drawText(206, y, buffer, text_color);
 
         formatAge(now, station.last_seen, buffer, sizeof(buffer));
-        drawText(252, y, buffer, station.stale ? theme_.dim : text_color);
+        drawText(250, y, buffer, station.stale ? theme_.dim : text_color);
     }
 
     renderStatsBar(total_packets, stations.size(), gain_tenths, agc,
