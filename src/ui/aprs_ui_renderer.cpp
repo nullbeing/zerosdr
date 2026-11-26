@@ -602,19 +602,29 @@ void AprsUIRenderer::renderTrackPlot(const aprs::StationState& station,
     const int iy = py + 13;
     const int iw = pw - 8;
     const int ih = ph - 26;
-    const bool has_map = map != nullptr && station.has_position && range_nm > 0.0f;
-    const uint16_t grid_color = has_map ? theme_.dim : theme_.grid;
+    const bool has_map =
+        map != nullptr && station.has_position && range_nm > 0.0f;
 
-    for (int i = 1; i < 4; ++i) {
-        fb_.drawLine(ix + iw * i / 4, iy, ix + iw * i / 4, iy + ih,
-                     grid_color);
-        fb_.drawLine(ix, iy + ih * i / 4, ix + iw, iy + ih * i / 4,
-                     grid_color);
+    // The grid is only a fallback for the no-map case. Over a real map it
+    // hides roads, labels and coastlines on the small panel.
+    if (!has_map) {
+        for (int i = 1; i < 4; ++i) {
+            fb_.drawLine(ix + iw * i / 4, iy, ix + iw * i / 4, iy + ih,
+                         theme_.grid);
+            fb_.drawLine(ix, iy + ih * i / 4, ix + iw, iy + ih * i / 4,
+                         theme_.grid);
+        }
     }
-    drawSmallText(ix + iw / 2 - 2, iy + 1, "N",
-                  has_map ? theme_.text : theme_.dim);
-    drawSmallText(ix + iw - 7, iy + ih / 2 - 3, "E",
-                  has_map ? theme_.text : theme_.dim);
+
+    const auto draw_compass = [&](int x, int y, const char* text) {
+        if (has_map) {
+            fb_.fillRect(x - 1, y - 1, smallTextWidth(text) + 2, 9,
+                         theme_.panel);
+        }
+        drawSmallText(x, y, text, has_map ? theme_.text : theme_.dim);
+    };
+    draw_compass(ix + iw / 2 - 2, iy + 1, "N");
+    draw_compass(ix + iw - 7, iy + ih / 2 - 3, "E");
 
     if (range_nm <= 0.0f && station.has_position) {
         center_lat = station.latitude;
