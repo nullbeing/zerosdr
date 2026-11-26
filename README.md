@@ -576,8 +576,8 @@ thread. RTL-SDR hardware cannot transmit, so the page is receive-only: it
 shows stations, weather and messages but never sends.
 
 Select **APRS** in the `Tab` page menu. `Enter` cycles LIST → MAP → DETAIL →
-CONSOLE; `↑`/`↓` scroll the detail text or zoom the map, `←`/`→`
-select a station and `H` shows every key. `T` cycles the three common frequencies (144.640 / 144.800 /
+CONSOLE; `↑`/`↓` zoom the detail/map view, `+`/`-` scroll the detail
+text, `←`/`→` select a station and `H` shows every key. `T` cycles the three common frequencies (144.640 / 144.800 /
 144.390 MHz) and clears the station table.
 
 | LIST | MAP |
@@ -601,11 +601,12 @@ pressure and the three rain totals) and scrolls with `↑` / `↓`:
   stations keep faint trail dots. `Up` / `Down` zoom from 1 to 200 NM
   (starts at 25 NM).
 - **DETAIL** — a map/track panel on the left and a scrollable station
-  column on the right. The panel uses the same cached map, with the
-  station's track and start/latest markers. The text lists position,
-  range/bearing, speed/course, altitude, age, packet count, symbol type,
-  destination/path, the full weather block and the comment; `Up` / `Down`
-  scroll it and `Left` / `Right` change station.
+  column on the right. The panel is centred on the station's track (or its
+  latest position), with the track and start/latest markers. `Up` / `Down`
+  zoom the map, `+` / `-` scroll the text, and `Left` / `Right` change
+  station. The text lists position, range/bearing, speed/course, altitude,
+  age, packet count, symbol type, destination/path, the full weather block
+  and the comment.
 - **CONSOLE** — two lines per packet: time/source/type and the decoded
   fields (position, speed/course/altitude, weather, message or status).
 

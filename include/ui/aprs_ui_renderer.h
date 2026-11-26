@@ -36,7 +36,8 @@ public:
                       int gain_tenths, bool agc, int& scroll,
                       uint32_t frequency, MapBackground* map,
                       double map_center_lat, double map_center_lon,
-                      float map_range_nm);
+                      float map_range_nm, double map_offset_east_m,
+                      double map_offset_north_m);
 
     void renderConsole(const std::vector<aprs::LogEntry>& entries,
                        int scroll_offset, uint64_t total_packets,
@@ -78,7 +79,8 @@ private:
     void renderTrackPlot(const aprs::StationState& station, int x, int y,
                          int w, int h, MapBackground* map,
                          double center_lat, double center_lon,
-                         float range_nm);
+                         float range_nm, double offset_east_m,
+                         double offset_north_m);
 
     Theme theme_;
 };

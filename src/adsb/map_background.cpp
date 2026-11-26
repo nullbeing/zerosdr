@@ -761,7 +761,9 @@ void MapBackground::draw(Framebuffer& fb, int cx, int cy, int radius,
 }
 
 void MapBackground::drawRect(Framebuffer& fb, int x, int y, int w, int h,
-                             float max_range_km, float rotation_deg) const {
+                             float max_range_km, float rotation_deg,
+                             double offset_east_m,
+                             double offset_north_m) const {
     if (w <= 0 || h <= 0 || max_range_km <= 0.0f) return;
 
     std::shared_ptr<const Image> image;
@@ -782,8 +784,10 @@ void MapBackground::drawRect(Framebuffer& fb, int x, int y, int w, int h,
     const double half = std::min(w, h) / 2.0;
     const double screen_m_per_px = (double)max_range_km * 1000.0 / half;
     const double needed_km =
-        std::sqrt((w / 2.0) * (w / 2.0) + (h / 2.0) * (h / 2.0)) *
-        screen_m_per_px / 1000.0;
+        (std::hypot(offset_east_m, offset_north_m) +
+         std::sqrt((w / 2.0) * (w / 2.0) + (h / 2.0) * (h / 2.0)) *
+             screen_m_per_px) /
+        1000.0;
     const double cover_km = (image->width / 2.0) * image->m_per_px / 1000.0;
     if (cover_km + 0.001 < needed_km) return;
 
@@ -795,6 +799,8 @@ void MapBackground::drawRect(Framebuffer& fb, int x, int y, int w, int h,
     const float sinr = (float)std::sin(rad);
     const int cx = x + w / 2;
     const int cy = y + h / 2;
+    const double offset_east_px = offset_east_m / image->m_per_px;
+    const double offset_north_px = offset_north_m / image->m_per_px;
 
     for (int py = y0; py <= y1; ++py) {
         const int dy = py - cy;
@@ -802,8 +808,10 @@ void MapBackground::drawRect(Framebuffer& fb, int x, int y, int w, int h,
             const int dx = px - cx;
             const float rx = dx * cosr - dy * sinr;
             const float ry = dx * sinr + dy * cosr;
-            const int mx = half_w + (int)std::lround(rx * factor);
-            const int my = half_h + (int)std::lround(ry * factor);
+            const int mx = half_w +
+                           (int)std::lround(offset_east_px + rx * factor);
+            const int my = half_h +
+                           (int)std::lround(ry * factor - offset_north_px);
             if (mx < 0 || mx >= image->width || my < 0 ||
                 my >= image->height) {
                 continue;

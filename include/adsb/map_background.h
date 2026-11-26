@@ -69,7 +69,9 @@ public:
      * half-range along the shorter side.
      */
     void drawRect(Framebuffer& fb, int x, int y, int w, int h,
-                  float max_range_km, float rotation_deg) const;
+                  float max_range_km, float rotation_deg,
+                  double offset_east_m = 0.0,
+                  double offset_north_m = 0.0) const;
 
 private:
     struct Image {

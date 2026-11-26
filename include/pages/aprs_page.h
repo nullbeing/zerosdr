@@ -50,8 +50,10 @@ private:
     void selectStation(int direction, bool positioned_only);
     int selectedIndexIn(
         const std::vector<aprs::StationState>& stations) const;
-    void detailMapView(const aprs::StationState& station, double& latitude,
-                       double& longitude, float& range_nm) const;
+    void detailMapView(const aprs::StationState& station, float zoom,
+                       double& latitude, double& longitude, float& range_nm,
+                       double& offset_east_m,
+                       double& offset_north_m) const;
     void render();
 
     Framebuffer& fb_;
@@ -75,6 +77,7 @@ private:
     int scroll_offset_ = 0;
     int console_scroll_ = 0;
     int detail_scroll_ = 0;
+    float detail_zoom_ = 1.0f;
     bool help_visible_ = false;
     float map_range_nm_ = 25.0f;
 

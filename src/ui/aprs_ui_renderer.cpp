@@ -580,10 +580,13 @@ void AprsUIRenderer::renderMap(
 void AprsUIRenderer::renderTrackPlot(const aprs::StationState& station,
                                      int px, int py, int pw, int ph,
                                      MapBackground* map, double center_lat,
-                                     double center_lon, float range_nm) {
+                                     double center_lon, float range_nm,
+                                     double offset_east_m,
+                                     double offset_north_m) {
     fb_.fillRect(px, py, pw, ph, theme_.panel);
     if (map != nullptr && station.has_position && range_nm > 0.0f) {
-        map->drawRect(fb_, px, py, pw, ph, range_nm * 1.852f, 0.0f);
+        map->drawRect(fb_, px, py, pw, ph, range_nm * 1.852f, 0.0f,
+                      offset_east_m, offset_north_m);
     }
     fb_.drawRect(px, py, pw, ph, theme_.grid);
 
@@ -645,6 +648,14 @@ void AprsUIRenderer::renderTrackPlot(const aprs::StationState& station,
         y = cy - static_cast<int>(std::lround(
                      (point.latitude - center_lat) * 60.0 * pixels_per_nm));
     };
+    const int clip_left = px + 2;
+    const int clip_right = px + pw - 3;
+    const int clip_top = py + 13;
+    const int clip_bottom = py + ph - 3;
+    const auto inside = [&](int x, int y, int margin = 0) {
+        return x >= clip_left + margin && x <= clip_right - margin &&
+               y >= clip_top + margin && y <= clip_bottom - margin;
+    };
 
     if (station.trail.size() < 2) {
         const char* message = "NO TRACK YET";
@@ -657,9 +668,11 @@ void AprsUIRenderer::renderTrackPlot(const aprs::StationState& station,
             int x = 0;
             int y = 0;
             project(point, x, y);
-            fb_.drawLine(x - 3, y, x + 3, y, theme_.text);
-            fb_.drawLine(x, y - 3, x, y + 3, theme_.text);
-            fb_.drawPixel(x, y, 0xFD20);
+            if (inside(x, y, 4)) {
+                fb_.drawLine(x - 3, y, x + 3, y, theme_.text);
+                fb_.drawLine(x, y - 3, x, y + 3, theme_.text);
+                fb_.drawPixel(x, y, 0xFD20);
+            }
         }
         return;
     }
@@ -672,6 +685,10 @@ void AprsUIRenderer::renderTrackPlot(const aprs::StationState& station,
         int x = 0;
         int y = 0;
         project(station.trail[i], x, y);
+        if (!inside(x, y)) {
+            have_previous = false;
+            continue;
+        }
         if (have_previous) {
             const float fraction = static_cast<float>(i) /
                                    static_cast<float>(count - 1);
@@ -690,7 +707,9 @@ void AprsUIRenderer::renderTrackPlot(const aprs::StationState& station,
     int start_x = 0;
     int start_y = 0;
     project(station.trail.front(), start_x, start_y);
-    drawCircleOutline(fb_, start_x, start_y, 2, theme_.text);
+    if (inside(start_x, start_y, 3)) {
+        drawCircleOutline(fb_, start_x, start_y, 2, theme_.text);
+    }
 
     int end_x = 0;
     int end_y = 0;
@@ -698,6 +717,9 @@ void AprsUIRenderer::renderTrackPlot(const aprs::StationState& station,
     const float course = station.course >= 0.0f
                              ? station.course
                              : station.trail.back().course;
+    if (!inside(end_x, end_y, 5)) {
+        return;
+    }
     if (course >= 0.0f) {
         const float angle = course * static_cast<float>(kPi) / 180.0f;
         const int nose_x =
@@ -724,7 +746,8 @@ void AprsUIRenderer::renderDetail(
     const aprs::StationState* station, size_t station_count,
     uint64_t total_packets, float packets_per_minute, int gain_tenths,
     bool agc, int& scroll, uint32_t frequency, MapBackground* map,
-    double map_center_lat, double map_center_lon, float map_range_nm) {
+    double map_center_lat, double map_center_lon, float map_range_nm,
+    double map_offset_east_m, double map_offset_north_m) {
     fb_.fillRect(0, 0, kScreenWidth, 170, theme_.bg);
     renderStatusBar(total_packets, packets_per_minute, gain_tenths, agc,
                     station_count, frequency);
@@ -741,7 +764,8 @@ void AprsUIRenderer::renderDetail(
     constexpr int plot_w = 160;
     constexpr int plot_h = 124;
     renderTrackPlot(*station, plot_x, plot_y, plot_w, plot_h, map,
-                    map_center_lat, map_center_lon, map_range_nm);
+                    map_center_lat, map_center_lon, map_range_nm,
+                    map_offset_east_m, map_offset_north_m);
 
     char buffer[96];
     if (station->trail.size() >= 2) {
@@ -1014,9 +1038,9 @@ void AprsUIRenderer::renderHelp() {
     drawText(20, 28, "APRS KEYS  RX ONLY", theme_.accent);
     const char* lines[] = {
         "ENTER  LIST / MAP / DETAIL / CONSOLE",
-        "UP/DN  SCROLL / RANGE / TARGET",
+        "UP/DN  SCROLL / ZOOM MAP",
         "LEFT/RIGHT  SELECT STATION",
-        "+/-    GAIN",
+        "+/-    GAIN / DETAIL TEXT",
         "G      AUTO / MANUAL",
         "H      HELP",
         "T      CYCLE APRS FREQ",

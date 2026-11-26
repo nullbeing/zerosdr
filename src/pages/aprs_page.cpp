@@ -137,6 +137,7 @@ void AprsPage::onEnter() {
     scroll_offset_ = 0;
     console_scroll_ = 0;
     detail_scroll_ = 0;
+    detail_zoom_ = 1.0f;
     help_visible_ = false;
     map_range_nm_ = 25.0f;
     packets_per_minute_ = 0.0f;
@@ -218,8 +219,7 @@ void AprsPage::update(float delta_time) {
     if (!sdr_ready_) return;
 
     // Held arrow keys repeat and accelerate in the scrolling views.
-    if ((view_ == View::List || view_ == View::Console ||
-         view_ == View::Detail) &&
+    if ((view_ == View::List || view_ == View::Console) &&
         held_vertical_key_ != APPKEY_NONE) {
         const int hold_ms = input_.getHoldDuration(held_vertical_key_);
         if (hold_ms >= 450) {
@@ -273,42 +273,53 @@ void AprsPage::update(float delta_time) {
     render();
 }
 
-void AprsPage::detailMapView(const aprs::StationState& station,
+void AprsPage::detailMapView(const aprs::StationState& station, float zoom,
                              double& latitude, double& longitude,
-                             float& range_nm) const {
-    const bool has_observer = store_.hasStation();
-    if (has_observer) {
-        latitude = store_.stationLatitude();
-        longitude = store_.stationLongitude();
-    } else {
-        latitude = station.latitude;
-        longitude = station.longitude;
-    }
-    if (!station.has_position) {
-        range_nm = 1.0f;
-        return;
+                             float& range_nm, double& offset_east_m,
+                             double& offset_north_m) const {
+    latitude = station.latitude;
+    longitude = station.longitude;
+    range_nm = 1.0f;
+    offset_east_m = 0.0;
+    offset_north_m = 0.0;
+    if (!station.has_position) return;
+
+    double base_range_nm = 1.0f;
+    if (station.trail.size() >= 2) {
+        double min_latitude = station.trail.front().latitude;
+        double max_latitude = station.trail.front().latitude;
+        double min_longitude = station.trail.front().longitude;
+        double max_longitude = station.trail.front().longitude;
+        for (const auto& point : station.trail) {
+            min_latitude = std::min(min_latitude, point.latitude);
+            max_latitude = std::max(max_latitude, point.latitude);
+            min_longitude = std::min(min_longitude, point.longitude);
+            max_longitude = std::max(max_longitude, point.longitude);
+        }
+        latitude = (min_latitude + max_latitude) / 2.0;
+        longitude = (min_longitude + max_longitude) / 2.0;
+        constexpr double kPi = 3.14159265358979323846;
+        const double cos_latitude = std::cos(latitude * kPi / 180.0);
+        const double span_nm = std::max(
+            (max_latitude - min_latitude) * 60.0,
+            (max_longitude - min_longitude) * 60.0 * cos_latitude);
+        base_range_nm = std::max(0.25, span_nm * 0.65);
     }
 
-    constexpr double kPi = 3.14159265358979323846;
-    const double cos_latitude = std::cos(latitude * kPi / 180.0);
-    double max_east_nm = 0.0;
-    double max_north_nm = 0.0;
-    const auto include = [&](double point_latitude, double point_longitude) {
-        max_east_nm = std::max(
-            max_east_nm,
-            std::fabs((point_longitude - longitude) * 60.0 * cos_latitude));
-        max_north_nm = std::max(
-            max_north_nm,
-            std::fabs((point_latitude - latitude) * 60.0));
-    };
-    include(station.latitude, station.longitude);
-    for (const auto& point : station.trail) {
-        include(point.latitude, point.longitude);
-    }
+    if (zoom < 0.25f) zoom = 0.25f;
+    if (zoom > 16.0f) zoom = 16.0f;
+    range_nm = static_cast<float>(base_range_nm / zoom);
+    range_nm = std::max(0.1f, std::min(200.0f, range_nm));
 
-    const double max_distance_nm = std::hypot(max_east_nm, max_north_nm);
-    range_nm = std::max(1.0f, static_cast<float>(max_distance_nm * 1.3));
-    range_nm = std::min(200.0f, range_nm);
+    if (store_.hasStation()) {
+        constexpr double kPi = 3.14159265358979323846;
+        const double observer_latitude = store_.stationLatitude();
+        const double observer_longitude = store_.stationLongitude();
+        const double cos_latitude = std::cos(latitude * kPi / 180.0);
+        offset_east_m =
+            (longitude - observer_longitude) * 111320.0 * cos_latitude;
+        offset_north_m = (latitude - observer_latitude) * 110540.0;
+    }
 }
 
 int AprsPage::selectedIndexIn(
@@ -344,9 +355,9 @@ void AprsPage::stepVertical(bool up) {
         selected_callsign_ = stations[static_cast<size_t>(index)].callsign;
     } else if (view_ == View::Detail) {
         if (up) {
-            if (detail_scroll_ > 0) --detail_scroll_;
+            detail_zoom_ = std::min(16.0f, detail_zoom_ * 2.0f);
         } else {
-            ++detail_scroll_;
+            detail_zoom_ = std::max(0.25f, detail_zoom_ / 2.0f);
         }
     } else if (view_ == View::Console) {
         if (up) {
@@ -371,6 +382,7 @@ void AprsPage::selectStation(int direction, bool positioned_only) {
             selected_callsign_ =
                 stations[static_cast<size_t>(index)].callsign;
             detail_scroll_ = 0;
+            detail_zoom_ = 1.0f;
             return;
         }
     }
@@ -449,17 +461,30 @@ void AprsPage::render() {
                       : nullptr;
         double map_latitude = 0.0;
         double map_longitude = 0.0;
+        double map_offset_east_m = 0.0;
+        double map_offset_north_m = 0.0;
         float map_range_nm = 0.0f;
         if (selected != nullptr && selected->has_position) {
-            detailMapView(*selected, map_latitude, map_longitude,
-                          map_range_nm);
-            map_bg_.request(map_latitude, map_longitude,
-                            map_range_nm * 1.852f * 1.8f);
+            detailMapView(*selected, detail_zoom_, map_latitude,
+                          map_longitude, map_range_nm, map_offset_east_m,
+                          map_offset_north_m);
+            const bool has_observer = store_.hasStation();
+            const double request_latitude =
+                has_observer ? store_.stationLatitude() : map_latitude;
+            const double request_longitude =
+                has_observer ? store_.stationLongitude() : map_longitude;
+            const float offset_nm = static_cast<float>(
+                std::hypot(map_offset_east_m, map_offset_north_m)) / 1852.0f;
+            const float request_range_nm =
+                std::max(0.5f, offset_nm + map_range_nm * 2.2f);
+            map_bg_.request(request_latitude, request_longitude,
+                            request_range_nm * 1.852f);
         }
         ui_.renderDetail(selected, stations.size(), total,
                          packets_per_minute_, gain_tenths_, agc_,
                          detail_scroll_, frequency_, &map_bg_,
-                         map_latitude, map_longitude, map_range_nm);
+                         map_latitude, map_longitude, map_range_nm,
+                         map_offset_east_m, map_offset_north_m);
     } else {
         const auto entries = store_.logSnapshot();
         const int max_scroll = std::max(0, static_cast<int>(entries.size()) - 1);
@@ -501,6 +526,7 @@ bool AprsPage::handleInput(AppKeyCode key) {
             } else if (view_ == View::Map) {
                 view_ = View::Detail;
                 detail_scroll_ = 0;
+                detail_zoom_ = 1.0f;
             } else if (view_ == View::Detail) {
                 view_ = View::Console;
                 console_scroll_ = 0;
@@ -556,6 +582,10 @@ bool AprsPage::handleInput(AppKeyCode key) {
             return false;
 
         case APPKEY_PLUS:
+            if (view_ == View::Detail) {
+                ++detail_scroll_;
+                return true;
+            }
             agc_ = false;
             gain_tenths_ = std::min(496, gain_tenths_ + 10);
             sdr_.setAGCMode(false);
@@ -564,6 +594,10 @@ bool AprsPage::handleInput(AppKeyCode key) {
             return true;
 
         case APPKEY_MINUS:
+            if (view_ == View::Detail) {
+                if (detail_scroll_ > 0) --detail_scroll_;
+                return true;
+            }
             agc_ = false;
             gain_tenths_ = std::max(0, gain_tenths_ - 10);
             sdr_.setAGCMode(false);
