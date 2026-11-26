@@ -31,7 +31,7 @@ namespace {
 
 constexpr double kPi = 3.14159265358979323846;
 constexpr int kTileSize = 256;
-constexpr const char* kUserAgent = "zeroSDR/0.3.9 (radar map)";
+constexpr const char* kUserAgent = "ZeroSDR/0.3.9 (radar map)";
 
 std::string sanitize(const std::string& text) {
     std::string out;

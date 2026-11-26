@@ -32,7 +32,7 @@ struct Message {
 
 /**
  * Runs the bundled acarsdec as a child process and reads its JSON output
- * from a loopback UDP socket. acarsdec is GPLv2-only while zeroSDR is
+ * from a loopback UDP socket. acarsdec is GPLv2-only while ZeroSDR is
  * GPL-3.0, so it is invoked as a separate program and never linked in.
  */
 class AcarsController {

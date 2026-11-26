@@ -140,7 +140,7 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
         fb.clear(COLOR_BG_DARK);
 
         if (page == 0) {
-            text.draw(fb, 12, 10, "WELCOME TO zeroSDR", COLOR_YELLOW, 16);
+            text.draw(fb, 12, 10, "WELCOME TO ZeroSDR", COLOR_YELLOW, 16);
             int y = 36;
             const char* rows[][2] = {
                 {"H", "key list + settings"},
@@ -232,7 +232,7 @@ void runFirstRunGuide(Framebuffer& fb, InputHandler& input) {
             text.draw(fb, 60, 96, "Show this guide on next start",
                       COLOR_TEXT_BRIGHT, 12);
             text.draw(fb, 12, 120, "SPACE: toggle", COLOR_TEXT_DIM, 12);
-            text.draw(fb, 12, 144, "ENTER: start zeroSDR", COLOR_YELLOW, 12);
+            text.draw(fb, 12, 144, "ENTER: start ZeroSDR", COLOR_YELLOW, 12);
         }
 
         fb.update();

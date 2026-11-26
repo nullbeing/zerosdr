@@ -1,6 +1,6 @@
-# Contributing to zeroSDR
+# Contributing to ZeroSDR
 
-Thank you for your interest in contributing to zeroSDR! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to ZeroSDR! This document provides guidelines for contributing to the project.
 
 ## 🐛 Reporting Issues
 
@@ -41,8 +41,8 @@ sudo apt-get install -y build-essential cmake librtlsdr-dev git
 ### Building
 
 ```bash
-git clone https://github.com/<your-username>/zeroSDR.git
-cd zeroSDR
+git clone https://github.com/<your-username>/zerosdr.git
+cd zerosdr
 mkdir build && cd build
 cmake ..
 make -j$(nproc)
@@ -120,7 +120,7 @@ We welcome contributions in these areas:
 
 ## 📜 License
 
-By contributing to zeroSDR, you agree that your contributions will be licensed under the GNU General Public License v3.0.
+By contributing to ZeroSDR, you agree that your contributions will be licensed under the GNU General Public License v3.0.
 
 ## 💬 Questions?
 
@@ -128,4 +128,4 @@ Feel free to open an issue for questions or discussion before starting major wor
 
 ## 🙏 Thank You
 
-Every contribution, whether it's code, documentation, bug reports, or testing, helps make zeroSDR better for everyone!
+Every contribution, whether it's code, documentation, bug reports, or testing, helps make ZeroSDR better for everyone!

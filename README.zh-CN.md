@@ -1,4 +1,4 @@
-# zeroSDR
+# ZeroSDR
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi%20%7C%20M5Stack-orange.svg)]()
@@ -6,11 +6,11 @@
 
 **简体中文** | [English](README.md)
 
-zeroSDR 是一个面向小屏幕嵌入式 Linux 的开源 SDR 接收程序。频谱和瀑布直接画进
+ZeroSDR 是一个面向小屏幕嵌入式 Linux 的开源 SDR 接收程序。频谱和瀑布直接画进
 framebuffer，音频解调（FM / NFM / AM / USB / LSB）通过 ALSA 输出，并提供
 ADSB、AIS、ACARS 与 RFI 页面。
 
-![zeroSDR 页面](images/showcase.png)
+![ZeroSDR 页面](images/showcase.png)
 
 *SDR 与宽带频谱、ADSB 雷达 / PFD / 设置、AIS 地图与船舶档案、
 ACARS 报文与 RFI 对比。*
@@ -50,7 +50,7 @@ ACARS 报文与 RFI 对比。*
 
 ![Cardputer Zero](images/zerosdr.jpg)
 
-*运行 zeroSDR 的 Cardputer Zero（M5Stack CM0）。*
+*运行 ZeroSDR 的 Cardputer Zero（M5Stack CM0）。*
 
 - Raspberry Pi 5 / Pi Zero 2W / M5Stack Cardputer Zero（CM0，aarch64）
 - RTL-SDR 电视棒（已验证：RTL-SDR Blog V4，RTL2832U）
@@ -90,7 +90,7 @@ cmake --build build -j"$(nproc)"
 
 ## 在 Cardputer Zero 上安装
 
-zeroSDR 已在 Cardputer Zero 应用商店（AppStore）上架：打开商店搜 **zeroSDR**
+ZeroSDR 已在 Cardputer Zero 应用商店（AppStore）上架：打开商店搜 **ZeroSDR**
 安装即可。在设备终端等价于：
 
 ```bash
@@ -198,7 +198,7 @@ TCA8418 键盘会自动识别（`tca8418c`）。`F`/`Z`/`X`/`C` 直接作为方�
 | `Esc`（长按 2 秒） | 退出，屏幕中央有进度提示 |
 
 `Fn`+`D` / `Fn`+`S` 在任何页面都能调节系统音量。launcher 的 labwc 绑定通常
-是 5% 一档；如果 300 ms 内系统音量没有变化，zeroSDR 会自己按 10% 调整，
+是 5% 一档；如果 300 ms 内系统音量没有变化，ZeroSDR 会自己按 10% 调整，
 并用 SDR 状态栏或频谱/ADSB 页的 `VOL n%` 提示反馈。SDR 页按音量 + 还会
 同时取消静音。
 
@@ -290,7 +290,7 @@ TrueType 字体渲染。
 ### 罗盘（BMI270 + BMM150）
 
 部分 Cardputer Zero 主板带有 BMI270 加速度计和 BMM150 磁力计（磁力计挂在 BMI270
-的辅助 I²C 总线上）。zeroSDR 通过内核 IIO 的 sysfs 设备读取两个传感器，不需要额外
+的辅助 I²C 总线上）。ZeroSDR 通过内核 IIO 的 sysfs 设备读取两个传感器，不需要额外
 驱动、守护进程或权限。检测到之后，雷达可以切换为**航向朝上**：罗盘刻度随设备转动，
 让机身上边所指的方向始终在圆盘顶部，飞机光点和扫描线也一起转。
 

@@ -617,7 +617,7 @@ void SDRUIRenderer::renderDialog(const char* title, const char* message, const c
 }
 
 void SDRUIRenderer::drawLogo(int x, int y) {
-    // "zeroSDR" logo with elegant large font (9x13 pixel characters, 3px spacing)
+    // "ZeroSDR" logo with elegant large font (9x13 pixel characters, 3px spacing)
     // Scaled up for better visibility
     // Color: subtle cyan-blue gradient
 
@@ -626,7 +626,7 @@ void SDRUIRenderer::drawLogo(int x, int y) {
     const uint16_t logo_color_dim    = 0x1C9F;  // Dim cyan #1C93FF
 
     // Character width: 9 pixels, height: 13 pixels, spacing: 3 pixels between chars
-    // "zeroSDR" = 7 characters
+    // "ZeroSDR" = 7 characters
     const int char_w = 9;
     const int char_h = 13;
     const int char_spacing = 3;
@@ -636,7 +636,7 @@ void SDRUIRenderer::drawLogo(int x, int y) {
     int start_x = x + (320 - total_width) / 2;
     int start_y = y + 20;  // 20px from top of spectrum area for better centering
 
-    // Define 9x13 bitmap font for "zeroSDR" (larger, more elegant)
+    // Define 9x13 bitmap font for "ZeroSDR" (larger, more elegant)
     // Each character is represented as 13 rows, each row has 9 bits
     const uint16_t font_z[] = {
         0b111111111,

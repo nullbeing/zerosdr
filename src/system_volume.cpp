@@ -88,7 +88,7 @@ bool SystemVolume::init() {
     }
 
     context_ = pa_context_new(pa_mainloop_get_api(loopHandle(mainloop_)),
-                              "zeroSDR");
+                              "ZeroSDR");
     if (context_ == nullptr) {
         error_ = "cannot create PulseAudio context";
         return false;

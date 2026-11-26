@@ -69,7 +69,7 @@ public:
     // Public helper for rendering frequency axis (used in device detection)
     void drawFreqAxis(uint32_t center_freq, uint32_t span, int y, int h);
 
-    // Draw zeroSDR logo in spectrum area
+    // Draw ZeroSDR logo in spectrum area
     void drawLogo(int x, int y);
 
     // Override renderDialog for SDR-specific dialog rendering (with overlay)

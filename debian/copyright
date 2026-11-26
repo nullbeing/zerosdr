@@ -1,5 +1,5 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: zeroSDR
+Upstream-Name: ZeroSDR
 Source: https://github.com/nullbeing/zerosdr
 
 Files: *
@@ -21,6 +21,6 @@ Copyright: 2007-2022, 2025 Thierry Leconte
            2024-2026 Thibaut VARENE
 License: GPL-2
  acarsdec is bundled as a separate executable and invoked as a subprocess;
- it is not linked into zeroSDR.
+ it is not linked into ZeroSDR.
  .
  On Debian systems the complete text is in /usr/share/common-licenses/GPL-2.

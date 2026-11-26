@@ -1,5 +1,5 @@
 [Desktop Entry]
-Name=zeroSDR
+Name=ZeroSDR
 Comment=Lightweight SDR receiver with spectrum, waterfall and audio
 Exec=bin/run-zerosdr
 Terminal=false

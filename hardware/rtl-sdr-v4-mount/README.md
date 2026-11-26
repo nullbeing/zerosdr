@@ -4,7 +4,7 @@ A 3D-printed bracket that clamps an RTL-SDR Blog V4 dongle to the back of the
 M5Stack Cardputer Zero. The dongle lies parallel to the case and a short USB-C
 cable loops from the dongle back to the device.
 
-Designed by Weiming Feng, the zeroSDR author.
+Designed by Weiming Feng, the ZeroSDR author.
 
 <img src="CardputerZero_RTLSDR_V4_mount.jpg" alt="RTL-SDR V4 dongle in the printed mount" width="360">
 

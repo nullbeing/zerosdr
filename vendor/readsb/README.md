@@ -1,7 +1,7 @@
 # Bundled readsb (ADSB/Mode-S decoder)
 
 `readsb` is built from <https://github.com/wiedehopf/readsb> with the RTL-SDR
-backend enabled and installed as `/usr/lib/zerosdr/readsb`; zeroSDR prefers it
+backend enabled and installed as `/usr/lib/zerosdr/readsb`; ZeroSDR prefers it
 over a system `/usr/bin/readsb`.
 
 - Upstream commit: `3f064e2` (readsb 3.16.21)

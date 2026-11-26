@@ -1,6 +1,6 @@
-# zeroSDR 在 Cardputer Zero 真机部署指南
+# ZeroSDR 在 Cardputer Zero 真机部署指南
 
-本文说明如何把 zeroSDR 完整部署到 M5Stack Cardputer Zero 的 APPLaunch 中，包括：
+本文说明如何把 ZeroSDR 完整部署到 M5Stack Cardputer Zero 的 APPLaunch 中，包括：
 
 - AArch64 构建
 - APPLaunch 目录、启动脚本、桌面入口和图标
@@ -12,7 +12,7 @@
 
 > 测试环境：Cardputer Zero（CM0，AArch64，Debian 13，320×170 屏幕，ES8389，TCA8418 键盘）
 >
-> 项目：zeroSDR v0.3.9
+> 项目：ZeroSDR v0.3.9
 
 ---
 
@@ -67,7 +67,7 @@ sudo apt-get install -y \
 
 - Debian 13 的 ALSA 运行时包是 `libasound2t64`；旧系统可能是 `libasound2`。
 - `alsa-utils` 提供 `amixer`，启动脚本会用它设置 DAC 音量。
-- `pipewire-alsa` 让 ALSA 的 `default` 设备走 PipeWire，zeroSDR 才能从扬声器出声。
+- `pipewire-alsa` 让 ALSA 的 `default` 设备走 PipeWire，ZeroSDR 才能从扬声器出声。
 
 > **已知系统坑：`pipewire-alsa` 可能升级 libcamera**
 >
@@ -78,7 +78,7 @@ sudo apt-get install -y \
 > undefined symbol: _ZN9libcamera10properties14PixelArraySizeE
 > ```
 >
-> 这不是 zeroSDR 的问题，但如果还要使用 Camera App，请阅读本文最后的
+> 这不是 ZeroSDR 的问题，但如果还要使用 Camera App，请阅读本文最后的
 > “Camera App 被 libcamera 升级破坏” 一节。
 
 ### 2.3 用户权限
@@ -125,7 +125,7 @@ sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
 ---
 
-## 3. 构建 zeroSDR
+## 3. 构建 ZeroSDR
 
 ### 3.1 在 Cardputer Zero 上原生构建
 
@@ -169,7 +169,7 @@ scp build/zerosdr pi@<cardputer-ip>:/tmp/zerosdr
 
 ### 3.3 必须使用 Release
 
-zeroSDR 在 CM0 上要同时跑 FFT、解调、重采样和 UI。未优化的构建会导致音频线程跟不上，出现持续 underrun 和卡顿。
+ZeroSDR 在 CM0 上要同时跑 FFT、解调、重采样和 UI。未优化的构建会导致音频线程跟不上，出现持续 underrun 和卡顿。
 
 确认：
 
@@ -290,7 +290,7 @@ sudo chmod 755 /usr/share/APPLaunch/bin/run-zerosdr
 ```bash
 sudo tee /usr/share/APPLaunch/applications/zerosdr.desktop >/dev/null <<'EOF'
 [Desktop Entry]
-Name=zeroSDR
+Name=ZeroSDR
 Comment=Lightweight SDR receiver
 Exec=bin/run-zerosdr
 Terminal=false
@@ -370,7 +370,7 @@ amixer -c 1 cset name='DACR Playback Volume' 179
 sudo alsactl store
 ```
 
-wrapper 已包含这两条命令，所以每次从 APPLaunch 启动 zeroSDR 都会重新设置。
+wrapper 已包含这两条命令，所以每次从 APPLaunch 启动 ZeroSDR 都会重新设置。
 
 ### 5.3 PipeWire quantum
 
@@ -432,7 +432,7 @@ ls -l /dev/fb_lcd
 cat /proc/fb
 ```
 
-zeroSDR 支持 `-d <device>`，wrapper 已自动传入。
+ZeroSDR 支持 `-d <device>`，wrapper 已自动传入。
 
 ### 6.2 键盘
 
@@ -442,7 +442,7 @@ Cardputer Zero 使用 TCA8418：
 /dev/input/by-path/platform-3f804000.i2c-event
 ```
 
-zeroSDR 会自动识别设备名中的 `tca8418`，并使用 Cardputer Zero 专用键位映射。
+ZeroSDR 会自动识别设备名中的 `tca8418`，并使用 Cardputer Zero 专用键位映射。
 
 **按 `H` 可以随时在屏幕上打开按键列表**；在列表页按 `→` 切到设置页
 （FM 去加重、音频 AGC、FFT 大小、采样率），`H` 关闭。
@@ -511,7 +511,7 @@ sudo pkill readsb
 sudo pkill -f rtl_
 ```
 
-不建议让 readsb 的 systemd 服务常驻；zeroSDR 会自己管理 readsb。
+不建议让 readsb 的 systemd 服务常驻；ZeroSDR 会自己管理 readsb。
 
 ### 7.3 USB 稳定性
 
@@ -534,7 +534,7 @@ Audio buffer underrun
 
 ## 8. ADSB 部署
 
-zeroSDR 的 ADSB 页面本身只负责解析 `aircraft.json`，真正解码 1090 MHz 的是外部程序 **readsb**。
+ZeroSDR 的 ADSB 页面本身只负责解析 `aircraft.json`，真正解码 1090 MHz 的是外部程序 **readsb**。
 
 ### 8.1 不要直接使用 Debian 的 readsb
 
@@ -592,7 +592,7 @@ sudo systemctl disable --now readsb.service
 sudo apt-mark hold readsb
 ```
 
-### 8.4 zeroSDR 中的配置
+### 8.4 ZeroSDR 中的配置
 
 当前源码使用：
 
@@ -625,7 +625,7 @@ sudo apt-mark hold readsb
 - 按 `Tab` 切到 ADSB
 - 按 `L` 设置经纬度（距离/雷达视图需要）
 - `G` 切换增益模式，`+/-` 调整
-- 按 `Tab` 切回 SDR；zeroSDR 会杀掉 readsb 并重新初始化 RTL-SDR
+- 按 `Tab` 切回 SDR；ZeroSDR 会杀掉 readsb 并重新初始化 RTL-SDR
 
 如果 ADSB 页面没有飞机：
 
@@ -638,7 +638,7 @@ ls -l /tmp/readsb/aircraft.json
 
 ## 9. 启动与验证
 
-1. 从 APPLaunch 打开 **zeroSDR**
+1. 从 APPLaunch 打开 **ZeroSDR**
 2. 确认屏幕显示频谱/瀑布
 3. 确认 RTL-SDR 被识别
 4. 确认音频有输出
@@ -743,7 +743,7 @@ ls -l /usr/bin/readsb
 
 - 使用了 Debian 不带 RTL-SDR 的 readsb
 - `readsb.service` 正在运行并占用设备
-- zeroSDR 还没有释放 RTL-SDR
+- ZeroSDR 还没有释放 RTL-SDR
 - 天线不是 1090 MHz
 
 ### 10.7 Camera App 被 libcamera 升级破坏

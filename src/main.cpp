@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
 
-    std::cout << "zeroSDR " << ZEROSDR_VERSION_STRING << " - Initializing..." << std::endl;
+    std::cout << "ZeroSDR " << ZEROSDR_VERSION_STRING << " - Initializing..." << std::endl;
 
     // Initialize framebuffer
     Framebuffer fb(fb_device);
@@ -138,7 +138,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Draw zeroSDR logo
+        // Draw ZeroSDR logo
         sdr_ui.drawLogo(0, SPECTRUM_Y);
 
         // Draw red center frequency indicator

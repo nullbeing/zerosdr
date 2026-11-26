@@ -1,4 +1,4 @@
-# zeroSDR
+# ZeroSDR
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi%20%7C%20M5Stack-orange.svg)]()
@@ -6,12 +6,12 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-zeroSDR is an open source SDR receiver for Linux-based small-screen embedded
+ZeroSDR is an open source SDR receiver for Linux-based small-screen embedded
 systems. It renders the spectrum and waterfall straight into the framebuffer,
 demodulates FM / NFM / AM / USB / LSB audio through ALSA, and adds ADSB
 aircraft, AIS vessels and ACARS messages plus an RFI survey page.
 
-![zeroSDR pages](images/showcase.png)
+![ZeroSDR pages](images/showcase.png)
 
 *SDR and wideband spectrum, ADSB radar / PFD / settings, AIS plot and
 dossier, ACARS messages and the RFI survey.*
@@ -90,7 +90,7 @@ c++ -std=c++17 -Iinclude tests/rfi_measurement_test.cpp src/fft_processor.cpp -o
 
 ![Cardputer Zero](images/zerosdr.jpg)
 
-*Cardputer Zero (M5Stack CM0) running zeroSDR.*
+*Cardputer Zero (M5Stack CM0) running ZeroSDR.*
 
 - Raspberry Pi 5 / Pi Zero 2W / M5Stack Cardputer Zero (CM0, aarch64)
 - RTL-SDR dongle (tested: RTL-SDR Blog V4, RTL2832U)
@@ -100,7 +100,7 @@ c++ -std=c++17 -Iinclude tests/rfi_measurement_test.cpp src/fft_processor.cpp -o
 
 ## RTL-SDR V4 mount
 
-A 3D-printed mount designed by the zeroSDR author for the RTL-SDR Blog V4
+A 3D-printed mount designed by the ZeroSDR author for the RTL-SDR Blog V4
 dongle. It clamps the dongle to the back of the Cardputer Zero, so the receiver
 and the antenna connector travel as one unit; a short USB-C cable loops back to
 the device.
@@ -132,7 +132,7 @@ in real time on four small cores.
 
 ## Install on Cardputer Zero
 
-zeroSDR is in the Cardputer Zero AppStore: open the store, find **zeroSDR** and
+ZeroSDR is in the Cardputer Zero AppStore: open the store, find **ZeroSDR** and
 install it. On the device shell the same package is:
 
 ```bash
@@ -186,7 +186,7 @@ systemctl --user restart APPLaunch.service
 
 ## First run
 
-On the first start zeroSDR shows a short guide (reopen it from
+On the first start ZeroSDR shows a short guide (reopen it from
 `H` → settings → `SHOW GUIDE`):
 
 - `H` opens the key list and settings
@@ -394,7 +394,7 @@ bank is estimated from the track change rate.
 
 Some Cardputer Zero boards carry a BMI270 accelerometer and a BMM150
 magnetometer (the magnetometer is reached through the BMI270 auxiliary I²C
-bus). zeroSDR reads both through the kernel's IIO sysfs devices, so no extra
+bus). ZeroSDR reads both through the kernel's IIO sysfs devices, so no extra
 driver, daemon or permission is needed. When they are present the radar can be
 **heading-up**: the compass rose rotates so that the direction the top edge of
 the device points is at the top of the scope, and the aircraft blips (and the
@@ -456,7 +456,7 @@ Audio feedback:
 
 ## AIS vessel tracking
 
-zeroSDR decodes AIS itself; no external decoder is required. It tunes
+ZeroSDR decodes AIS itself; no external decoder is required. It tunes
 162.000 MHz at 1.92 Msps and receives AIS1 (161.975 MHz) and AIS2
 (162.025 MHz) simultaneously, then runs the GMSK / HDLC / CRC / 6-bit chain in
 a dedicated thread.
@@ -525,7 +525,7 @@ Offline tools:
 
 The ACARS page decodes VHF ACARS text messages from aircraft. The decoder is
 the bundled `acarsdec` binary at `/usr/lib/zerosdr/acarsdec`. It is
-GPLv2-only while zeroSDR is GPL-3.0, so it is executed as a separate process
+GPLv2-only while ZeroSDR is GPL-3.0, so it is executed as a separate process
 and its JSON output is read over loopback UDP; no code is linked into the
 application.
 
@@ -642,7 +642,7 @@ real signals come through.
 
 `Please fix the device permissions, e.g. by installing the udev rules file
 rtl-sdr.rules` means the USB node belongs to root and your desktop user cannot
-open it. zeroSDR runs as that user, so `sudo zerosdr` working is not the fix.
+open it. ZeroSDR runs as that user, so `sudo zerosdr` working is not the fix.
 
 ```bash
 lsusb | grep -i 0bda
@@ -687,7 +687,7 @@ amixer -c 1 sget Speaker
 ```
 
 On a minimal image the ALSA `default` route may be missing (the app then logs
-`Cannot open audio device default`). zeroSDR automatically falls back to
+`Cannot open audio device default`). ZeroSDR automatically falls back to
 `pulse` / `pipewire` / the codec device; install `libasound2-plugins` if none of
 them exist:
 
@@ -700,7 +700,7 @@ ES8389 amplifier to drop out.
 
 `Fn`+`D` / `Fn`+`S` adjust the **system** sink volume on every page. The
 launcher's labwc binding normally performs a 5% step; if the sink did not move
-within 300 ms, zeroSDR applies its own 10% step so the keys also work without
+within 300 ms, ZeroSDR applies its own 10% step so the keys also work without
 the launcher. The SDR status bar follows the sink (volume-up also unmutes),
 and the spectrum/ADSB pages show a short `VOL n%` popup. Bare `V` / `C` are
 not volume keys. If the launcher was left at a low volume, check it before
