@@ -14,6 +14,15 @@
 
 namespace aprs {
 
+struct TrailPoint {
+    time_t time = 0;
+    double latitude = 0.0;
+    double longitude = 0.0;
+    float speed_knots = -1.0f;
+    float course = -1.0f;
+    int altitude_ft = -100000;
+};
+
 struct StationState {
     std::string callsign;
     std::string destination;
@@ -47,7 +56,7 @@ struct StationState {
     uint32_t packets = 0;
     bool stale = false;
 
-    std::deque<std::pair<double, double>> trail;  // oldest first
+    std::deque<TrailPoint> trail;  // oldest first
 };
 
 struct LogEntry {

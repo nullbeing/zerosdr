@@ -221,6 +221,16 @@ target_include_directories(aprs_decoder_test PRIVATE
 )
 target_link_libraries(aprs_decoder_test PRIVATE ${M_LIB})
 
+# APRS station/track store regression test (development helper, not installed).
+add_executable(aprs_store_test
+    tests/aprs_store_test.cpp
+    src/aprs/aprs_store.cpp
+)
+target_include_directories(aprs_store_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(aprs_store_test PRIVATE ${M_LIB})
+
 # Link libraries
 target_link_libraries(zerosdr PRIVATE
     ${RTL_SDR_LIB}

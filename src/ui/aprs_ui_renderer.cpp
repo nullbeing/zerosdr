@@ -108,6 +108,25 @@ uint16_t colorForKind(char kind, const uint16_t accent, const uint16_t dim,
     }
 }
 
+float trailLengthNm(const std::deque<aprs::TrailPoint>& trail) {
+    float total = 0.0f;
+    for (size_t i = 1; i < trail.size(); ++i) {
+        total += distanceNm(trail[i - 1].latitude, trail[i - 1].longitude,
+                            trail[i].latitude, trail[i].longitude);
+    }
+    return total;
+}
+
+void formatTrackDuration(long seconds, char* out, size_t size) {
+    if (seconds < 60) {
+        std::snprintf(out, size, "%ldS", seconds);
+    } else if (seconds < 3600) {
+        std::snprintf(out, size, "%ldM", seconds / 60);
+    } else {
+        std::snprintf(out, size, "%.1fH", seconds / 3600.0);
+    }
+}
+
 }  // namespace
 
 AprsUIRenderer::AprsUIRenderer(Framebuffer& fb) : BaseUIRenderer(fb) {
@@ -401,27 +420,70 @@ void AprsUIRenderer::renderMap(
             std::cos(station.bearing_deg * kPi / 180.0) *
             (station.distance_nm / range_nm) * radius));
 
-        // Trail, oldest first.
-        for (size_t t = 0; t < station.trail.size(); ++t) {
-            const float trail_distance =
-                distanceNm(station_latitude, station_longitude,
-                           station.trail[t].first, station.trail[t].second);
-            if (trail_distance > range_nm) continue;
-            const float trail_bearing =
-                bearingDeg(station_latitude, station_longitude,
-                           station.trail[t].first, station.trail[t].second);
-            const int tx = cx + static_cast<int>(std::lround(
-                std::sin(trail_bearing * kPi / 180.0) *
-                (trail_distance / range_nm) * radius));
-            const int ty = cy - static_cast<int>(std::lround(
-                std::cos(trail_bearing * kPi / 180.0) *
-                (trail_distance / range_nm) * radius));
-            fb_.drawPixel(tx, ty,
-                          t + 2 >= station.trail.size() ? theme_.dim
-                                                        : theme_.grid);
-        }
-
         const bool selected = (index == selected_index);
+
+        const auto project = [&](double latitude, double longitude, int& tx,
+                                 int& ty) -> bool {
+            const float trail_distance = distanceNm(
+                station_latitude, station_longitude, latitude, longitude);
+            if (trail_distance > range_nm) return false;
+            const float trail_bearing = bearingDeg(
+                station_latitude, station_longitude, latitude, longitude);
+            tx = cx + static_cast<int>(std::lround(
+                     std::sin(trail_bearing * kPi / 180.0) *
+                     (trail_distance / range_nm) * radius));
+            ty = cy - static_cast<int>(std::lround(
+                     std::cos(trail_bearing * kPi / 180.0) *
+                     (trail_distance / range_nm) * radius));
+            return true;
+        };
+
+        // The selected station gets a connected, recent-weighted track.
+        // Other stations keep faint dots so the map does not become busy.
+        if (selected) {
+            int previous_x = 0;
+            int previous_y = 0;
+            bool have_previous = false;
+            const size_t count = station.trail.size();
+            for (size_t t = 0; t < count; ++t) {
+                int tx = 0;
+                int ty = 0;
+                if (!project(station.trail[t].latitude,
+                             station.trail[t].longitude, tx, ty)) {
+                    have_previous = false;
+                    continue;
+                }
+                if (have_previous) {
+                    const float fraction = static_cast<float>(t) /
+                                           static_cast<float>(count - 1);
+                    const uint16_t color = fraction > 0.75f
+                                               ? 0xFD20
+                                               : (fraction > 0.40f
+                                                      ? theme_.accent
+                                                      : theme_.dim);
+                    fb_.drawLine(previous_x, previous_y, tx, ty, color);
+                }
+                previous_x = tx;
+                previous_y = ty;
+                have_previous = true;
+            }
+            int sx = 0;
+            int sy = 0;
+            if (!station.trail.empty() &&
+                project(station.trail.front().latitude,
+                        station.trail.front().longitude, sx, sy)) {
+                drawCircleOutline(fb_, sx, sy, 2, theme_.text);
+            }
+        } else {
+            for (size_t t = 0; t < station.trail.size(); t += 2) {
+                int tx = 0;
+                int ty = 0;
+                if (project(station.trail[t].latitude,
+                            station.trail[t].longitude, tx, ty)) {
+                    fb_.drawPixel(tx, ty, theme_.grid);
+                }
+            }
+        }
         const uint16_t color =
             selected ? 0xFD20
                      : (station.stale
@@ -496,12 +558,184 @@ void AprsUIRenderer::renderMap(
     fb_.fillRect(0, 152, kScreenWidth, 1, theme_.grid);
     std::snprintf(buffer, sizeof(buffer), "PLOT %.0fNM", range_nm);
     drawSmallText(2, 157, buffer, theme_.text);
-    const char* hint = "UP/DN RANGE  <> TGT  H HELP";
+    if (selected_index >= 0 &&
+        selected_index < static_cast<int>(stations.size())) {
+        const aprs::StationState& selected =
+            stations[static_cast<size_t>(selected_index)];
+        if (selected.trail.size() >= 2) {
+            std::snprintf(buffer, sizeof(buffer), "TRK %.1fNM",
+                          trailLengthNm(selected.trail));
+            drawSmallText(70, 157, buffer, theme_.dim);
+        }
+    }
+    const char* hint = "UP/DN  <>  H HELP";
     drawSmallText(kScreenWidth - smallTextWidth(hint) - 2, 157, hint,
                   theme_.dim);
     (void)total_packets;
     (void)gain_tenths;
     (void)agc;
+}
+
+void AprsUIRenderer::renderTrackPlot(const aprs::StationState& station,
+                                     int px, int py, int pw, int ph) {
+    fb_.fillRect(px, py, pw, ph, theme_.panel);
+    fb_.drawRect(px, py, pw, ph, theme_.grid);
+
+    drawSmallText(px + 4, py + 3, "TRACK", theme_.dim);
+    char buffer[32];
+    std::snprintf(buffer, sizeof(buffer), "%zu", station.trail.size());
+    drawSmallText(px + pw - smallTextWidth(buffer) - 4, py + 3, buffer,
+                  theme_.dim);
+
+    const int ix = px + 4;
+    const int iy = py + 13;
+    const int iw = pw - 8;
+    const int ih = ph - 26;
+
+    for (int i = 1; i < 4; ++i) {
+        fb_.drawLine(ix + iw * i / 4, iy, ix + iw * i / 4, iy + ih,
+                     theme_.grid);
+        fb_.drawLine(ix, iy + ih * i / 4, ix + iw, iy + ih * i / 4,
+                     theme_.grid);
+    }
+
+    if (station.trail.size() < 2) {
+        const char* message = "NO TRACK YET";
+        drawSmallText(px + (pw - smallTextWidth(message)) / 2,
+                      py + ph / 2 - 4, message, theme_.dim);
+        if (station.has_position) {
+            const int cx = ix + iw / 2;
+            const int cy = iy + ih / 2;
+            fb_.drawLine(cx - 3, cy, cx + 3, cy, theme_.text);
+            fb_.drawLine(cx, cy - 3, cx, cy + 3, theme_.text);
+            fb_.drawPixel(cx, cy, 0xFD20);
+        }
+        return;
+    }
+
+    double mean_latitude = 0.0;
+    for (const auto& point : station.trail) mean_latitude += point.latitude;
+    mean_latitude /= static_cast<double>(station.trail.size());
+    const double cos_latitude = std::cos(mean_latitude * kPi / 180.0);
+
+    double min_east = 1e9;
+    double max_east = -1e9;
+    double min_north = 1e9;
+    double max_north = -1e9;
+    for (const auto& point : station.trail) {
+        const double east = point.longitude * 60.0 * cos_latitude;
+        const double north = point.latitude * 60.0;
+        min_east = std::min(min_east, east);
+        max_east = std::max(max_east, east);
+        min_north = std::min(min_north, north);
+        max_north = std::max(max_north, north);
+    }
+
+    double span_east = std::max(0.02, max_east - min_east);
+    double span_north = std::max(0.02, max_north - min_north);
+    const double scale = std::min((iw - 8) / span_east,
+                                  (ih - 8) / span_north);
+    const double center_east = (min_east + max_east) / 2.0;
+    const double center_north = (min_north + max_north) / 2.0;
+    const int cx = ix + iw / 2;
+    const int cy = iy + ih / 2;
+
+    const auto project = [&](const aprs::TrailPoint& point, int& x, int& y) {
+        const double east = point.longitude * 60.0 * cos_latitude;
+        const double north = point.latitude * 60.0;
+        x = cx + static_cast<int>(
+                     std::lround((east - center_east) * scale));
+        y = cy - static_cast<int>(
+                     std::lround((north - center_north) * scale));
+    };
+
+    int previous_x = 0;
+    int previous_y = 0;
+    bool have_previous = false;
+    const size_t count = station.trail.size();
+    for (size_t i = 0; i < count; ++i) {
+        int x = 0;
+        int y = 0;
+        project(station.trail[i], x, y);
+        if (have_previous) {
+            const float fraction = static_cast<float>(i) /
+                                   static_cast<float>(count - 1);
+            const uint16_t color = fraction > 0.75f
+                                       ? 0xFD20
+                                       : (fraction > 0.40f ? theme_.accent
+                                                           : theme_.dim);
+            fb_.drawLine(previous_x, previous_y, x, y, color);
+        }
+        previous_x = x;
+        previous_y = y;
+        have_previous = true;
+        if (i + 8 >= count) fb_.drawPixel(x, y, theme_.text);
+    }
+
+    // Start marker and current position.
+    int start_x = 0;
+    int start_y = 0;
+    project(station.trail.front(), start_x, start_y);
+    drawCircleOutline(fb_, start_x, start_y, 2, theme_.text);
+
+    int end_x = 0;
+    int end_y = 0;
+    project(station.trail.back(), end_x, end_y);
+    const float course = station.course >= 0.0f
+                             ? station.course
+                             : station.trail.back().course;
+    if (course >= 0.0f) {
+        const float angle = course * static_cast<float>(kPi) / 180.0f;
+        const int nose_x =
+            end_x + static_cast<int>(std::lround(std::sin(angle) * 4.0f));
+        const int nose_y =
+            end_y - static_cast<int>(std::lround(std::cos(angle) * 4.0f));
+        const int left_x = end_x + static_cast<int>(std::lround(
+            std::sin(angle + 2.5f) * 3.0f));
+        const int left_y = end_y - static_cast<int>(std::lround(
+            std::cos(angle + 2.5f) * 3.0f));
+        const int right_x = end_x + static_cast<int>(std::lround(
+            std::sin(angle - 2.5f) * 3.0f));
+        const int right_y = end_y - static_cast<int>(std::lround(
+            std::cos(angle - 2.5f) * 3.0f));
+        fb_.drawLine(nose_x, nose_y, left_x, left_y, 0xFD20);
+        fb_.drawLine(left_x, left_y, right_x, right_y, 0xFD20);
+        fb_.drawLine(right_x, right_y, nose_x, nose_y, 0xFD20);
+    } else {
+        fb_.fillRect(end_x - 1, end_y - 1, 3, 3, 0xFD20);
+    }
+
+    // Scale bar in the lower-left corner.
+    static const double kNice[] = {0.005, 0.01, 0.02, 0.05, 0.1, 0.2,
+                                   0.5,   1.0,  2.0,  5.0,  10.0, 20.0,
+                                   50.0,  100.0, 200.0};
+    double bar_nm = kNice[0];
+    for (double candidate : kNice) {
+        if (candidate * scale <= 48.0) {
+            bar_nm = candidate;
+        } else {
+            break;
+        }
+    }
+    const int bar_px = std::max(4, static_cast<int>(std::lround(bar_nm * scale)));
+    char label[16];
+    if (bar_nm < 0.1) {
+        std::snprintf(label, sizeof(label), "%.2fNM", bar_nm);
+    } else if (bar_nm < 10.0) {
+        std::snprintf(label, sizeof(label), "%.1fNM", bar_nm);
+    } else {
+        std::snprintf(label, sizeof(label), "%.0fNM", bar_nm);
+    }
+    const int bar_x = ix + 2;
+    const int bar_y = iy + ih - 5;
+    const int label_width = smallTextWidth(label);
+    fb_.fillRect(bar_x - 2, bar_y - 7, bar_px + label_width + 8, 12,
+                 theme_.panel);
+    fb_.drawLine(bar_x, bar_y, bar_x + bar_px, bar_y, theme_.text);
+    fb_.drawLine(bar_x, bar_y - 2, bar_x, bar_y + 2, theme_.text);
+    fb_.drawLine(bar_x + bar_px, bar_y - 2, bar_x + bar_px, bar_y + 2,
+                 theme_.text);
+    drawSmallText(bar_x + bar_px + 4, bar_y - 3, label, theme_.dim);
 }
 
 void AprsUIRenderer::renderDetail(
@@ -519,44 +753,73 @@ void AprsUIRenderer::renderDetail(
         return;
     }
 
-    char buffer[96];
-    drawText(6, 24, station->callsign.c_str(), theme_.accent);
-    const char* kind = aprs::Store::kindLabel(station->kind);
-    const int kind_width = smallTextWidth(kind);
-    drawSmallText(kScreenWidth - kind_width - 6, 29, kind, theme_.text);
+    constexpr int plot_x = 2;
+    constexpr int plot_y = 24;
+    constexpr int plot_w = 160;
+    constexpr int plot_h = 124;
+    renderTrackPlot(*station, plot_x, plot_y, plot_w, plot_h);
 
+    char buffer[96];
+    if (station->trail.size() >= 2) {
+        const float length = trailLengthNm(station->trail);
+        const long duration = static_cast<long>(
+            station->trail.back().time - station->trail.front().time);
+        char span[16];
+        formatTrackDuration(std::max(0L, duration), span, sizeof(span));
+        std::snprintf(buffer, sizeof(buffer), "TRK %.1fNM %s %zuP", length,
+                      span, station->trail.size());
+        drawSmallText(plot_x, 151, buffer, theme_.text);
+    } else if (station->trail.size() == 1) {
+        drawSmallText(plot_x, 151, "TRK 1 FIX", theme_.dim);
+    } else {
+        drawSmallText(plot_x, 151, "TRK --", theme_.dim);
+    }
+
+    fb_.fillRect(plot_x + plot_w + 2, 22, 1, 126, theme_.grid);
+
+    const int rx = plot_x + plot_w + 6;
+    drawText(rx, 24, station->callsign.c_str(), theme_.accent);
+
+    const char* kind = aprs::Store::kindLabel(station->kind);
+    drawSmallText(rx, 42, kind, theme_.text);
     char symbol[8];
     std::snprintf(symbol, sizeof(symbol), "%c",
                   (station->symbol >= 0x20 && station->symbol <= 0x7E)
                       ? station->symbol
                       : '?');
-    drawSmallText(kScreenWidth - kind_width - 24, 29, symbol, theme_.dim);
+    drawSmallText(kScreenWidth - smallTextWidth(symbol) - 2, 42, symbol,
+                  theme_.dim);
 
-    fb_.fillRect(6, 44, kScreenWidth - 12, 1, theme_.grid);
-
-    int y = 50;
+    int y = 54;
     if (station->has_position) {
-        std::snprintf(buffer, sizeof(buffer), "POS  %.5f, %.5f",
-                      station->latitude, station->longitude);
+        std::snprintf(buffer, sizeof(buffer), "LAT %.5f", station->latitude);
     } else {
-        std::snprintf(buffer, sizeof(buffer), "POS  --");
+        std::snprintf(buffer, sizeof(buffer), "LAT --");
     }
-    drawSmallText(6, y, buffer, theme_.text);
-    y += 10;
+    drawSmallText(rx, y, buffer, theme_.text);
+    y += 9;
+
+    if (station->has_position) {
+        std::snprintf(buffer, sizeof(buffer), "LON %.5f", station->longitude);
+    } else {
+        std::snprintf(buffer, sizeof(buffer), "LON --");
+    }
+    drawSmallText(rx, y, buffer, theme_.text);
+    y += 9;
 
     if (station->has_position && station->distance_nm >= 0.0f) {
-        std::snprintf(buffer, sizeof(buffer), "RNG  %.1f NM   BRG %03.0f",
+        std::snprintf(buffer, sizeof(buffer), "RNG %.1fNM B%03.0f",
                       station->distance_nm, station->bearing_deg);
     } else {
-        std::snprintf(buffer, sizeof(buffer), "RNG  --");
+        std::snprintf(buffer, sizeof(buffer), "RNG --");
     }
-    drawSmallText(6, y, buffer, theme_.text);
-    y += 10;
+    drawSmallText(rx, y, buffer, theme_.text);
+    y += 9;
 
-    char speed[16];
-    char course[16];
+    char speed[8];
+    char course[8];
     if (station->speed_knots >= 0.0f) {
-        std::snprintf(speed, sizeof(speed), "%.0f kn", station->speed_knots);
+        std::snprintf(speed, sizeof(speed), "%.0fKN", station->speed_knots);
     } else {
         std::snprintf(speed, sizeof(speed), "--");
     }
@@ -565,70 +828,79 @@ void AprsUIRenderer::renderDetail(
     } else {
         std::snprintf(course, sizeof(course), "---");
     }
-    std::snprintf(buffer, sizeof(buffer), "SPD  %-8s CRS %s", speed, course);
-    drawSmallText(6, y, buffer, theme_.text);
-    y += 10;
+    std::snprintf(buffer, sizeof(buffer), "SPD %s CRS %s", speed, course);
+    drawSmallText(rx, y, buffer, theme_.text);
+    y += 9;
 
     if (station->altitude_ft > -1000) {
-        std::snprintf(buffer, sizeof(buffer), "ALT  %d ft",
+        std::snprintf(buffer, sizeof(buffer), "ALT %dFT",
                       station->altitude_ft);
     } else {
-        std::snprintf(buffer, sizeof(buffer), "ALT  --");
+        std::snprintf(buffer, sizeof(buffer), "ALT --");
     }
-    drawSmallText(6, y, buffer, theme_.text);
-    y += 10;
+    drawSmallText(rx, y, buffer, theme_.text);
+    y += 9;
 
     const long age = static_cast<long>(time(nullptr) - station->last_seen);
-    std::snprintf(buffer, sizeof(buffer), "AGE  %lds   PKT %u", age,
+    std::snprintf(buffer, sizeof(buffer), "AGE %ldS PKT%u", age,
                   station->packets);
-    drawSmallText(6, y, buffer, theme_.dim);
-    y += 10;
+    drawSmallText(rx, y, buffer, theme_.dim);
+    y += 9;
 
-    std::snprintf(buffer, sizeof(buffer), "DST  %.9s   VIA %.20s",
+    std::snprintf(buffer, sizeof(buffer), "DST %.13s",
                   station->destination.empty() ? "--"
-                                               : station->destination.c_str(),
+                                               : station->destination.c_str());
+    drawSmallText(rx, y, buffer, theme_.dim);
+    y += 9;
+
+    std::snprintf(buffer, sizeof(buffer), "VIA %.17s",
                   station->path.empty() ? "DIRECT" : station->path.c_str());
-    drawSmallText(6, y, buffer, theme_.dim);
-    y += 10;
+    drawSmallText(rx, y, buffer, theme_.dim);
+    y += 9;
 
     if (station->weather) {
-        char wind[24];
-        if (station->wind_dir >= 0.0f) {
-            std::snprintf(wind, sizeof(wind), "%03.0f/%.0f mph",
+        char wind[16];
+        if (station->wind_dir >= 0.0f && station->wind_speed_mph >= 0.0f) {
+            std::snprintf(wind, sizeof(wind), "%03.0f/%.0f",
                           station->wind_dir, station->wind_speed_mph);
         } else {
             std::snprintf(wind, sizeof(wind), "--");
         }
-        std::snprintf(buffer, sizeof(buffer), "WX   WIND %s  TEMP %.1fC",
-                      wind, station->temperature_c);
-        drawSmallText(6, y, buffer, 0x07FF);
-        y += 10;
+        char temperature[16];
+        if (station->temperature_c != 0.0f) {
+            std::snprintf(temperature, sizeof(temperature), "%.0fC",
+                          station->temperature_c);
+        } else {
+            std::snprintf(temperature, sizeof(temperature), "--");
+        }
+        std::snprintf(buffer, sizeof(buffer), "WX %s %s", wind, temperature);
+        drawSmallText(rx, y, buffer, 0x07FF);
+        y += 9;
         if (station->rain_hour_mm >= 0.0f) {
-            std::snprintf(buffer, sizeof(buffer), "     RAIN %.1f mm/h",
+            std::snprintf(buffer, sizeof(buffer), "RAIN %.1fMM",
                           station->rain_hour_mm);
-            drawSmallText(6, y, buffer, 0x07FF);
-            y += 10;
+            drawSmallText(rx, y, buffer, 0x07FF);
+            y += 9;
         }
     }
 
-    // Comment, wrapped over up to three lines.
+    // Comment, wrapped to the narrow right column.
     const std::string& comment = station->comment;
-    if (!comment.empty() && y <= 130) {
-        constexpr size_t kWidth = 44;
+    if (!comment.empty()) {
+        constexpr size_t kWidth = 21;
         size_t offset = 0;
         int lines = 0;
-        while (offset < comment.size() && lines < 3) {
+        while (offset < comment.size() && y <= 144 && lines < 3) {
             std::string line = comment.substr(offset, kWidth);
             offset += line.size();
-            drawSmallText(6, y, line.c_str(),
+            drawSmallText(rx, y, line.c_str(),
                           lines == 0 ? theme_.text : theme_.dim);
-            y += 10;
+            y += 9;
             ++lines;
         }
     }
 
-    renderStatsBar(total_packets, station_count, gain_tenths, agc,
-                   "H HELP");
+    drawSmallText(2, 161, "ENTER CONSOLE  H HELP  ESC LIST", theme_.dim);
 }
 
 void AprsUIRenderer::renderConsole(

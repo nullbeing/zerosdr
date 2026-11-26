@@ -113,6 +113,7 @@ void AprsPage::onEnter() {
 
     view_ = View::List;
     selected_index_ = 0;
+    selected_callsign_.clear();
     scroll_offset_ = 0;
     console_scroll_ = 0;
     help_visible_ = false;
@@ -255,14 +256,37 @@ void AprsPage::update(float delta_time) {
     render();
 }
 
+int AprsPage::selectedIndexIn(
+    const std::vector<aprs::StationState>& stations) const {
+    if (stations.empty()) return 0;
+    if (!selected_callsign_.empty()) {
+        for (size_t i = 0; i < stations.size(); ++i) {
+            if (stations[i].callsign == selected_callsign_) {
+                return static_cast<int>(i);
+            }
+        }
+    }
+    return std::max(0, std::min(selected_index_,
+                                 static_cast<int>(stations.size()) - 1));
+}
+
 void AprsPage::stepVertical(bool up) {
     if (view_ == View::List) {
-        const int count = static_cast<int>(store_.stationCount());
-        if (up) {
-            if (selected_index_ > 0) --selected_index_;
-        } else if (selected_index_ + 1 < count) {
-            ++selected_index_;
+        const auto stations = store_.snapshot();
+        const int count = static_cast<int>(stations.size());
+        if (count == 0) {
+            selected_index_ = 0;
+            selected_callsign_.clear();
+            return;
         }
+        int index = selectedIndexIn(stations);
+        if (up) {
+            if (index > 0) --index;
+        } else if (index + 1 < count) {
+            ++index;
+        }
+        selected_index_ = index;
+        selected_callsign_ = stations[static_cast<size_t>(index)].callsign;
     } else if (view_ == View::Detail) {
         selectStation(up ? -1 : 1, false);
     } else if (view_ == View::Console) {
@@ -278,13 +302,15 @@ void AprsPage::selectStation(int direction, bool positioned_only) {
     const auto stations = store_.snapshot();
     const int count = static_cast<int>(stations.size());
     if (count == 0) return;
-    int index = selected_index_;
+    int index = selectedIndexIn(stations);
     for (int step = 0; step < count; ++step) {
         index = (index + direction + count) % count;
         if (!positioned_only ||
             (stations[static_cast<size_t>(index)].has_position &&
              stations[static_cast<size_t>(index)].distance_nm >= 0.0f)) {
             selected_index_ = index;
+            selected_callsign_ =
+                stations[static_cast<size_t>(index)].callsign;
             return;
         }
     }
@@ -293,14 +319,37 @@ void AprsPage::selectStation(int direction, bool positioned_only) {
 void AprsPage::render() {
     const auto stations = store_.snapshot();
     const uint64_t total = store_.totalPackets();
+    const int count = static_cast<int>(stations.size());
 
-    if (view_ == View::List) {
-        const int count = static_cast<int>(stations.size());
-        if (count == 0) {
-            selected_index_ = 0;
-            scroll_offset_ = 0;
+    // Keep the selected station stable while the list re-sorts by distance.
+    if (count == 0) {
+        selected_index_ = 0;
+        selected_callsign_.clear();
+    } else if (selected_callsign_.empty()) {
+        selected_index_ = std::max(0, std::min(selected_index_, count - 1));
+        selected_callsign_ = stations[static_cast<size_t>(selected_index_)].callsign;
+    } else {
+        int found = -1;
+        for (int i = 0; i < count; ++i) {
+            if (stations[static_cast<size_t>(i)].callsign ==
+                selected_callsign_) {
+                found = i;
+                break;
+            }
+        }
+        if (found >= 0) {
+            selected_index_ = found;
         } else {
             selected_index_ = std::max(0, std::min(selected_index_, count - 1));
+            selected_callsign_ =
+                stations[static_cast<size_t>(selected_index_)].callsign;
+        }
+    }
+
+    if (view_ == View::List) {
+        if (count == 0) {
+            scroll_offset_ = 0;
+        } else {
             if (selected_index_ < scroll_offset_) {
                 scroll_offset_ = selected_index_;
             } else if (selected_index_ >= scroll_offset_ + 6) {
@@ -311,20 +360,17 @@ void AprsPage::render() {
         ui_.renderList(stations, selected_index_, scroll_offset_, total,
                        packets_per_minute_, gain_tenths_, agc_, frequency_);
     } else if (view_ == View::Map) {
-        const int count = static_cast<int>(stations.size());
-        if (count == 0) {
-            selected_index_ = 0;
-        } else {
-            selected_index_ = std::max(0, std::min(selected_index_, count - 1));
-            if (!stations[static_cast<size_t>(selected_index_)].has_position ||
-                stations[static_cast<size_t>(selected_index_)].distance_nm <
-                    0.0f) {
-                for (int i = 0; i < count; ++i) {
-                    if (stations[static_cast<size_t>(i)].has_position &&
-                        stations[static_cast<size_t>(i)].distance_nm >= 0.0f) {
-                        selected_index_ = i;
-                        break;
-                    }
+        if (count > 0 &&
+            (!stations[static_cast<size_t>(selected_index_)].has_position ||
+             stations[static_cast<size_t>(selected_index_)].distance_nm <
+                 0.0f)) {
+            for (int i = 0; i < count; ++i) {
+                if (stations[static_cast<size_t>(i)].has_position &&
+                    stations[static_cast<size_t>(i)].distance_nm >= 0.0f) {
+                    selected_index_ = i;
+                    selected_callsign_ =
+                        stations[static_cast<size_t>(i)].callsign;
+                    break;
                 }
             }
         }
@@ -333,12 +379,9 @@ void AprsPage::render() {
                       store_.stationLongitude(), total, packets_per_minute_,
                       gain_tenths_, agc_, frequency_, &map_bg_);
     } else if (view_ == View::Detail) {
-        const int count = static_cast<int>(stations.size());
-        const aprs::StationState* selected = nullptr;
-        if (count > 0) {
-            selected_index_ = std::max(0, std::min(selected_index_, count - 1));
-            selected = &stations[static_cast<size_t>(selected_index_)];
-        }
+        const aprs::StationState* selected =
+            count > 0 ? &stations[static_cast<size_t>(selected_index_)]
+                      : nullptr;
         ui_.renderDetail(selected, stations.size(), total,
                          packets_per_minute_, gain_tenths_, agc_, frequency_);
     } else {
@@ -474,6 +517,7 @@ bool AprsPage::handleInput(AppKeyCode key) {
             decoder_.reset();
             store_.clear();
             selected_index_ = 0;
+            selected_callsign_.clear();
             scroll_offset_ = 0;
             console_scroll_ = 0;
             packets_per_minute_ = 0.0f;

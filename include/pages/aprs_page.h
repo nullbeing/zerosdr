@@ -13,6 +13,7 @@
 #include <atomic>
 #include <cstdint>
 #include <deque>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -46,6 +47,8 @@ private:
     void updateRate();
     void stepVertical(bool up);
     void selectStation(int direction, bool positioned_only);
+    int selectedIndexIn(
+        const std::vector<aprs::StationState>& stations) const;
     void render();
 
     Framebuffer& fb_;
@@ -64,6 +67,7 @@ private:
 
     View view_ = View::List;
     int selected_index_ = 0;
+    std::string selected_callsign_;  // stable selection across re-sorts
     int scroll_offset_ = 0;
     int console_scroll_ = 0;
     bool help_visible_ = false;

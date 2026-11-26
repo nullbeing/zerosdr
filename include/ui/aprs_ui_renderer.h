@@ -72,6 +72,8 @@ private:
                          uint32_t frequency);
     void renderStatsBar(uint64_t total_packets, size_t stations,
                         int gain_tenths, bool agc, const char* hint);
+    void renderTrackPlot(const aprs::StationState& station, int x, int y,
+                         int w, int h);
 
     Theme theme_;
 };

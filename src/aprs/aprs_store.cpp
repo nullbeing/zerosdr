@@ -16,6 +16,12 @@ constexpr double kPi = 3.14159265358979323846;
 constexpr int kStaleSeconds = 30 * 60;
 constexpr int kRemoveSeconds = 2 * 60 * 60;
 
+// Track history: enough for a long drive, with a distance threshold that
+// ignores GPS jitter while a station is parked.
+constexpr size_t kTrailMaxPoints = 120;
+constexpr int kTrailMaxSeconds = 2 * 60 * 60;
+constexpr double kTrailMinMoveDegrees = 0.00012;  // about 13 m
+
 std::string trim(std::string value) {
     while (!value.empty() && value.back() == ' ') value.pop_back();
     size_t start = 0;
@@ -100,18 +106,40 @@ void Store::apply(const Packet& packet) {
     if (!packet.comment.empty()) station.comment = trim(packet.comment);
 
     if (packet.has_position) {
+        const bool first = !station.has_position;
+        const double dlat = packet.latitude - station.latitude;
+        const double dlon =
+            (packet.longitude - station.longitude) *
+            std::cos(packet.latitude * kPi / 180.0);
         const bool moved =
-            !station.has_position ||
-            std::fabs(station.latitude - packet.latitude) > 1e-5 ||
-            std::fabs(station.longitude - packet.longitude) > 1e-5;
+            first || std::hypot(dlat, dlon) >= kTrailMinMoveDegrees;
         station.has_position = true;
         station.latitude = packet.latitude;
         station.longitude = packet.longitude;
         station.symbol_table = packet.symbol_table;
         station.symbol = packet.symbol;
+
         if (moved) {
-            station.trail.emplace_back(packet.latitude, packet.longitude);
-            while (station.trail.size() > 20) station.trail.pop_front();
+            TrailPoint point;
+            point.time = now;
+            point.latitude = packet.latitude;
+            point.longitude = packet.longitude;
+            point.speed_knots = packet.speed_knots >= 0.0f
+                                    ? packet.speed_knots
+                                    : station.speed_knots;
+            point.course = packet.course >= 0.0f ? packet.course
+                                                  : station.course;
+            point.altitude_ft = packet.altitude_ft > -100000
+                                    ? packet.altitude_ft
+                                    : station.altitude_ft;
+            station.trail.push_back(point);
+            while (station.trail.size() > kTrailMaxPoints) {
+                station.trail.pop_front();
+            }
+            while (station.trail.size() > 1 &&
+                   now - station.trail.front().time > kTrailMaxSeconds) {
+                station.trail.pop_front();
+            }
         }
     }
     if (packet.speed_knots >= 0.0f) station.speed_knots = packet.speed_knots;
