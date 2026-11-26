@@ -601,7 +601,7 @@ void AprsUIRenderer::renderTrackPlot(const aprs::StationState& station,
     const int ix = px + 4;
     const int iy = py + 13;
     const int iw = pw - 8;
-    const int ih = ph - 26;
+    const int ih = ph - 16;
     const bool has_map =
         map != nullptr && station.has_position && range_nm > 0.0f;
 
@@ -718,38 +718,6 @@ void AprsUIRenderer::renderTrackPlot(const aprs::StationState& station,
     } else {
         fb_.fillRect(end_x - 1, end_y - 1, 3, 3, 0xFD20);
     }
-
-    static const double kNice[] = {0.005, 0.01, 0.02, 0.05, 0.1, 0.2,
-                                   0.5,   1.0,  2.0,  5.0,  10.0, 20.0,
-                                   50.0,  100.0, 200.0};
-    double bar_nm = kNice[0];
-    for (double candidate : kNice) {
-        if (candidate * pixels_per_nm <= 48.0) {
-            bar_nm = candidate;
-        } else {
-            break;
-        }
-    }
-    const int bar_px =
-        std::max(4, static_cast<int>(std::lround(bar_nm * pixels_per_nm)));
-    char label[16];
-    if (bar_nm < 0.1) {
-        std::snprintf(label, sizeof(label), "%.2fNM", bar_nm);
-    } else if (bar_nm < 10.0) {
-        std::snprintf(label, sizeof(label), "%.1fNM", bar_nm);
-    } else {
-        std::snprintf(label, sizeof(label), "%.0fNM", bar_nm);
-    }
-    const int bar_x = ix + 2;
-    const int bar_y = iy + ih - 5;
-    const int label_width = smallTextWidth(label);
-    fb_.fillRect(bar_x - 2, bar_y - 7, bar_px + label_width + 8, 12,
-                 theme_.panel);
-    fb_.drawLine(bar_x, bar_y, bar_x + bar_px, bar_y, theme_.text);
-    fb_.drawLine(bar_x, bar_y - 2, bar_x, bar_y + 2, theme_.text);
-    fb_.drawLine(bar_x + bar_px, bar_y - 2, bar_x + bar_px, bar_y + 2,
-                 theme_.text);
-    drawSmallText(bar_x + bar_px + 4, bar_y - 3, label, theme_.dim);
 }
 
 void AprsUIRenderer::renderDetail(

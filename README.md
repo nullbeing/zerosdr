@@ -623,7 +623,7 @@ with units throughout (`NM`, `KN`, `FT`, `DEG`, `MPH`, `HPA`, `MM`).
 The DETAIL track panel keeps the recent track of the selected station:
 it is drawn on the map, marks the start with a circle and the latest
 position with a course arrow, and shows the track length, duration, point
-count and a scale bar (`TRK 0.6NM 1MIN 5PTS`). Up to 120 positions from the
+count (`TRK 0.6NM 1MIN 5PTS`). Up to 120 positions from the
 last two hours are kept; a new point is added when the station moves more
 than about 13 m, so GPS jitter does not fill the history. The same track is
 drawn as a line on the MAP view, with older segments dim and the newest
