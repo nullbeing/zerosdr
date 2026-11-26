@@ -2,17 +2,17 @@
   "app_name": "ZeroSDR",
   "package_name": "zerosdr",
   "version": "0.5.0",
-  "description": "Pocket SDR receiver for Cardputer Zero: spectrum, waterfall, FM/NFM/AM/USB/LSB audio, ADSB aircraft, AIS vessels and an RFI survey page. Requires an RTL-SDR USB dongle and an antenna.",
+  "description": "Pocket SDR receiver for Cardputer Zero: spectrum, waterfall, FM/NFM/AM/USB/LSB audio, ADSB aircraft, AIS vessels, ACARS messages, APRS stations and an RFI survey page. Requires an RTL-SDR USB dongle and an antenna.",
   "store": {
-    "summary": "Pocket SDR receiver: spectrum, waterfall, audio, ADSB, AIS, ACARS and RFI",
-    "description": "ZeroSDR turns the Cardputer Zero into a pocket SDR receiver.\n\nFEATURES\n- Spectrum, waterfall and FM/NFM/AM/USB/LSB audio on the 320x170 display\n- Wideband spectrum page and RFI survey (10m/20m/40m/80m)\n- ADSB: aircraft list, PFD detail view and a radar with a map background\n- AIS: vessel list, map PPI with a CPA guard ring, ship dossier and console\n- NMEA 0183 UDP 10110 output for OpenCPN / Signal K\n- On-screen key reference (H); Fn+P saves a screenshot on every page\n\nREQUIRED HARDWARE\n- An RTL-SDR USB dongle (tested with RTL-SDR Blog V4 / RTL2832U)\n- An antenna: VHF/UHF for SDR and AIS, 1090 MHz for ADSB\n- The dongle plugs into the USB-A port and is powered by the device\n\nNOTES\n- Runs as the normal user; the package installs its own udev rules\n- ADSB decoding uses the bundled readsb, no separate install\n- Audio plays through the built-in speaker or the 3.5 mm jack",
+    "summary": "Pocket SDR receiver: spectrum, waterfall, audio, ADSB, AIS, ACARS, APRS and RFI",
+    "description": "ZeroSDR turns the Cardputer Zero into a pocket SDR receiver.\n\nFEATURES\n- Spectrum, waterfall and FM/NFM/AM/USB/LSB audio on the 320x170 display\n- Wideband spectrum page and RFI survey (10m/20m/40m/80m)\n- ADSB: aircraft list, PFD detail view and a radar with a map background\n- AIS: vessel list, map PPI with a CPA guard ring, ship dossier and console\n- APRS: receive-only 1200 baud AFSK/AX.25, station list, map, detail and packet console\n- NMEA 0183 UDP 10110 output for OpenCPN / Signal K\n- On-screen key reference (H); Fn+P saves a screenshot on every page\n\nREQUIRED HARDWARE\n- An RTL-SDR USB dongle (tested with RTL-SDR Blog V4 / RTL2832U)\n- An antenna: VHF/UHF for SDR, AIS and APRS, 1090 MHz for ADSB\n- The dongle plugs into the USB-A port and is powered by the device\n\nNOTES\n- Runs as the normal user; the package installs its own udev rules\n- ADSB decoding uses the bundled readsb, no separate install\n- APRS is receive-only; RTL-SDR hardware cannot transmit\n- Audio plays through the built-in speaker or the 3.5 mm jack",
     "locales": {
       "zh-CN": {
-        "summary": "RTL-SDR 口袋 SDR：频谱、瀑布、解调、ADSB、AIS、ACARS 与 RFI",
-        "description": "ZeroSDR 把 Cardputer Zero 变成一台口袋 SDR 接收机。\n\n功能\n- 320×170 屏幕上的频谱、瀑布与 FM/NFM/AM/USB/LSB 解调\n- 宽带频谱页与 RFI 底噪对比（10m/20m/40m/80m）\n- ADSB：飞机列表、PFD 详情页和带地图的雷达视图\n- AIS：船舶列表、带 CPA 警戒圈的地图 PPI、船舶档案页和报文控制台\n- NMEA 0183 UDP 10110 输出，可接入 OpenCPN / Signal K\n- 屏幕按键说明（H）；Fn+P 在任意页面截图\n\n需要的硬件\n- RTL-SDR USB 电视棒（已验证 RTL-SDR Blog V4 / RTL2832U）\n- 一根天线：SDR/AIS 用 VHF/UHF 天线，ADSB 用 1090 MHz 天线\n- 电视棒插在 USB-A 口，由设备供电\n\n说明\n- 以普通用户运行；安装包自带 udev 规则\n- ADSB 解码使用随包安装的 readsb，无需另外安装\n- 音频通过内置扬声器或 3.5 mm 耳机口输出"
+        "summary": "RTL-SDR 口袋 SDR：频谱、瀑布、解调、ADSB、AIS、ACARS、APRS 与 RFI",
+        "description": "ZeroSDR 把 Cardputer Zero 变成一台口袋 SDR 接收机。\n\n功能\n- 320×170 屏幕上的频谱、瀑布与 FM/NFM/AM/USB/LSB 解调\n- 宽带频谱页与 RFI 底噪对比（10m/20m/40m/80m）\n- ADSB：飞机列表、PFD 详情页和带地图的雷达视图\n- AIS：船舶列表、带 CPA 警戒圈的地图 PPI、船舶档案页和报文控制台\n- APRS：只收 1200 baud AFSK/AX.25，站点列表、地图、详情和报文控制台\n- NMEA 0183 UDP 10110 输出，可接入 OpenCPN / Signal K\n- 屏幕按键说明（H）；Fn+P 在任意页面截图\n\n需要的硬件\n- RTL-SDR USB 电视棒（已验证 RTL-SDR Blog V4 / RTL2832U）\n- 一根天线：SDR/AIS/APRS 用 VHF/UHF 天线，ADSB 用 1090 MHz 天线\n- 电视棒插在 USB-A 口，由设备供电\n\n说明\n- 以普通用户运行；安装包自带 udev 规则\n- ADSB 解码使用随包安装的 readsb，无需另外安装\n- APRS 只收不发；RTL-SDR 硬件不能发射\n- 音频通过内置扬声器或 3.5 mm 耳机口输出"
       },
       "ja": {
-        "summary": "RTL-SDR ポケット SDR：スペクトラム、ウォーターフォール、音声復調、ADSB、AIS、RFI"
+        "summary": "RTL-SDR ポケット SDR：スペクトラム、ウォーターフォール、音声復調、ADSB、AIS、APRS、RFI"
       }
     },
     "icon": "store/icon.png",

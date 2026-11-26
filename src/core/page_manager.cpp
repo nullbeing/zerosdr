@@ -458,21 +458,27 @@ void PageManager::openPageMenu() {
 
     int adsb_index = -1;
     int ais_index = -1;
+    int aprs_index = -1;
     for (int i = 0; i < (int)pages_.size(); ++i) {
         if (std::strcmp(pages_[i]->getName(), "ADSB") == 0) adsb_index = i;
         if (std::strcmp(pages_[i]->getName(), "AIS") == 0) ais_index = i;
+        if (std::strcmp(pages_[i]->getName(), "APRS") == 0) aprs_index = i;
     }
 
-    // First row: SDR, Spectrum, RFI, ADSB, ACARS. AIS moves to the second
-    // row, after the RADAR shortcut, so the first row keeps five tiles.
+    // First row: SDR, Spectrum, RFI, ADSB, ACARS. AIS and APRS move to the
+    // second row, after the RADAR shortcut, so the first row keeps five
+    // tiles.
     for (int i = 0; i < (int)pages_.size(); ++i) {
-        if (i == ais_index && adsb_index >= 0) continue;
+        if ((i == ais_index || i == aprs_index) && adsb_index >= 0) continue;
         page_menu_entries_.push_back({i, false, 0});
     }
     if (adsb_index >= 0) {
         page_menu_entries_.push_back({adsb_index, true, 1});
         if (ais_index >= 0) {
             page_menu_entries_.push_back({ais_index, false, 1});
+        }
+        if (aprs_index >= 0) {
+            page_menu_entries_.push_back({aprs_index, false, 1});
         }
     }
 
@@ -629,6 +635,12 @@ void PageManager::drawPageIcon(int page_index, int x, int y,
         fb_.drawLine(x + 5, y + 6, x + 13, y + 6, color);
         fb_.drawLine(x + 5, y + 13, x + 3, y + 9, color);
         fb_.drawLine(x + 13, y + 13, x + 15, y + 9, color);
+    } else if (std::strcmp(name, "APRS") == 0) {
+        // Map pin: a ring with a point and a centre dot.
+        drawCircleOutline(x + 9, y + 7, 4, color);
+        fb_.drawLine(x + 5, y + 9, x + 9, y + 16, color);
+        fb_.drawLine(x + 13, y + 9, x + 9, y + 16, color);
+        fb_.drawPixel(x + 9, y + 7, color);
     } else if (std::strcmp(name, "ACARS") == 0) {
         // Radio mast with two side waves.
         fb_.drawLine(x + 9, y + 16, x + 9, y + 7, color);

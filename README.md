@@ -9,12 +9,13 @@
 ZeroSDR is an open source SDR receiver for Linux-based small-screen embedded
 systems. It renders the spectrum and waterfall straight into the framebuffer,
 demodulates FM / NFM / AM / USB / LSB audio through ALSA, and adds ADSB
-aircraft, AIS vessels and ACARS messages plus an RFI survey page.
+aircraft, AIS vessels, ACARS messages and APRS stations plus an RFI survey
+page.
 
 ![ZeroSDR pages](images/showcase.png)
 
 *SDR and wideband spectrum, ADSB radar / PFD / settings, AIS plot and
-dossier, ACARS messages and the RFI survey.*
+dossier, ACARS messages, APRS stations and the RFI survey.*
 
 > **Press `H` on the SDR page to show the on-screen key list.**
 > Press `→` there to switch to the settings tab (FM de-emphasis, audio AGC,
@@ -45,6 +46,9 @@ dossier, ACARS messages and the RFI survey.*
 - ACARS aircraft messages: message list and wrapped detail view; the bundled
   decoder runs as a separate process and the channels are configurable per
   region (131.550 / 131.725 / 131.825 by default)
+- APRS station tracking: native receive-only 1200 baud AFSK / AX.25 decoder,
+  list / map / detail / console views, Mic-E and compressed positions,
+  weather and messages on 144.640 MHz (configurable)
 - RFI survey: compare HF band noise with your equipment switched on and off
   (10m / 20m / 40m / 80m)
 - Global `Fn`+`P` screenshot on every page
@@ -190,7 +194,8 @@ On the first start ZeroSDR shows a short guide (reopen it from
 `H` → settings → `SHOW GUIDE`):
 
 - `H` opens the key list and settings
-- `Tab` opens the page menu (SDR, Spectrum, ADSB and a RADAR shortcut)
+- `Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, ACARS, plus
+  RADAR, AIS and APRS on the second row)
 - `Enter` cycles the ADSB views (radar → detail → list)
 - `M` toggles the SDR / radar colour theme
 - Observer position: entered by hand, or read from a GPS when one is present
@@ -204,9 +209,9 @@ On the first start ZeroSDR shows a short guide (reopen it from
 ### Press `H` first
 
 `Tab` opens a translucent page menu: `←`/`→` (or `Tab`) select a page,
-`↑`/`↓` move between the page row and the RADAR shortcut row, `Enter` opens
-it, `Esc` closes the menu. The RADAR tile jumps straight into the ADSB radar
-view.
+`↑`/`↓` move between the page row and the second row (RADAR, AIS and
+APRS), `Enter` opens it, `Esc` closes the menu. The RADAR tile jumps straight
+into the ADSB radar view.
 
 The SDR page has a built-in reference:
 
@@ -363,8 +368,8 @@ the current sample rate can fill.
 
 ## ADSB page
 
-`Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, ACARS, with RADAR and
-AIS on the second row). In the ADSB list, `↑`/`↓` select, `←`/`→` move five
+`Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, ACARS, with RADAR,
+AIS and APRS on the second row). In the ADSB list, `↑`/`↓` select, `←`/`→` move five
 rows and `Enter` cycles radar → detail → list. `H` shows every key.
 
 The list is sorted by distance, nearest first; aircraft without a decoded
@@ -562,10 +567,69 @@ Messages are appended to daily JSONL files under
 the log is split by date and survives restarts. The list reloads the newest
 500 messages and inserts a date header whenever the day changes.
 
+## APRS station tracking
+
+ZeroSDR decodes APRS itself; no TNC or `direwolf` is required. It tunes the
+APRS frequency at 1.2 Msps, FM-demodulates in software and runs the Bell 202
+AFSK (1200 / 2200 Hz), NRZI, HDLC and CRC-16/X.25 chain in a dedicated
+thread. RTL-SDR hardware cannot transmit, so the page is receive-only: it
+shows stations, weather and messages but never sends.
+
+Select **APRS** in the `Tab` page menu. `Enter` cycles LIST → MAP → DETAIL →
+CONSOLE; `↑`/`↓` scroll or zoom the map, `←`/`→` select a station and `H`
+shows every key. `T` cycles the three common frequencies (144.640 / 144.800 /
+144.390 MHz) and clears the station table.
+
+| LIST | MAP |
+| --- | --- |
+| ![APRS station list](images/aprs-list.png) | ![APRS map](images/aprs-map.png) |
+| **DETAIL** | **CONSOLE** |
+| ![APRS detail view](images/aprs-detail.png) | ![APRS packet console](images/aprs-console.png) |
+
+- **LIST** — callsign, APRS symbol, speed, course, distance and age, nearest
+  first; stations without a decoded position are listed last. A callsign
+  dims after 30 minutes without a packet and is removed after two hours.
+- **MAP** — north-up PPI with the cached map background, four range rings
+  and compass ticks. Triangles point along the course of moving stations,
+  weather stations use a square and messages a circle; the selected station
+  gets a crosshair and a callsign label. `Up` / `Down` zoom from 1 to
+  200 NM (starts at 25 NM).
+- **DETAIL** — position, range/bearing, speed/course, altitude, age, packet
+  count, destination/path, weather (wind, temperature, rain) and the comment.
+- **CONSOLE** — every decoded packet with time, source, type and the raw
+  information field.
+
+The decoder handles uncompressed and compressed positions, Mic-E (the format
+used by most Kenwood/Yaesu mobile trackers), messages (receive-only) and
+positionless weather reports. A station that only sends weather or status
+packets keeps its last known position.
+
+The frequency and gain live in `~/.config/zerosdr/config.json`; `+`/`-` and
+`G` change the gain from the page and save it immediately:
+
+```json
+"aprs": {
+  "frequency": 144640000,
+  "gain_tenths": 400,
+  "agc": true
+}
+```
+
+`144.640 MHz` is the common APRS frequency in China; Europe uses 144.800 and
+North America 144.390. A 2 m vertical or a 144/430 dual-band antenna works
+better than the AIS 162 MHz antenna. APRS traffic is sparse compared with AIS,
+so the page can sit on `WAITING FOR APRS` between packets.
+
+An offline replay tool shares the native decoder:
+
+```sh
+./build/aprs_replay recording.cu8
+```
+
 ## Wideband spectrum page
 
-`Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, ACARS, with RADAR and
-AIS on the second row). The spectrum page is a
+`Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, ACARS, with RADAR,
+AIS and APRS on the second row). The spectrum page is a
 swept analyzer in the style of qspectrumanalyzer: it retunes the RTL-SDR
 across a user supplied range, stitches the slices into one wide spectrum and draws a yellow trace
 with a waterfall below it. The RTL-SDR V4 range is 24–1766 MHz.

@@ -8,12 +8,12 @@
 
 ZeroSDR 是一个面向小屏幕嵌入式 Linux 的开源 SDR 接收程序。频谱和瀑布直接画进
 framebuffer，音频解调（FM / NFM / AM / USB / LSB）通过 ALSA 输出，并提供
-ADSB、AIS、ACARS 与 RFI 页面。
+ADSB、AIS、ACARS、APRS 与 RFI 页面。
 
 ![ZeroSDR 页面](images/showcase.png)
 
 *SDR 与宽带频谱、ADSB 雷达 / PFD / 设置、AIS 地图与船舶档案、
-ACARS 报文与 RFI 对比。*
+ACARS 报文、APRS 站点与 RFI 对比。*
 
 > **在 SDR 页面按 `H` 可以随时显示屏幕按键列表。**
 > 在帮助浮层里按 `→` 切到设置页（FM 去加重、音频 AGC、FFT 大小、采样率），
@@ -40,6 +40,8 @@ ACARS 报文与 RFI 对比。*
   地图与 CPA 显示，以及标准 NMEA UDP 输出
 - ACARS 航空报文：报文列表与自动换行的详情页；解码器作为独立进程运行，
   频道可按地区配置（默认 131.550 / 131.725 / 131.825）
+- APRS 站点跟踪：原生 1200 baud AFSK / AX.25 只收解码，LIST / MAP / DETAIL /
+  CONSOLE 四种视图，支持 Mic-E、压缩/非压缩位置、天气与报文（144.640 MHz，可配置）
 - RFI 对比：对比业余无线电设备开关前后的 HF 底噪（10m / 20m / 40m / 80m）
 - 任意页面 `Fn`+`P` 截图
 - 任意页面调节系统音量（`Fn`+`D` / `Fn`+`S`）
@@ -146,7 +148,7 @@ systemctl --user restart APPLaunch.service
 第一次运行会显示一个简短引导（之后可从 `H` → 设置 → `SHOW GUIDE` 重新打开）：
 
 - `H` 打开按键列表与设置
-- `Tab` 打开页面菜单，选择 SDR、频谱、ADSB；第二行的 RADAR 快捷入口直接进入 ADSB 雷达视图
+- `Tab` 打开页面菜单，选择 SDR、频谱、ADSB、ACARS；第二行是 RADAR、AIS 与 APRS，RADAR 快捷入口直接进入 ADSB 雷达视图
 - `Enter` 在 ADSB 的 雷达 → 详情 → 列表 之间循环
 - `M` 切换 SDR / 雷达配色主题
 - 观测点位置：可以手动输入，也可以在检测到 GPS 时自动读取（gpsd 或串口
@@ -255,7 +257,7 @@ TCA8418 键盘会自动识别（`tca8418c`）。`F`/`Z`/`X`/`C` 直接作为方�
 
 ## ADSB 页面
 
-按 `Tab` 打开页面菜单（SDR、频谱、ADSB，以及 RADAR 快捷入口）。ADSB 列表按键：
+按 `Tab` 打开页面菜单（SDR、频谱、ADSB、ACARS，第二行是 RADAR、AIS、APRS）。ADSB 列表按键：
 
 | 按键 | 功能 |
 |---|---|
@@ -376,9 +378,59 @@ ADSB 解码使用随包安装的 `readsb`（带 RTL-SDR 后端，位于
 - 扫描线每经过 90° 一个轻微 tick
 - 出现新飞机时两音提示（最多每 3 秒一次）
 
+## APRS 站点跟踪
+
+ZeroSDR 自带 APRS 解码，不需要 TNC 或 `direwolf`。它以 1.2 Msps 接收 APRS
+频率，在软件里做 FM 解调，再跑 Bell 202 AFSK（1200 / 2200 Hz）、NRZI、
+HDLC 与 CRC-16/X.25。RTL-SDR 不能发射，所以这个页面是**只收**的：只显示
+站点、天气和报文，不会发送任何内容。
+
+在 `Tab` 页面菜单选择 **APRS**。`Enter` 循环 LIST → MAP → DETAIL → CONSOLE；
+`↑`/`↓` 滚动或缩放地图，`←`/`→` 选择站点，`H` 查看全部按键；`T` 在
+144.640 / 144.800 / 144.390 MHz 之间切换，并清空站点表。
+
+| LIST | MAP |
+| --- | --- |
+| ![APRS 站点列表](images/aprs-list.png) | ![APRS 地图](images/aprs-map.png) |
+| **DETAIL** | **CONSOLE** |
+| ![APRS 详情](images/aprs-detail.png) | ![APRS 报文控制台](images/aprs-console.png) |
+
+- **LIST**：呼号、APRS 符号、速度、航向、距离和年龄，最近的排前面；
+  没有位置的站点排在最后。30 分钟无报文变暗，2 小时后移除。
+- **MAP**：北向上的 PPI，带缓存地图、四圈距离环和罗盘刻度；移动站用
+  三角形按航向旋转，天气站用方块，报文站用圆圈；选中站有十字和呼号。
+- **DETAIL**：位置、距离/方位、速度/航向、高度、年龄、报文数、目标/路径、
+  天气（风、温度、雨量）和 comment。
+- **CONSOLE**：每条报文的解码日志，含时间、呼号、类型和原始信息字段。
+
+解码器支持非压缩和压缩位置、Mic-E（大多数 Kenwood / Yaesu 移动台使用）、
+报文（只收）以及无位置的天气报文。只发天气或状态的站点会保留最后一次
+已知位置。
+
+频率和增益保存在 `~/.config/zerosdr/config.json`，在页面上用 `+`/`-` 和
+`G` 修改后会立即保存：
+
+```json
+"aprs": {
+  "frequency": 144640000,
+  "gain_tenths": 400,
+  "agc": true
+}
+```
+
+中国常用 `144.640 MHz`，欧洲 `144.800`，北美 `144.390`。2 米段垂直天线或
+144/430 双段天线比 AIS 的 162 MHz 天线更合适。APRS 流量比 AIS 稀疏，
+页面可能长时间停在 `WAITING FOR APRS`。
+
+离线回放工具与原生解码器共用代码：
+
+```sh
+./build/aprs_replay recording.cu8
+```
+
 ## 宽带频谱页
 
-`Tab` 打开页面菜单（SDR / 频谱 / ADSB，第二行还有 RADAR 快捷入口）。频谱页是一个 qspectrumanalyzer 风格的
+`Tab` 打开页面菜单（SDR / 频谱 / ADSB / ACARS，第二行还有 RADAR、AIS、APRS）。频谱页是一个 qspectrumanalyzer 风格的
 扫描式频谱仪：把 RTL-SDR 在用户指定的起止频率之间反复调谐，把每一片拼成一条宽
 频谱，下面配瀑布。RTL-SDR V4 的范围是 24–1766 MHz。
 

@@ -91,6 +91,7 @@ set(SOURCES
     src/pages/spectrum_page.cpp
     src/pages/rfi_page.cpp
     src/pages/ais_page.cpp
+    src/pages/aprs_page.cpp
     src/pages/acars_page.cpp
 
     # AIS
@@ -98,6 +99,10 @@ set(SOURCES
     src/ais/ais_message.cpp
     src/ais/ais_store.cpp
     src/ais/nmea_encoder.cpp
+
+    # APRS
+    src/aprs/aprs_decoder.cpp
+    src/aprs/aprs_store.cpp
 
     # ACARS integration (external acarsdec subprocess)
     src/acars/acars_controller.cpp
@@ -117,6 +122,7 @@ set(SOURCES
     src/ui/radar_ui_renderer.cpp
     src/ui/ais_ui_renderer.cpp
     src/ui/ais_portrait.cpp
+    src/ui/aprs_ui_renderer.cpp
     src/ui/acars_ui_renderer.cpp
     src/ui/ttf_text.cpp
 
@@ -163,6 +169,28 @@ target_link_libraries(ais_replay PRIVATE
     Threads::Threads
 )
 
+# Offline APRS replay tool. Shares the native decoder with the application
+# but is a development/validation helper, so it is not installed.
+add_executable(aprs_replay
+    tools/aprs_replay.cpp
+    src/aprs/aprs_decoder.cpp
+)
+target_include_directories(aprs_replay PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(aprs_replay PRIVATE ${M_LIB})
+
+# Audio-only APRS replay, for validating the AFSK/HDLC chain on receiver
+# recordings (48000 Hz raw float32 mono).
+add_executable(aprs_audio_replay
+    tools/aprs_audio_replay.cpp
+    src/aprs/aprs_decoder.cpp
+)
+target_include_directories(aprs_audio_replay PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(aprs_audio_replay PRIVATE ${M_LIB})
+
 # AIS name padding regression test (development helper, not installed).
 add_executable(ais_message_test
     tests/ais_message_test.cpp
@@ -182,6 +210,16 @@ target_include_directories(nmea_encoder_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 target_link_libraries(nmea_encoder_test PRIVATE ${M_LIB})
+
+# APRS AFSK/AX.25 decoder regression test (development helper, not installed).
+add_executable(aprs_decoder_test
+    tests/aprs_decoder_test.cpp
+    src/aprs/aprs_decoder.cpp
+)
+target_include_directories(aprs_decoder_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(aprs_decoder_test PRIVATE ${M_LIB})
 
 # Link libraries
 target_link_libraries(zerosdr PRIVATE
