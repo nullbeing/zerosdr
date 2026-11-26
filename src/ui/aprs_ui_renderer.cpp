@@ -235,6 +235,153 @@ void drawStationSymbol(Framebuffer& fb, int x, int y, char table, char symbol,
     fb.drawPixel(x, y, color);
 }
 
+void drawListSymbol(Framebuffer& fb, int x, int y, char table, char symbol,
+                    uint16_t color) {
+    switch (aprs::symbolKind(table, symbol)) {
+        case aprs::SymbolKind::Car: {
+            fb.fillRect(x - 5, y - 1, 10, 4, color);
+            fb.fillRect(x - 3, y - 4, 6, 3, color);
+            fb.fillRect(x - 4, y + 3, 2, 2, color);
+            fb.fillRect(x + 2, y + 3, 2, 2, color);
+            break;
+        }
+        case aprs::SymbolKind::Truck: {
+            fb.fillRect(x - 6, y - 1, 11, 4, color);
+            fb.fillRect(x + 2, y - 4, 4, 3, color);
+            fb.fillRect(x - 5, y + 3, 2, 2, color);
+            fb.fillRect(x + 1, y + 3, 2, 2, color);
+            fb.fillRect(x + 4, y + 3, 2, 2, color);
+            break;
+        }
+        case aprs::SymbolKind::Van: {
+            fb.fillRect(x - 5, y - 3, 10, 6, color);
+            fb.fillRect(x - 4, y + 3, 2, 2, color);
+            fb.fillRect(x + 2, y + 3, 2, 2, color);
+            break;
+        }
+        case aprs::SymbolKind::Bus: {
+            fb.fillRect(x - 6, y - 3, 12, 6, color);
+            fb.fillRect(x - 5, y + 3, 2, 2, color);
+            fb.fillRect(x + 3, y + 3, 2, 2, color);
+            break;
+        }
+        case aprs::SymbolKind::Jeep: {
+            fb.fillRect(x - 4, y - 2, 8, 5, color);
+            fb.fillRect(x - 3, y + 3, 2, 2, color);
+            fb.fillRect(x + 1, y + 3, 2, 2, color);
+            fb.fillRect(x - 5, y - 1, 1, 3, color);
+            break;
+        }
+        case aprs::SymbolKind::Motorcycle: {
+            drawCircleOutline(fb, x - 4, y + 2, 2, color);
+            drawCircleOutline(fb, x + 4, y + 2, 2, color);
+            fb.drawLine(x - 2, y + 2, x + 2, y + 2, color);
+            fb.drawLine(x - 1, y, x - 2, y + 2, color);
+            fb.drawLine(x - 1, y, x + 1, y + 2, color);
+            break;
+        }
+        case aprs::SymbolKind::Aircraft:
+        case aprs::SymbolKind::Helicopter:
+        case aprs::SymbolKind::Glider: {
+            fb.drawLine(x - 6, y, x + 6, y, color);
+            fb.drawLine(x - 2, y, x + 2, y - 5, color);
+            fb.drawLine(x - 2, y, x + 2, y + 5, color);
+            fb.drawLine(x - 5, y, x - 3, y - 3, color);
+            fb.drawLine(x - 5, y, x - 3, y + 3, color);
+            if (aprs::symbolKind(table, symbol) ==
+                aprs::SymbolKind::Helicopter) {
+                fb.drawLine(x - 5, y - 3, x + 5, y - 3, color);
+            }
+            break;
+        }
+        case aprs::SymbolKind::Balloon: {
+            drawCircleOutline(fb, x, y - 2, 3, color);
+            fb.fillRect(x - 2, y + 2, 4, 2, color);
+            fb.drawLine(x, y + 4, x, y + 5, color);
+            break;
+        }
+        case aprs::SymbolKind::Ship:
+        case aprs::SymbolKind::Yacht:
+        case aprs::SymbolKind::Canoe: {
+            fb.drawLine(x - 5, y + 2, x + 5, y + 2, color);
+            fb.drawLine(x - 5, y + 2, x + 3, y + 4, color);
+            fb.drawLine(x + 5, y + 2, x + 3, y + 4, color);
+            fb.fillRect(x - 2, y - 2, 4, 4, color);
+            if (aprs::symbolKind(table, symbol) == aprs::SymbolKind::Yacht) {
+                fb.drawLine(x, y - 5, x + 3, y + 1, color);
+                fb.drawLine(x, y - 5, x - 3, y + 1, color);
+            }
+            break;
+        }
+        case aprs::SymbolKind::Weather: {
+            drawCircleOutline(fb, x - 3, y - 1, 2, color);
+            drawCircleOutline(fb, x, y - 2, 2, color);
+            drawCircleOutline(fb, x + 3, y - 1, 2, color);
+            fb.fillRect(x - 4, y - 1, 8, 2, color);
+            fb.drawLine(x - 2, y + 2, x - 3, y + 4, color);
+            fb.drawLine(x + 1, y + 2, x, y + 4, color);
+            break;
+        }
+        case aprs::SymbolKind::Digipeater:
+        case aprs::SymbolKind::IGate:
+        case aprs::SymbolKind::Antenna:
+        case aprs::SymbolKind::Node: {
+            fb.drawLine(x, y - 5, x, y + 4, color);
+            fb.drawLine(x, y - 5, x - 3, y + 4, color);
+            fb.drawLine(x, y - 5, x + 3, y + 4, color);
+            fb.drawLine(x - 2, y - 2, x + 2, y - 2, color);
+            fb.fillRect(x - 1, y - 6, 2, 2, color);
+            if (aprs::symbolKind(table, symbol) == aprs::SymbolKind::IGate) {
+                fb.fillRect(x - 4, y + 4, 8, 1, color);
+            }
+            break;
+        }
+        case aprs::SymbolKind::House: {
+            fb.drawLine(x - 5, y, x, y - 5, color);
+            fb.drawLine(x, y - 5, x + 5, y, color);
+            fb.fillRect(x - 4, y, 8, 5, color);
+            break;
+        }
+        case aprs::SymbolKind::Bicycle: {
+            drawCircleOutline(fb, x - 4, y + 2, 2, color);
+            drawCircleOutline(fb, x + 4, y + 2, 2, color);
+            fb.drawLine(x - 4, y + 2, x, y - 2, color);
+            fb.drawLine(x, y - 2, x + 4, y + 2, color);
+            fb.drawLine(x, y - 2, x - 1, y + 2, color);
+            break;
+        }
+        case aprs::SymbolKind::Walker: {
+            drawCircleOutline(fb, x, y - 4, 1, color);
+            fb.drawLine(x, y - 2, x, y + 1, color);
+            fb.drawLine(x, y + 1, x - 2, y + 4, color);
+            fb.drawLine(x, y + 1, x + 2, y + 4, color);
+            fb.drawLine(x, y - 1, x - 2, y + 1, color);
+            fb.drawLine(x, y - 1, x + 2, y + 1, color);
+            break;
+        }
+        case aprs::SymbolKind::Satellite: {
+            fb.fillRect(x - 2, y - 2, 4, 4, color);
+            fb.drawLine(x - 5, y - 1, x - 3, y - 1, color);
+            fb.drawLine(x - 5, y + 1, x - 3, y + 1, color);
+            fb.drawLine(x + 3, y - 1, x + 5, y - 1, color);
+            fb.drawLine(x + 3, y + 1, x + 5, y + 1, color);
+            break;
+        }
+        case aprs::SymbolKind::Aid:
+        case aprs::SymbolKind::Hospital:
+        case aprs::SymbolKind::Police:
+        case aprs::SymbolKind::Fire: {
+            fb.fillRect(x - 1, y - 4, 2, 8, color);
+            fb.fillRect(x - 4, y - 1, 8, 2, color);
+            break;
+        }
+        default: {
+            fb.fillRect(x - 1, y - 1, 3, 3, color);
+            break;
+        }
+    }
+}
+
 float distanceNm(double lat1, double lon1, double lat2, double lon2) {
     const double dlat = (lat2 - lat1) * kPi / 180.0;
     const double dlon = (lon2 - lon1) * kPi / 180.0;
@@ -489,8 +636,8 @@ void AprsUIRenderer::renderList(
         drawText(2, y, buffer, accent_color);
 
         const char list_symbol = station.kind == 'W' ? '_' : station.symbol;
-        drawStationSymbol(fb_, 92, y + 8, station.symbol_table, list_symbol,
-                          station.course, accent_color, false);
+        drawListSymbol(fb_, 92, y + 8, station.symbol_table, list_symbol,
+                       accent_color);
         std::snprintf(buffer, sizeof(buffer), "%s",
                       station.kind == 'W'
                           ? "WX"
