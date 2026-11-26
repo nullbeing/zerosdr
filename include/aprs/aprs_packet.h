@@ -30,10 +30,16 @@ struct Packet {
     std::string comment;
 
     bool weather = false;
-    float wind_dir = -1.0f;       // degrees
-    float wind_speed_mph = -1.0f; // APRS weather uses mph
+    float wind_dir = -1.0f;         // degrees
+    float wind_speed_mph = -1.0f;   // APRS weather uses mph
+    float wind_gust_mph = -1.0f;
     float temperature_c = 0.0f;
+    bool has_temperature = false;
+    float humidity = -1.0f;         // percent
+    float pressure_hpa = -1.0f;
     float rain_hour_mm = -1.0f;
+    float rain_24h_mm = -1.0f;
+    float rain_midnight_mm = -1.0f;
 
     bool message = false;
     std::string addressee;

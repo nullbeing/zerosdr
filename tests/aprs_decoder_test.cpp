@@ -190,16 +190,25 @@ int main() {
 
     // Positionless weather.
     packet = decode_one(
-        "_10090556c220s004g005t077r010p000P000h50b09900", &case_ok);
+        "_10090556c220s004g005t077r010p020P030h50b09900", &case_ok);
     ok = ok && case_ok;
     ok = ok && packet.weather;
     ok = ok && std::fabs(packet.wind_dir - 220.0f) < 0.5f;
     ok = ok && std::fabs(packet.wind_speed_mph - 4.0f) < 0.5f;
+    ok = ok && std::fabs(packet.wind_gust_mph - 5.0f) < 0.5f;
     ok = ok && std::fabs(packet.temperature_c - 25.0f) < 0.5f;
+    ok = ok && packet.has_temperature;
+    ok = ok && std::fabs(packet.humidity - 50.0f) < 0.5f;
+    ok = ok && std::fabs(packet.pressure_hpa - 990.0f) < 0.1f;
     ok = ok && std::fabs(packet.rain_hour_mm - 2.54f) < 0.05f;
-    std::printf("weather: wind %.0f/%.0f temp %.1fC rain %.2fmm\n",
+    ok = ok && std::fabs(packet.rain_24h_mm - 5.08f) < 0.05f;
+    ok = ok && std::fabs(packet.rain_midnight_mm - 7.62f) < 0.05f;
+    std::printf("weather: wind %.0f/%.0f gust %.0f temp %.1fC hum %.0f%% "
+                "pres %.1fhPa rain %.2f/%.2f/%.2fmm\n",
                 packet.wind_dir, packet.wind_speed_mph,
-                packet.temperature_c, packet.rain_hour_mm);
+                packet.wind_gust_mph, packet.temperature_c, packet.humidity,
+                packet.pressure_hpa, packet.rain_hour_mm,
+                packet.rain_24h_mm, packet.rain_midnight_mm);
 
     // Mic-E position: spec example S32UVT with a +100 degree offset.
     packet = decode_one("`(_fn\"Oj/", &case_ok, "S32UVT");

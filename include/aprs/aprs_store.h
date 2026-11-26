@@ -48,8 +48,14 @@ struct StationState {
     bool weather = false;
     float wind_dir = -1.0f;
     float wind_speed_mph = -1.0f;
+    float wind_gust_mph = -1.0f;
     float temperature_c = 0.0f;
+    bool has_temperature = false;
+    float humidity = -1.0f;
+    float pressure_hpa = -1.0f;
     float rain_hour_mm = -1.0f;
+    float rain_24h_mm = -1.0f;
+    float rain_midnight_mm = -1.0f;
 
     time_t first_seen = 0;
     time_t last_seen = 0;
@@ -63,7 +69,8 @@ struct LogEntry {
     time_t time = 0;
     std::string source;
     char kind = 'P';
-    std::string text;
+    std::string summary;  // decoded fields (position, weather, message, ...)
+    std::string text;     // raw information field
 };
 
 class Store {

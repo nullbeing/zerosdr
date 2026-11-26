@@ -63,6 +63,14 @@ public:
     void draw(Framebuffer& fb, int cx, int cy, int radius,
               float max_range_km, float rotation_deg) const;
 
+    /**
+     * Draw the cached patch into a rectangle (used by the APRS detail map).
+     * The rectangle centre is the patch centre and max_range_km is the
+     * half-range along the shorter side.
+     */
+    void drawRect(Framebuffer& fb, int x, int y, int w, int h,
+                  float max_range_km, float rotation_deg) const;
+
 private:
     struct Image {
         int width = 0;

@@ -33,7 +33,10 @@ public:
 
     void renderDetail(const aprs::StationState* station, size_t station_count,
                       uint64_t total_packets, float packets_per_minute,
-                      int gain_tenths, bool agc, uint32_t frequency);
+                      int gain_tenths, bool agc, int& scroll,
+                      uint32_t frequency, MapBackground* map,
+                      double map_center_lat, double map_center_lon,
+                      float map_range_nm);
 
     void renderConsole(const std::vector<aprs::LogEntry>& entries,
                        int scroll_offset, uint64_t total_packets,
@@ -73,7 +76,9 @@ private:
     void renderStatsBar(uint64_t total_packets, size_t stations,
                         int gain_tenths, bool agc, const char* hint);
     void renderTrackPlot(const aprs::StationState& station, int x, int y,
-                         int w, int h);
+                         int w, int h, MapBackground* map,
+                         double center_lat, double center_lon,
+                         float range_nm);
 
     Theme theme_;
 };

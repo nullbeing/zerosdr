@@ -49,6 +49,8 @@ private:
     void selectStation(int direction, bool positioned_only);
     int selectedIndexIn(
         const std::vector<aprs::StationState>& stations) const;
+    void detailMapView(const aprs::StationState& station, double& latitude,
+                       double& longitude, float& range_nm) const;
     void render();
 
     Framebuffer& fb_;
@@ -70,6 +72,7 @@ private:
     std::string selected_callsign_;  // stable selection across re-sorts
     int scroll_offset_ = 0;
     int console_scroll_ = 0;
+    int detail_scroll_ = 0;
     bool help_visible_ = false;
     float map_range_nm_ = 25.0f;
 

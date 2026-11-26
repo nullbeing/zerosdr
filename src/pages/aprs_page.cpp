@@ -3,6 +3,7 @@
 #include "app_config.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <unistd.h>
@@ -123,6 +124,7 @@ void AprsPage::onEnter() {
     selected_callsign_.clear();
     scroll_offset_ = 0;
     console_scroll_ = 0;
+    detail_scroll_ = 0;
     help_visible_ = false;
     map_range_nm_ = 25.0f;
     packets_per_minute_ = 0.0f;
@@ -204,7 +206,8 @@ void AprsPage::update(float delta_time) {
     if (!sdr_ready_) return;
 
     // Held arrow keys repeat and accelerate in the scrolling views.
-    if ((view_ == View::List || view_ == View::Console) &&
+    if ((view_ == View::List || view_ == View::Console ||
+         view_ == View::Detail) &&
         held_vertical_key_ != APPKEY_NONE) {
         const int hold_ms = input_.getHoldDuration(held_vertical_key_);
         if (hold_ms >= 450) {
@@ -254,13 +257,46 @@ void AprsPage::update(float delta_time) {
         store_.setStation(gps_.latitude(), gps_.longitude(), true);
     }
 
-    if (store_.hasStation()) {
-        map_bg_.request(store_.stationLatitude(), store_.stationLongitude(),
-                        map_range_nm_ * 1.852f);
-    }
-
     updateRate();
     render();
+}
+
+void AprsPage::detailMapView(const aprs::StationState& station,
+                             double& latitude, double& longitude,
+                             float& range_nm) const {
+    const bool has_observer = store_.hasStation();
+    if (has_observer) {
+        latitude = store_.stationLatitude();
+        longitude = store_.stationLongitude();
+    } else {
+        latitude = station.latitude;
+        longitude = station.longitude;
+    }
+    if (!station.has_position) {
+        range_nm = 1.0f;
+        return;
+    }
+
+    constexpr double kPi = 3.14159265358979323846;
+    const double cos_latitude = std::cos(latitude * kPi / 180.0);
+    double max_east_nm = 0.0;
+    double max_north_nm = 0.0;
+    const auto include = [&](double point_latitude, double point_longitude) {
+        max_east_nm = std::max(
+            max_east_nm,
+            std::fabs((point_longitude - longitude) * 60.0 * cos_latitude));
+        max_north_nm = std::max(
+            max_north_nm,
+            std::fabs((point_latitude - latitude) * 60.0));
+    };
+    include(station.latitude, station.longitude);
+    for (const auto& point : station.trail) {
+        include(point.latitude, point.longitude);
+    }
+
+    const double max_distance_nm = std::hypot(max_east_nm, max_north_nm);
+    range_nm = std::max(1.0f, static_cast<float>(max_distance_nm * 1.3));
+    range_nm = std::min(200.0f, range_nm);
 }
 
 int AprsPage::selectedIndexIn(
@@ -295,7 +331,11 @@ void AprsPage::stepVertical(bool up) {
         selected_index_ = index;
         selected_callsign_ = stations[static_cast<size_t>(index)].callsign;
     } else if (view_ == View::Detail) {
-        selectStation(up ? -1 : 1, false);
+        if (up) {
+            if (detail_scroll_ > 0) --detail_scroll_;
+        } else {
+            ++detail_scroll_;
+        }
     } else if (view_ == View::Console) {
         if (up) {
             ++console_scroll_;
@@ -318,6 +358,7 @@ void AprsPage::selectStation(int direction, bool positioned_only) {
             selected_index_ = index;
             selected_callsign_ =
                 stations[static_cast<size_t>(index)].callsign;
+            detail_scroll_ = 0;
             return;
         }
     }
@@ -381,6 +422,11 @@ void AprsPage::render() {
                 }
             }
         }
+        if (store_.hasStation()) {
+            map_bg_.request(store_.stationLatitude(),
+                            store_.stationLongitude(),
+                            map_range_nm_ * 1.852f);
+        }
         ui_.renderMap(stations, selected_index_, map_range_nm_,
                       store_.hasStation(), store_.stationLatitude(),
                       store_.stationLongitude(), total, packets_per_minute_,
@@ -389,8 +435,19 @@ void AprsPage::render() {
         const aprs::StationState* selected =
             count > 0 ? &stations[static_cast<size_t>(selected_index_)]
                       : nullptr;
+        double map_latitude = 0.0;
+        double map_longitude = 0.0;
+        float map_range_nm = 0.0f;
+        if (selected != nullptr && selected->has_position) {
+            detailMapView(*selected, map_latitude, map_longitude,
+                          map_range_nm);
+            map_bg_.request(map_latitude, map_longitude,
+                            map_range_nm * 1.852f * 1.8f);
+        }
         ui_.renderDetail(selected, stations.size(), total,
-                         packets_per_minute_, gain_tenths_, agc_, frequency_);
+                         packets_per_minute_, gain_tenths_, agc_,
+                         detail_scroll_, frequency_, &map_bg_,
+                         map_latitude, map_longitude, map_range_nm);
     } else {
         const auto entries = store_.logSnapshot();
         const int max_scroll = std::max(0, static_cast<int>(entries.size()) - 1);
@@ -431,6 +488,7 @@ bool AprsPage::handleInput(AppKeyCode key) {
                 view_ = View::Map;
             } else if (view_ == View::Map) {
                 view_ = View::Detail;
+                detail_scroll_ = 0;
             } else if (view_ == View::Detail) {
                 view_ = View::Console;
                 console_scroll_ = 0;
@@ -529,6 +587,7 @@ bool AprsPage::handleInput(AppKeyCode key) {
             selected_callsign_.clear();
             scroll_offset_ = 0;
             console_scroll_ = 0;
+            detail_scroll_ = 0;
             packets_per_minute_ = 0.0f;
             rate_history_.clear();
             saveConfig();

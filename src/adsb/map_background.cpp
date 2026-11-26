@@ -759,3 +759,56 @@ void MapBackground::draw(Framebuffer& fb, int cx, int cy, int radius,
         }
     }
 }
+
+void MapBackground::drawRect(Framebuffer& fb, int x, int y, int w, int h,
+                             float max_range_km, float rotation_deg) const {
+    if (w <= 0 || h <= 0 || max_range_km <= 0.0f) return;
+
+    std::shared_ptr<const Image> image;
+    {
+        std::lock_guard<std::mutex> lock(image_mutex_);
+        image = image_;
+    }
+    if (image == nullptr || image->pixels.empty() || image->m_per_px <= 0.0) {
+        return;
+    }
+
+    const int x0 = std::max(0, x);
+    const int y0 = std::max(0, y);
+    const int x1 = std::min(fb.getWidth() - 1, x + w - 1);
+    const int y1 = std::min(fb.getHeight() - 1, y + h - 1);
+    if (x1 < x0 || y1 < y0) return;
+
+    const double half = std::min(w, h) / 2.0;
+    const double screen_m_per_px = (double)max_range_km * 1000.0 / half;
+    const double needed_km =
+        std::sqrt((w / 2.0) * (w / 2.0) + (h / 2.0) * (h / 2.0)) *
+        screen_m_per_px / 1000.0;
+    const double cover_km = (image->width / 2.0) * image->m_per_px / 1000.0;
+    if (cover_km + 0.001 < needed_km) return;
+
+    const int half_w = image->width / 2;
+    const int half_h = image->height / 2;
+    const double factor = screen_m_per_px / image->m_per_px;
+    const double rad = rotation_deg * kPi / 180.0;
+    const float cosr = (float)std::cos(rad);
+    const float sinr = (float)std::sin(rad);
+    const int cx = x + w / 2;
+    const int cy = y + h / 2;
+
+    for (int py = y0; py <= y1; ++py) {
+        const int dy = py - cy;
+        for (int px = x0; px <= x1; ++px) {
+            const int dx = px - cx;
+            const float rx = dx * cosr - dy * sinr;
+            const float ry = dx * sinr + dy * cosr;
+            const int mx = half_w + (int)std::lround(rx * factor);
+            const int my = half_h + (int)std::lround(ry * factor);
+            if (mx < 0 || mx >= image->width || my < 0 ||
+                my >= image->height) {
+                continue;
+            }
+            fb.drawPixel(px, py, image->pixels[(size_t)my * image->width + mx]);
+        }
+    }
+}

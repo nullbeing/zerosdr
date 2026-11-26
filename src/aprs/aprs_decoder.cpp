@@ -321,58 +321,131 @@ int base91(char value) {
 
 bool is_digit(char value) { return value >= '0' && value <= '9'; }
 
-void parse_weather_fields(Packet& packet, const std::string& text) {
-    packet.weather = true;
+bool token_boundary(const std::string& text, size_t index) {
+    if (index == 0) return true;
+    const char previous = text[index - 1];
+    return previous == ' ' || previous == '_' || previous == ',' ||
+           previous == '/';
+}
 
-    // Two encodings appear in the wild: the APRS "cDDD sSSS" weather
-    // tokens and the older "DDD/SSS" wind group.
-    for (size_t i = 0; i + 4 <= text.size(); ++i) {
-        if (!is_digit(text[i]) || !is_digit(text[i + 1]) ||
-            !is_digit(text[i + 2]) || text[i + 3] != '/' ||
-            !is_digit(text[i + 4])) {
+// APRS weather tokens: cDDD wind direction, sSSS wind speed, gGGG gust,
+// tTTT temperature (F), rRRR rain 1h, pPPP rain 24h, PPPP rain midnight,
+// hHH humidity and bBBBBB pressure in tenths of hPa. Distances are in
+// hundredths of an inch in the packet and are converted to mm here.
+void parse_weather_tokens(Packet& packet, const std::string& text,
+                          bool sequential = false) {
+    bool found = false;
+    for (size_t i = 0; i + 1 < text.size(); ++i) {
+        if (!sequential && !token_boundary(text, i)) continue;
+        const char tag = text[i];
+
+        if (tag == 't') {
+            const char* start = text.c_str() + i + 1;
+            char* end = nullptr;
+            const long fahrenheit = std::strtol(start, &end, 10);
+            if (end != start && end - start <= 4) {
+                packet.temperature_c =
+                    static_cast<float>((fahrenheit - 32) * 5.0 / 9.0);
+                packet.has_temperature = true;
+                found = true;
+            }
             continue;
         }
-        if (i + 7 > text.size()) break;
-        if (!is_digit(text[i + 5]) || !is_digit(text[i + 6])) continue;
+
+        if (tag == 'h') {
+            if (i + 2 >= text.size() || !is_digit(text[i + 1]) ||
+                !is_digit(text[i + 2])) {
+                continue;
+            }
+            packet.humidity = static_cast<float>(
+                (text[i + 1] - '0') * 10 + (text[i + 2] - '0'));
+            found = true;
+            continue;
+        }
+
+        if (tag == 'b') {
+            if (i + 5 >= text.size()) continue;
+            bool valid = true;
+            int value = 0;
+            for (int k = 1; k <= 5; ++k) {
+                if (!is_digit(text[i + k])) {
+                    valid = false;
+                    break;
+                }
+                value = value * 10 + (text[i + k] - '0');
+            }
+            if (valid) {
+                packet.pressure_hpa = static_cast<float>(value) / 10.0f;
+                found = true;
+            }
+            continue;
+        }
+
+        if (tag != 'c' && tag != 's' && tag != 'g' && tag != 'r' &&
+            tag != 'p' && tag != 'P') {
+            continue;
+        }
+        if (i + 3 >= text.size() || !is_digit(text[i + 1]) ||
+            !is_digit(text[i + 2]) || !is_digit(text[i + 3])) {
+            continue;
+        }
+        const int value = (text[i + 1] - '0') * 100 +
+                          (text[i + 2] - '0') * 10 + (text[i + 3] - '0');
+        switch (tag) {
+            case 'c':
+                packet.wind_dir = static_cast<float>(value);
+                break;
+            case 's':
+                packet.wind_speed_mph = static_cast<float>(value);
+                break;
+            case 'g':
+                packet.wind_gust_mph = static_cast<float>(value);
+                break;
+            case 'r':
+                packet.rain_hour_mm = static_cast<float>(value) * 0.254f;
+                break;
+            case 'p':
+                packet.rain_24h_mm = static_cast<float>(value) * 0.254f;
+                break;
+            case 'P':
+                packet.rain_midnight_mm = static_cast<float>(value) * 0.254f;
+                break;
+            default:
+                break;
+        }
+        found = true;
+    }
+    if (found) packet.weather = true;
+}
+
+// Older position comments use a "DDD/SSS" wind group instead of c/s
+// tokens. Call this only for actual weather payloads, not position
+// comments where DDD/SSS means course/speed.
+void parse_weather_slash_wind(Packet& packet, const std::string& text) {
+    for (size_t i = 0; i + 7 <= text.size(); ++i) {
+        if (!is_digit(text[i]) || !is_digit(text[i + 1]) ||
+            !is_digit(text[i + 2]) || text[i + 3] != '/' ||
+            !is_digit(text[i + 4]) || !is_digit(text[i + 5]) ||
+            !is_digit(text[i + 6])) {
+            continue;
+        }
         packet.wind_dir = static_cast<float>(
             (text[i] - '0') * 100 + (text[i + 1] - '0') * 10 +
             (text[i + 2] - '0'));
         packet.wind_speed_mph = static_cast<float>(
             (text[i + 4] - '0') * 100 + (text[i + 5] - '0') * 10 +
             (text[i + 6] - '0'));
+        packet.weather = true;
         break;
     }
+}
 
-    for (size_t i = 0; i + 3 < text.size(); ++i) {
-        const char tag = text[i];
-        if (tag == 't' &&
-            (is_digit(text[i + 1]) ||
-             (text[i + 1] == '-' && i + 4 < text.size() &&
-              is_digit(text[i + 2])))) {
-            char* end = nullptr;
-            const long fahrenheit = std::strtol(text.c_str() + i + 1, &end, 10);
-            if (end != text.c_str() + i + 1) {
-                packet.temperature_c = static_cast<float>(
-                    (fahrenheit - 32) * 5.0 / 9.0);
-            }
-        } else if (tag == 'c' && is_digit(text[i + 1]) &&
-                   is_digit(text[i + 2]) && is_digit(text[i + 3])) {
-            packet.wind_dir = static_cast<float>(
-                (text[i + 1] - '0') * 100 + (text[i + 2] - '0') * 10 +
-                (text[i + 3] - '0'));
-        } else if (tag == 's' && is_digit(text[i + 1]) &&
-                   is_digit(text[i + 2]) && is_digit(text[i + 3])) {
-            packet.wind_speed_mph = static_cast<float>(
-                (text[i + 1] - '0') * 100 + (text[i + 2] - '0') * 10 +
-                (text[i + 3] - '0'));
-        } else if (tag == 'r' && is_digit(text[i + 1]) &&
-                   is_digit(text[i + 2]) && is_digit(text[i + 3])) {
-            const int hundredths = (text[i + 1] - '0') * 100 +
-                                   (text[i + 2] - '0') * 10 +
-                                   (text[i + 3] - '0');
-            packet.rain_hour_mm = static_cast<float>(hundredths) * 0.254f;
-        }
-    }
+void parse_weather(Packet& packet, const std::string& info) {
+    // _MMDDHHMM followed by the weather fields.
+    const std::string fields = info.size() > 8 ? info.substr(8)
+                                               : std::string();
+    parse_weather_tokens(packet, fields, true);
+    parse_weather_slash_wind(packet, fields);
 }
 
 void parse_comment_fields(Packet& packet) {
@@ -406,10 +479,16 @@ void parse_comment_fields(Packet& packet) {
         if (end != start) packet.altitude_ft = static_cast<int>(value);
     }
 
-    // Weather appended to a position comment starts at the last '_'.
+    // Weather appended to a position comment starts at the last '_'. A
+    // standalone t/h/b/r token is also accepted (many Mic-E trackers put
+    // the temperature after the status text).
     const size_t weather = text.rfind('_');
     if (weather != std::string::npos && weather + 1 < text.size()) {
-        parse_weather_fields(packet, text.substr(weather + 1));
+        const std::string fields = text.substr(weather + 1);
+        parse_weather_tokens(packet, fields, true);
+        parse_weather_slash_wind(packet, fields);
+    } else {
+        parse_weather_tokens(packet, text);
     }
 }
 
@@ -578,13 +657,6 @@ void parse_message(Packet& packet, const std::string& info) {
     packet.message = true;
     packet.addressee = addressee;
     packet.message_text = text;
-}
-
-void parse_weather(Packet& packet, const std::string& info) {
-    // _MMDDHHMM followed by the weather fields.
-    const std::string fields = info.size() > 8 ? info.substr(8)
-                                               : std::string();
-    parse_weather_fields(packet, fields);
 }
 
 void parse_info(Packet& packet) {

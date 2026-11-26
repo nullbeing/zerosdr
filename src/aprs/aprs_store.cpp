@@ -30,6 +30,79 @@ std::string trim(std::string value) {
     return value;
 }
 
+std::string formatSummary(const Packet& packet) {
+    char buffer[192];
+    std::string summary;
+
+    if (packet.has_position) {
+        int length = std::snprintf(buffer, sizeof(buffer), "POS %.5f,%.5f",
+                                   packet.latitude, packet.longitude);
+        if (length < 0) length = 0;
+        int used = std::min<int>(length, static_cast<int>(sizeof(buffer)) - 1);
+        if (packet.speed_knots >= 0.0f && used < static_cast<int>(sizeof(buffer)) - 1) {
+            used += std::snprintf(buffer + used, sizeof(buffer) - used,
+                                  " %.0fKN", packet.speed_knots);
+        }
+        if (packet.course >= 0.0f && used < static_cast<int>(sizeof(buffer)) - 1) {
+            used += std::snprintf(buffer + used, sizeof(buffer) - used,
+                                  " %03.0fDEG", packet.course);
+        }
+        if (packet.altitude_ft > -1000 &&
+            used < static_cast<int>(sizeof(buffer)) - 1) {
+            used += std::snprintf(buffer + used, sizeof(buffer) - used,
+                                  " %dFT", packet.altitude_ft);
+        }
+        summary = buffer;
+    }
+
+    if (packet.weather) {
+        char weather[128];
+        int used = 0;
+        if (packet.wind_dir >= 0.0f && packet.wind_speed_mph >= 0.0f) {
+            used += std::snprintf(weather + used, sizeof(weather) - used,
+                                  "WX %03.0f/%.0fMPH", packet.wind_dir,
+                                  packet.wind_speed_mph);
+        } else {
+            used += std::snprintf(weather + used, sizeof(weather) - used,
+                                  "WX");
+        }
+        if (packet.wind_gust_mph >= 0.0f && used < static_cast<int>(sizeof(weather)) - 1) {
+            used += std::snprintf(weather + used, sizeof(weather) - used,
+                                  " G%.0fMPH", packet.wind_gust_mph);
+        }
+        if (packet.has_temperature && used < static_cast<int>(sizeof(weather)) - 1) {
+            used += std::snprintf(weather + used, sizeof(weather) - used,
+                                  " T%.0fC", packet.temperature_c);
+        }
+        if (packet.humidity >= 0.0f && used < static_cast<int>(sizeof(weather)) - 1) {
+            used += std::snprintf(weather + used, sizeof(weather) - used,
+                                  " H%.0f%%", packet.humidity);
+        }
+        if (packet.pressure_hpa >= 0.0f && used < static_cast<int>(sizeof(weather)) - 1) {
+            used += std::snprintf(weather + used, sizeof(weather) - used,
+                                  " P%.1fhPA", packet.pressure_hpa);
+        }
+        if (packet.rain_hour_mm >= 0.0f && used < static_cast<int>(sizeof(weather)) - 1) {
+            used += std::snprintf(weather + used, sizeof(weather) - used,
+                                  " R%.1fMM", packet.rain_hour_mm);
+        }
+        if (!summary.empty()) summary += " | ";
+        summary += weather;
+    }
+
+    if (packet.message) {
+        if (!summary.empty()) summary += " | ";
+        summary += "MSG " + packet.addressee + ": " + packet.message_text;
+    } else if (packet.type == '>' && !packet.comment.empty()) {
+        if (!summary.empty()) summary += " | ";
+        summary += "STATUS " + packet.comment;
+    }
+
+    if (summary.empty()) summary = packet.info;
+    if (summary.size() > 140) summary.resize(140);
+    return summary;
+}
+
 char kindFor(const Packet& packet) {
     if (packet.weather) return 'W';
     if (packet.message) return 'M';
@@ -152,9 +225,25 @@ void Store::apply(const Packet& packet) {
         if (packet.wind_speed_mph >= 0.0f) {
             station.wind_speed_mph = packet.wind_speed_mph;
         }
-        station.temperature_c = packet.temperature_c;
+        if (packet.wind_gust_mph >= 0.0f) {
+            station.wind_gust_mph = packet.wind_gust_mph;
+        }
+        if (packet.has_temperature) {
+            station.temperature_c = packet.temperature_c;
+            station.has_temperature = true;
+        }
+        if (packet.humidity >= 0.0f) station.humidity = packet.humidity;
+        if (packet.pressure_hpa >= 0.0f) {
+            station.pressure_hpa = packet.pressure_hpa;
+        }
         if (packet.rain_hour_mm >= 0.0f) {
             station.rain_hour_mm = packet.rain_hour_mm;
+        }
+        if (packet.rain_24h_mm >= 0.0f) {
+            station.rain_24h_mm = packet.rain_24h_mm;
+        }
+        if (packet.rain_midnight_mm >= 0.0f) {
+            station.rain_midnight_mm = packet.rain_midnight_mm;
         }
     }
 
@@ -168,17 +257,9 @@ void Store::apply(const Packet& packet) {
     entry.time = now;
     entry.source = packet.source;
     entry.kind = station.kind;
-
-    char prefix[32];
-    struct tm local {};
-    localtime_r(&now, &local);
-    std::snprintf(prefix, sizeof(prefix), "%02d:%02d:%02d %-9s %c",
-                  local.tm_hour, local.tm_min, local.tm_sec,
-                  packet.source.c_str(), entry.kind);
-
-    std::string detail = packet.info;
-    if (detail.size() > 96) detail.resize(96);
-    entry.text = std::string(prefix) + " " + detail;
+    entry.summary = formatSummary(packet);
+    entry.text = packet.info;
+    if (entry.text.size() > 160) entry.text.resize(160);
     log_.push_back(std::move(entry));
     while (log_.size() > 300) log_.pop_front();
 

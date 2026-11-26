@@ -576,41 +576,61 @@ thread. RTL-SDR hardware cannot transmit, so the page is receive-only: it
 shows stations, weather and messages but never sends.
 
 Select **APRS** in the `Tab` page menu. `Enter` cycles LIST → MAP → DETAIL →
-CONSOLE; `↑`/`↓` scroll or zoom the map, `←`/`→` select a station and `H`
-shows every key. `T` cycles the three common frequencies (144.640 / 144.800 /
+CONSOLE; `↑`/`↓` scroll the detail text or zoom the map, `←`/`→`
+select a station and `H` shows every key. `T` cycles the three common frequencies (144.640 / 144.800 /
 144.390 MHz) and clears the station table.
 
 | LIST | MAP |
 | --- | --- |
 | ![APRS station list](images/aprs-list.png) | ![APRS map](images/aprs-map.png) |
-| **DETAIL** | **CONSOLE** |
+| **DETAIL (map + track)** | **CONSOLE** |
 | ![APRS detail view](images/aprs-detail.png) | ![APRS packet console](images/aprs-console.png) |
+
+The weather block lists every field (wind, gust, temperature, humidity,
+pressure and the three rain totals) and scrolls with `↑` / `↓`:
+
+![APRS weather fields](images/aprs-weather.png)
 
 - **LIST** — callsign, APRS symbol, speed, course, distance and age, nearest
   first; stations without a decoded position are listed last. A callsign
   dims after 30 minutes without a packet and is removed after two hours.
 - **MAP** — north-up PPI with the cached map background, four range rings
-  and compass ticks. Triangles point along the course of moving stations,
-  weather stations use a square and messages a circle; the selected station
-  gets a crosshair, a callsign label and a connected track line, while other
-  stations keep faint trail dots. `Up` / `Down` zoom from 1 to 200 NM
-  (starts at 25 NM).
-- **DETAIL** — a large auto-scaled track plot on the left and the station
-  text on the right: position, range/bearing, speed/course, altitude, age,
-  packet count, destination/path, weather (wind, temperature, rain) and the
-  comment.
-- **CONSOLE** — every decoded packet with time, source, type and the raw
-  information field.
+  and compass ticks. Station symbols are translated to type-shaped icons:
+  cars, trucks, aircraft, ships, weather stations, digipeaters, iGates and
+  houses. The selected station gets a crosshair, a callsign label and a
+  connected track line, while other stations keep faint trail dots.
+  `Up` / `Down` zoom from 1 to 200 NM (starts at 25 NM).
+- **DETAIL** — a map/track panel on the left and a scrollable station
+  column on the right. The panel uses the same cached map, with the
+  station's track and start/latest markers. The text lists position,
+  range/bearing, speed/course, altitude, age, packet count, symbol type,
+  destination/path, the full weather block and the comment; `Up` / `Down`
+  scroll it and `Left` / `Right` change station.
+- **CONSOLE** — two lines per packet: time/source/type and the decoded
+  fields (position, speed/course/altitude, weather, message or status).
 
-The DETAIL plot keeps the recent track of the selected station: it
-auto-scales to the positions, marks the start with a circle and the latest
-position with a course arrow, and shows the track length, duration, point
-count and a scale bar. Up to 120 positions from the last two hours are
-kept; a new point is added when the station moves more than about 13 m, so
-GPS jitter does not fill the history. The same track is drawn as a line on
-the MAP view, with older segments dim and the newest part amber.
-The selection follows the callsign, not the row number, so it stays on the
-same station while new stations appear and the list re-sorts by distance.
+The APRS symbol table is decoded instead of showing the raw character.
+The list has a `TYP` column (`CAR`, `TRK`, `AIR`, `SHP`, `WX`, `DIG`,
+`IGT`, `HOM`, `ANT`, ...), the detail spells the type out (`House / QTH`,
+`Weather station`, `iGate / gateway`, ...), and the map draws a matching
+icon.
+
+Weather reports are decoded field by field: wind direction/speed, gust,
+temperature, humidity, pressure and rain in the last hour, last 24 hours
+and since midnight. The detail column shows all of them with units; the
+console summary shows the main values. Positions and tracks are labelled
+with units throughout (`NM`, `KN`, `FT`, `DEG`, `MPH`, `HPA`, `MM`).
+
+The DETAIL track panel keeps the recent track of the selected station:
+it is drawn on the map, marks the start with a circle and the latest
+position with its type icon, and shows the track length, duration, point
+count and a scale bar (`TRK 0.6NM 1MIN 5PTS`). Up to 120 positions from the
+last two hours are kept; a new point is added when the station moves more
+than about 13 m, so GPS jitter does not fill the history. The same track is
+drawn as a line on the MAP view, with older segments dim and the newest
+part amber. The selection follows the callsign, not the row number, so it
+stays on the same station while new stations appear and the list re-sorts
+by distance.
 
 The decoder handles uncompressed and compressed positions, Mic-E (the format
 used by most Kenwood/Yaesu mobile trackers), messages (receive-only) and
