@@ -393,7 +393,7 @@ void AprsPage::render() {
     const uint64_t total = store_.totalPackets();
     const int count = static_cast<int>(stations.size());
 
-    // Keep the selected station stable while the list re-sorts by distance.
+    // Keep the selected station stable while the list re-sorts by update time.
     if (count == 0) {
         selected_index_ = 0;
         selected_callsign_.clear();

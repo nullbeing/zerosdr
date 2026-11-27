@@ -32,11 +32,15 @@ bool check(bool condition, const char* message) {
 int main() {
     aprs::Store store;
     store.setStation(23.1291, 113.2644, true);
+    // Explicit timestamps keep the ordering assertions independent of how
+    // long the test takes to run.
+    const time_t base = time(nullptr) - 7200;
 
     // Five moving positions build five trail points.
     for (int i = 0; i < 5; ++i) {
         store.apply(position("N0CALL-9", 23.1200 + i * 0.001,
-                             113.2500 + i * 0.001));
+                             113.2500 + i * 0.001),
+                    base + i * 60);
     }
     auto stations = store.snapshot();
     bool ok = true;
@@ -49,13 +53,13 @@ int main() {
     ok = check(stations[0].distance_nm > 0.0f, "distance from observer");
 
     // A duplicate and a GPS-jitter-sized move do not add points.
-    store.apply(position("N0CALL-9", 23.1240, 113.2540));
-    store.apply(position("N0CALL-9", 23.12405, 113.25405));
+    store.apply(position("N0CALL-9", 23.1240, 113.2540), base + 400);
+    store.apply(position("N0CALL-9", 23.12405, 113.25405), base + 420);
     stations = store.snapshot();
     ok = check(stations[0].trail.size() == 5, "duplicates and jitter ignored");
 
     // A real move adds one point.
-    store.apply(position("N0CALL-9", 23.12430, 113.25430));
+    store.apply(position("N0CALL-9", 23.12430, 113.25430), base + 500);
     stations = store.snapshot();
     ok = check(stations[0].trail.size() == 6, "real move adds a point");
 
@@ -68,7 +72,7 @@ int main() {
     weather.wind_speed_mph = 12.0f;
     weather.temperature_c = 25.5f;
     weather.info = "_10090556c220s012t077";
-    store.apply(weather);
+    store.apply(weather, base + 600);
     stations = store.snapshot();
     ok = check(stations[0].trail.size() == 6, "weather keeps the track");
     ok = check(stations[0].weather, "weather flag");
@@ -93,6 +97,14 @@ int main() {
         if (station.callsign == "RECENT-1") has_recent = true;
     }
     ok = check(has_recent, "recent station retained");
+
+    // The list is ordered by the last packet, not by distance: the far
+    // station heard last must come before the near one heard a minute ago.
+    store.apply(position("NEAR-1", 23.1300, 113.2600), now - 60);
+    store.apply(position("FAR-1", 24.5000, 114.5000), now - 5);
+    stations = store.snapshot();
+    ok = check(!stations.empty() && stations[0].callsign == "FAR-1",
+               "newest station first, not nearest");
 
     if (!ok) {
         std::fprintf(stderr, "APRS store test FAILED\n");

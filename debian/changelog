@@ -1,3 +1,11 @@
+zerosdr (0.5.8) trixie; urgency=medium
+
+  * APRS: station list, map and detail paging are ordered by the last packet,
+    most recently heard first, instead of by distance. Positionless stations
+    follow the same rule instead of always sorting last
+
+ -- Weiming Feng <bestedwin@gmail.com>  Fri, 27 Nov 2026 16:20:00 +0800
+
 zerosdr (0.5.7) trixie; urgency=medium
 
   * ESC is now a normal back key: a tap closes a help or detail view or

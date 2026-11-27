@@ -320,13 +320,11 @@ std::vector<StationState> Store::snapshot() {
     result.reserve(stations_.size());
     for (const auto& entry : stations_) result.push_back(entry.second);
 
+    // Most recently heard station first. Ties break on the callsign so the
+    // order does not jump between redraws when several packets arrive in the
+    // same second.
     std::sort(result.begin(), result.end(),
               [](const StationState& a, const StationState& b) {
-                  if (a.distance_nm >= 0.0f && b.distance_nm >= 0.0f) {
-                      return a.distance_nm < b.distance_nm;
-                  }
-                  if (a.distance_nm >= 0.0f) return true;
-                  if (b.distance_nm >= 0.0f) return false;
                   if (a.last_seen != b.last_seen) {
                       return a.last_seen > b.last_seen;
                   }

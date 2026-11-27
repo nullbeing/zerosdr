@@ -611,9 +611,10 @@ pressure and the three rain totals) and scrolls with `↑` / `↓`:
 
 ![APRS weather fields](images/aprs-weather.png)
 
-- **LIST** — callsign, type, speed, course, distance and age, nearest first;
-  stations without a decoded position are listed last. A callsign dims
-  after 30 minutes without a packet and is removed after seven days.
+- **LIST** — callsign, type, speed, course, distance and age, most recently
+  heard first. Stations without a decoded position sort by the same rule. A
+  callsign dims after 30 minutes without a packet and is removed after seven
+  days.
 - **MAP** — north-up PPI with the cached map background, four range rings
   and compass ticks. Moving stations are triangles oriented by course,
   weather stations squares and messages circles. The selected station gets
@@ -650,7 +651,7 @@ than about 13 m, so GPS jitter does not fill the history. The same track is
 drawn as a line on the MAP view, with older segments dim and the newest
 part amber. The selection follows the callsign, not the row number, so it
 stays on the same station while new stations appear and the list re-sorts
-by distance.
+by last update.
 
 Every decoded packet is appended to a daily history file under
 `~/.local/share/zerosdr/aprs/` (`YYYY-MM-DD.jsonl`). On startup the last
