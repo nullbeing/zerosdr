@@ -1,3 +1,17 @@
+zerosdr (0.5.4) trixie; urgency=medium
+
+  * APRS: fix weather decoding in Mic-E comments. A trailing underscore
+    (status/callsign suffix) no longer hides an earlier tXXXX temperature
+    token, and uppercase TXXXX temperatures are accepted
+  * APRS: re-parse the comment of historical daily-log records, so stored
+    packets recover temperature/weather data after the parser fix
+  * APRS: weather stations are marked WX in the list and map, the detail
+    header shows a compact temperature badge, and the weather block now
+    comes before the path/comment so wind, gust, temperature, humidity and
+    pressure are visible without scrolling
+
+ -- Weiming Feng <bestedwin@gmail.com>  Fri, 27 Nov 2026 09:56:00 +0800
+
 zerosdr (0.5.3) trixie; urgency=medium
 
   * APRS: native receive-only 1200 baud Bell 202 AFSK / AX.25 decoder with

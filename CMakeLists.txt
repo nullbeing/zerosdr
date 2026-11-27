@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(ZeroSDR VERSION 0.5.3 LANGUAGES C CXX)
+project(ZeroSDR VERSION 0.5.4 LANGUAGES C CXX)
 
 # Default to an optimized build. Without this, a plain `cmake ..` produces
 # an unoptimized binary that cannot keep up with real-time audio on the
