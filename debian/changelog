@@ -1,3 +1,15 @@
+zerosdr (0.5.6) trixie; urgency=medium
+
+  * ACARS: resolve airport codes against a bundled OurAirports extract
+    (public domain, installed to /usr/share/zerosdr/airports.csv); the detail
+    view shows a city line such as BEIJING > SHENZHEN and the list shows the
+    route or coordinates instead of the raw position text
+  * ACARS: parse the DDMM / DDMMT / DDMMSS coordinate forms and DEP/DES
+    route tokens used by free-text position reports
+  * ACARS: airport lookup regression test and the data generator script
+
+ -- Weiming Feng <bestedwin@gmail.com>  Fri, 27 Nov 2026 12:05:00 +0800
+
 zerosdr (0.5.5) trixie; urgency=medium
 
   * ACARS: classify text payloads and show a DECODED summary (position,
