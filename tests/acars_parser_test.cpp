@@ -59,6 +59,27 @@ void testFreeTextPosition() {
           "pos report has no route");
 }
 
+void testPackedCoordinates() {
+    // A compact report glues the longitude letter to the latitude digits:
+    // N 23533 is DDMMT (23 deg 53.3 min), E113493 is DDDMMT.
+    acars::Message msg = makeMessage(
+        "14",
+        "POS\nUTC 035125,DEP ZSLY,DES ZGGG,N 23533E113493,CAS 251,"
+        "WD 25997,WS   27,GS   266,ALT 9420");
+    const acars::Decoded decoded = acars::decodeText(msg);
+    check(decoded.kind == acars::Kind::Position, "packed kind");
+    check(decoded.has_position, "packed position");
+    check(std::fabs(decoded.latitude - 23.888333) < 1e-4,
+          "packed latitude");
+    check(std::fabs(decoded.longitude - 113.821667) < 1e-4,
+          "packed longitude");
+    check(decoded.has_altitude && decoded.altitude_ft == 9420,
+          "packed altitude");
+    check(decoded.report_time == "0351Z", "packed time");
+    check(decoded.origin == "ZSLY", "packed origin");
+    check(decoded.destination == "ZGGG", "packed destination");
+}
+
 void testSlashRoute() {
     acars::Message msg = makeMessage(
         "41",
@@ -191,6 +212,7 @@ void testMultipartMerge() {
 int main() {
     testPoxPosition();
     testFreeTextPosition();
+    testPackedCoordinates();
     testSlashRoute();
     testSystemAdvisory();
     testAts();

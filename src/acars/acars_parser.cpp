@@ -43,14 +43,17 @@ struct Coordinate {
 
 /**
  * Reads the number following an N/S/E/W letter. ACARS position reports use
- * three different encodings:
+ * several encodings and the hemisphere letter may be glued to the previous
+ * number ("N 23533E113493"):
  *   decimal degrees   24.448
- *   degrees * 1e6     23028576   (lat), 113248512 (lon)
- *   DDMMSS            230285
+ *   degrees * 1e6     23028576 (lat), 113248512 (lon)
+ *   DDMM / DDMMT      2353, 23533           (T = tenths of a minute)
+ *   DDMMSS            225106
  * A bare one to three digit number is ambiguous ("CAS 280", "W 5") and is
  * rejected rather than guessed.
  */
-Coordinate parseCoordinate(const std::string& text, size_t letter) {
+Coordinate parseCoordinate(const std::string& text, size_t letter,
+                           bool latitude) {
     Coordinate out;
     size_t i = letter + 1;
     while (i < text.size() && text[i] == ' ') ++i;
@@ -71,29 +74,48 @@ Coordinate parseCoordinate(const std::string& text, size_t letter) {
         }
     }
     if (digits == 0) return out;
-    // Reject numbers glued to a word ("N123ABC") or a second decimal point.
-    if (i < text.size() && (isUpperAlnum(text[i]) || text[i] == '.')) {
-        return out;
+    // A number glued to a word ("N123ABC") is not a coordinate. A following
+    // hemisphere letter is a delimiter, not part of the text.
+    if (i < text.size()) {
+        const char next = text[i];
+        const bool coordinate_letter =
+            next == 'N' || next == 'S' || next == 'E' || next == 'W';
+        if (!coordinate_letter && (isUpperAlnum(next) || next == '.')) {
+            return out;
+        }
     }
 
     const std::string number = text.substr(start, i - start);
     if (dot) {
         if (digits > 11) return out;
         out.value = std::strtod(number.c_str(), nullptr);
-    } else if (digits >= 7) {
+    } else if (latitude ? digits >= 7 : digits >= 8) {
         // Degrees scaled by 1e6, the common ARINC 620 position report form.
         out.value = std::strtod(number.c_str(), nullptr) / 1e6;
-    } else if (digits == 6) {
-        const long v = std::strtol(number.c_str(), nullptr, 10);
-        out.value = static_cast<double>(v / 10000) +
-                    static_cast<double>((v / 100) % 100) / 60.0 +
-                    static_cast<double>(v % 100) / 3600.0;
-    } else if (digits == 4) {
-        const long v = std::strtol(number.c_str(), nullptr, 10);
-        out.value = static_cast<double>(v / 100) +
-                    static_cast<double>(v % 100) / 60.0;
     } else {
-        return out;
+        const long v = std::strtol(number.c_str(), nullptr, 10);
+        // DDMM / DDMMT / DDMMSS. The degrees field is two digits for a
+        // latitude and three for a longitude.
+        const size_t degrees_digits = latitude ? 2 : 3;
+        if (digits < degrees_digits + 2) return out;
+        const size_t rest = digits - degrees_digits;
+        long divisor = 1;
+        for (size_t k = 2; k < rest; ++k) divisor *= 10;
+        const long degrees = v / (100 * divisor);
+        const long minutes = (v / divisor) % 100;
+        const long fraction = v % divisor;  // seconds or tenths
+        if (minutes >= 60) return out;
+        double value = static_cast<double>(degrees) +
+                       static_cast<double>(minutes) / 60.0;
+        if (rest == 3) {
+            value += static_cast<double>(fraction) / 600.0;  // tenths
+        } else if (rest == 4) {
+            if (fraction >= 60) return out;
+            value += static_cast<double>(fraction) / 3600.0;
+        } else if (rest != 2) {
+            return out;
+        }
+        out.value = value;
     }
     out.ok = true;
     return out;
@@ -105,10 +127,11 @@ bool findPosition(const std::string& text, double& latitude, double& longitude) 
     for (size_t i = 0; i < text.size(); ++i) {
         // Only start at a token boundary, so letters inside words ("POSITION",
         // "SORRY") are never mistaken for a hemisphere marker.
-        if (i > 0 && isUpperAlnum(text[i - 1])) continue;
+        if (i > 0 && isUpper(text[i - 1])) continue;
         const char c = text[i];
         if (c != 'N' && c != 'S' && c != 'E' && c != 'W') continue;
-        const Coordinate coord = parseCoordinate(text, i);
+        const Coordinate coord =
+            parseCoordinate(text, i, c == 'N' || c == 'S');
         if (!coord.ok) continue;
         if (c == 'N' || c == 'S') {
             if (have_lat || coord.value > 90.0) continue;
@@ -152,6 +175,24 @@ void parseAltitude(const std::string& text, Decoded& out) {
         }
         pos += 3;
     }
+}
+
+// Free-text reports often name the airports as "DEP ZSLY" / "DES ZGGG".
+std::string findPrefixedAirport(const std::string& text,
+                                const char* const* prefixes,
+                                size_t count) {
+    for (size_t p = 0; p < count; ++p) {
+        const std::string token = std::string(prefixes[p]) + " ";
+        size_t at = 0;
+        while ((at = text.find(token, at)) != std::string::npos) {
+            size_t i = at + token.size();
+            while (i < text.size() && text[i] == ' ') ++i;
+            const std::string code = text.substr(i, 4);
+            if (isAirport(code)) return code;
+            at += token.size();
+        }
+    }
+    return {};
 }
 
 void parseUtcTime(const std::string& text, Decoded& out) {
@@ -245,6 +286,17 @@ Decoded decodeText(const Message& message) {
         // Slash-separated report: ORIG/DEST/date/...
         out.origin = line.substr(0, 4);
         out.destination = line.substr(5, 4);
+    }
+
+    if (out.origin.empty() || out.destination.empty()) {
+        static const char* const kOrigin[] = {"DEP", "ORG", "FROM"};
+        static const char* const kDestination[] = {"DES", "DEST", "ARR"};
+        if (out.origin.empty()) {
+            out.origin = findPrefixedAirport(text, kOrigin, 3);
+        }
+        if (out.destination.empty()) {
+            out.destination = findPrefixedAirport(text, kDestination, 3);
+        }
     }
 
     double latitude = 0.0;

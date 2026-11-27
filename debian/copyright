@@ -11,6 +11,12 @@ License: GPL-3.0-only
  .
  On Debian systems the complete text is in /usr/share/common-licenses/GPL-3.
 
+Files: data/airports.csv
+Copyright: OurAirports contributors
+License: public-domain
+ The OurAirports data is released into the public domain.
+ https://ourairports.com/data/
+
 Files: vendor/readsb/*
 Copyright: 2012-2026 readsb contributors
 License: GPL-3.0-or-later

@@ -110,6 +110,7 @@ set(SOURCES
     src/acars/acars_labels.cpp
     src/acars/acars_log.cpp
     src/acars/acars_parser.cpp
+    src/acars/airports.cpp
 
     # ADSB integration
     src/adsb/readsb_controller.cpp
@@ -253,6 +254,15 @@ target_include_directories(acars_parser_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+# ACARS airport table lookup test (development helper).
+add_executable(acars_airports_test
+    tests/acars_airports_test.cpp
+    src/acars/airports.cpp
+)
+target_include_directories(acars_airports_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
 # Link libraries
 target_link_libraries(zerosdr PRIVATE
     ${RTL_SDR_LIB}
@@ -275,6 +285,8 @@ install(FILES share/images/zerosdr.png
 install(PROGRAMS vendor/readsb/readsb DESTINATION lib/zerosdr)
 # ACARS decoder, GPLv2-only: bundled and executed as a separate process.
 install(PROGRAMS vendor/acarsdec/acarsdec DESTINATION lib/zerosdr)
+# Airport names for ACARS route decoding (OurAirports extract, public domain).
+install(FILES data/airports.csv data/airports-README.md DESTINATION share/zerosdr)
 install(FILES vendor/acarsdec/LICENSE.md DESTINATION share/doc/zerosdr
         RENAME acarsdec-LICENSE.md)
 install(FILES vendor/acarsdec/VERSION DESTINATION share/doc/zerosdr

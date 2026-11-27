@@ -2,6 +2,7 @@
 
 #include "acars/acars_labels.h"
 #include "acars/acars_parser.h"
+#include "acars/airports.h"
 #include "font.h"
 
 #include <algorithm>
@@ -63,6 +64,26 @@ std::vector<std::string> wrapText(const std::string& text, int columns) {
 std::string firstLine(const std::string& text) {
     const size_t end = text.find('\n');
     return end == std::string::npos ? text : text.substr(0, end);
+}
+
+std::string upperText(const std::string& text) {
+    std::string out = text;
+    for (char& c : out) {
+        if (c >= 'a' && c <= 'z') c = static_cast<char>(c - 'a' + 'A');
+    }
+    return out;
+}
+
+// Short display label for an ICAO ident: the city when known, otherwise the
+// airport name. Empty when the bundled table has no entry.
+std::string airportLabel(const std::string& ident) {
+    const acars::Airport* airport = acars::findAirport(ident);
+    if (airport == nullptr) return {};
+    const std::string& text =
+        airport->city.empty() ? airport->name : airport->city;
+    std::string label = upperText(text);
+    if (label.size() > 17) label.resize(17);
+    return label;
 }
 
 }  // namespace
@@ -241,6 +262,19 @@ void AcarsUIRenderer::renderList(
             drawSmall(168, y, acars::kindTag(decoded.kind), tag_color);
 
             std::string snippet = firstLine(msg.text);
+            if (decoded.kind == acars::Kind::Position) {
+                if (!decoded.origin.empty() && !decoded.destination.empty()) {
+                    snippet = decoded.origin + ">" + decoded.destination;
+                } else if (decoded.has_position) {
+                    char coord[24];
+                    std::snprintf(coord, sizeof(coord), "%.2f%c %.2f%c",
+                                  std::fabs(decoded.latitude),
+                                  decoded.latitude >= 0.0 ? 'N' : 'S',
+                                  std::fabs(decoded.longitude),
+                                  decoded.longitude >= 0.0 ? 'E' : 'W');
+                    snippet = coord;
+                }
+            }
             if (msg.repeat_count > 1) {
                 char repeat[8];
                 std::snprintf(repeat, sizeof(repeat), "x%u ",
@@ -365,9 +399,27 @@ void AcarsUIRenderer::renderDetail(const acars::Message& message,
         if (detail.size() > 44) detail.resize(44);
         if (!detail.empty()) drawSmall(2, 58, detail.c_str(), kText);
 
-        fb_.fillRect(0, 68, 320, 1, kGrid);
-        text_top = 71;
-        visible = 8;
+        // Resolve the route codes to city names when the bundled airport
+        // table knows both ends; unknown airports keep the codes only.
+        std::string route_names;
+        if (!decoded.origin.empty() && !decoded.destination.empty()) {
+            const std::string from = airportLabel(decoded.origin);
+            const std::string to = airportLabel(decoded.destination);
+            if (!from.empty() && !to.empty()) {
+                route_names = from + " > " + to;
+                if (route_names.size() > 44) route_names.resize(44);
+            }
+        }
+        if (!route_names.empty()) {
+            drawSmall(2, 67, route_names.c_str(), kText);
+            fb_.fillRect(0, 77, 320, 1, kGrid);
+            text_top = 80;
+            visible = 7;
+        } else {
+            fb_.fillRect(0, 68, 320, 1, kGrid);
+            text_top = 71;
+            visible = 8;
+        }
     }
 
     const auto lines = wrapText(message.text, 45);

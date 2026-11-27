@@ -43,9 +43,10 @@ dossier, ACARS messages, APRS stations and the RFI survey.*
   bank pointer, speed/altitude tapes and an audio variometer
 - AIS vessel tracking: native dual-channel decoder, list / plot / dossier /
   console views, map and CPA display, and a standard NMEA UDP feed
-- ACARS aircraft messages: message list and wrapped detail view; the bundled
-  decoder runs as a separate process and the channels are configurable per
-  region (131.550 / 131.725 / 131.825 by default)
+- ACARS aircraft messages: message list and wrapped detail view, payload tags
+  and position/route decoding, with airport names resolved from a bundled
+  OurAirports extract; the bundled decoder runs as a separate process and the
+  channels are configurable per region (131.550 / 131.725 / 131.825 by default)
 - APRS station tracking: native receive-only 1200 baud AFSK / AX.25 decoder,
   list / map / detail / console views, Mic-E and compressed positions,
   weather and messages on 144.640 MHz (configurable)
@@ -575,6 +576,14 @@ Frames the ACARS link layer repeats are merged into one row with an `xN`
 counter, and multi-block messages (`msgno` suffix A, B, C ...) are reassembled
 into a single text before display. `MULTI` marks a message built from more
 than one block.
+
+Airport codes are resolved locally against a filtered OurAirports extract
+installed at `/usr/share/zerosdr/airports.csv` (public domain). The detail
+view adds a city line such as `BEIJING > SHENZHEN`, and the list shows the
+route or the coordinates instead of the raw position text. Airports outside
+the table keep their ICAO code. The extract is generated with
+`tools/build_airports_csv.py`; the upstream dump is described in
+`data/airports-README.md`.
 
 Messages are appended to daily JSONL files under
 `~/.local/share/zerosdr/acars/` (`YYYY-MM-DD.jsonl`, one object per line), so
