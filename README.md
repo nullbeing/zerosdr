@@ -15,7 +15,7 @@ page.
 ![ZeroSDR pages](images/showcase.png)
 
 *SDR and wideband spectrum, ADSB radar / PFD / settings, AIS plot and
-dossier, ACARS messages, APRS stations and the RFI survey.*
+dossier, ACARS messages, APRS detail / console / weather and the RFI survey.*
 
 > **Press `H` on the SDR page to show the on-screen key list.**
 > Press `→` there to switch to the settings tab (FM de-emphasis, audio AGC,
