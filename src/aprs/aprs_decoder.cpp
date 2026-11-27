@@ -339,7 +339,11 @@ void parse_weather_tokens(Packet& packet, const std::string& text,
         if (!sequential && !token_boundary(text, i)) continue;
         const char tag = text[i];
 
-        if (tag == 't') {
+        if (tag == 't' || tag == 'T') {
+            // T# is telemetry metadata, not a temperature token.
+            if (tag == 'T' && i + 1 < text.size() && text[i + 1] == '#') {
+                continue;
+            }
             const char* start = text.c_str() + i + 1;
             char* end = nullptr;
             const long fahrenheit = std::strtol(start, &end, 10);
@@ -479,16 +483,15 @@ void parse_comment_fields(Packet& packet) {
         if (end != start) packet.altitude_ft = static_cast<int>(value);
     }
 
-    // Weather appended to a position comment starts at the last '_'. A
-    // standalone t/h/b/r token is also accepted (many Mic-E trackers put
-    // the temperature after the status text).
+    // Scan the whole comment for standalone weather tokens. Some trackers
+    // append a status/callsign suffix containing '_', which used to hide an
+    // earlier tXXXX temperature; parse the suffix as well, not instead.
+    parse_weather_tokens(packet, text);
     const size_t weather = text.rfind('_');
     if (weather != std::string::npos && weather + 1 < text.size()) {
         const std::string fields = text.substr(weather + 1);
         parse_weather_tokens(packet, fields, true);
         parse_weather_slash_wind(packet, fields);
-    } else {
-        parse_weather_tokens(packet, text);
     }
 }
 
@@ -763,6 +766,10 @@ void parse_ax25(const uint8_t* frame, size_t bytes, Packet& packet) {
 }
 
 }  // namespace
+
+void parseCommentFields(Packet& packet) {
+    parse_comment_fields(packet);
+}
 
 struct Decoder::Impl {
     Config config;

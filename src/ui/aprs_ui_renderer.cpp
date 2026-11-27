@@ -302,7 +302,9 @@ void AprsUIRenderer::renderList(
                                                : (station.stale
                                                       ? theme_.dim
                                                       : colorForKind(
-                                                            station.kind,
+                                                            station.weather
+                                                                ? 'W'
+                                                                : station.kind,
                                                             theme_.accent,
                                                             theme_.dim,
                                                             theme_.alarm));
@@ -312,7 +314,7 @@ void AprsUIRenderer::renderList(
         drawText(2, y, buffer, accent_color);
 
         std::snprintf(buffer, sizeof(buffer), "%s",
-                      station.kind == 'W'
+                      station.weather
                           ? "WX"
                           : aprs::symbolLabel(station.symbol_table,
                                               station.symbol));
@@ -489,10 +491,12 @@ void AprsUIRenderer::renderMap(
             selected ? 0xFD20
                      : (station.stale
                             ? theme_.dim
-                            : colorForKind(station.kind, theme_.accent,
-                                           theme_.dim, theme_.alarm));
+                            : colorForKind(station.weather ? 'W'
+                                                           : station.kind,
+                                           theme_.accent, theme_.dim,
+                                           theme_.alarm));
 
-        if (station.kind == 'W') {
+        if (station.weather) {
             fb_.drawRect(x - 2, y - 2, 5, 5, color);
         } else if (station.kind == 'M') {
             drawCircleOutline(fb_, x, y, 2, color);
@@ -792,9 +796,26 @@ void AprsUIRenderer::renderDetail(
     drawText(rx, 24, station->callsign.c_str(), theme_.accent);
 
     char kind_line[32];
-    std::snprintf(kind_line, sizeof(kind_line), "%s %s",
-                  aprs::Store::kindLabel(station->kind),
-                  aprs::symbolLabel(station->symbol_table, station->symbol));
+    char weather_badge[16] = "";
+    if (station->weather) {
+        if (station->has_temperature) {
+            std::snprintf(weather_badge, sizeof(weather_badge), " %.0fC",
+                          station->temperature_c);
+        } else if (station->wind_dir >= 0.0f &&
+                   station->wind_speed_mph >= 0.0f) {
+            std::snprintf(weather_badge, sizeof(weather_badge), " %.0f/%.0f",
+                          station->wind_dir, station->wind_speed_mph);
+        } else if (station->pressure_hpa >= 0.0f) {
+            std::snprintf(weather_badge, sizeof(weather_badge), " %.0fhPa",
+                          station->pressure_hpa);
+        }
+    }
+    std::snprintf(kind_line, sizeof(kind_line), "%s %s%s",
+                  station->weather
+                      ? "WEATHER"
+                      : aprs::Store::kindLabel(station->kind),
+                  aprs::symbolLabel(station->symbol_table, station->symbol),
+                  weather_badge);
     drawSmallText(rx, 42, kind_line, theme_.text);
 
     struct Line {
@@ -876,22 +897,6 @@ void AprsUIRenderer::renderDetail(
                   station->packets);
     add(buffer, theme_.dim);
 
-    std::snprintf(buffer, sizeof(buffer), "TYPE %s",
-                  station->kind == 'W'
-                      ? "Weather station"
-                      : aprs::symbolName(station->symbol_table,
-                                         station->symbol));
-    add(buffer, theme_.dim);
-
-    std::snprintf(buffer, sizeof(buffer), "DST %.13s",
-                  station->destination.empty() ? "--"
-                                               : station->destination.c_str());
-    add(buffer, theme_.dim);
-
-    std::string via = "VIA ";
-    via += station->path.empty() ? "DIRECT" : station->path;
-    add_wrapped(via, 21, theme_.dim);
-
     if (station->weather) {
         if (station->wind_dir >= 0.0f && station->wind_speed_mph >= 0.0f) {
             std::snprintf(buffer, sizeof(buffer), "WIND %03.0fDEG %.0fMPH",
@@ -957,6 +962,22 @@ void AprsUIRenderer::renderDetail(
         }
         add(buffer, 0x07FF);
     }
+
+    std::snprintf(buffer, sizeof(buffer), "TYPE %s",
+                  station->weather
+                      ? "Weather station"
+                      : aprs::symbolName(station->symbol_table,
+                                         station->symbol));
+    add(buffer, theme_.dim);
+
+    std::snprintf(buffer, sizeof(buffer), "DST %.13s",
+                  station->destination.empty() ? "--"
+                                               : station->destination.c_str());
+    add(buffer, theme_.dim);
+
+    std::string via = "VIA ";
+    via += station->path.empty() ? "DIRECT" : station->path;
+    add_wrapped(via, 21, theme_.dim);
 
     if (!station->comment.empty()) {
         add("COMMENT", theme_.dim);

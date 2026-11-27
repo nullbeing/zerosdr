@@ -1,4 +1,5 @@
 #include "aprs/aprs_log.h"
+#include "aprs/aprs_decoder.h"
 
 #include <nlohmann/json.hpp>
 
@@ -161,6 +162,10 @@ std::vector<std::pair<time_t, Packet>> Log::loadRecent(uint32_t frequency,
             packet.message = line.value("msg", false);
             packet.addressee = line.value("addr", std::string());
             packet.message_text = line.value("mtext", std::string());
+            // Older records may predate a comment parser fix. The raw
+            // positions/weather fields are already stored; re-parsing the
+            // comment recovers temperature/wind tokens such as t088.
+            parseCommentFields(packet);
 
             const time_t when =
                 static_cast<time_t>(line.value("t", (long long)time(nullptr)));

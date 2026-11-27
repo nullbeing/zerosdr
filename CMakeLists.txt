@@ -236,6 +236,7 @@ target_link_libraries(aprs_store_test PRIVATE ${M_LIB})
 add_executable(aprs_log_test
     tests/aprs_log_test.cpp
     src/aprs/aprs_log.cpp
+    src/aprs/aprs_decoder.cpp
 )
 target_include_directories(aprs_log_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include

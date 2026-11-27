@@ -55,6 +55,10 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
+/** Re-parse course/speed/altitude/weather tokens from Packet::comment.
+ *  Used by the daily log loader so older records pick up parser fixes. */
+void parseCommentFields(Packet& packet);
+
 }  // namespace aprs
 
 #endif  // APRS_DECODER_H

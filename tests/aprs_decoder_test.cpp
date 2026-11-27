@@ -224,6 +224,26 @@ int main() {
                 packet.latitude, packet.longitude, packet.speed_knots,
                 packet.course, packet.symbol_table, packet.symbol);
 
+    // Mic-E comments from local trackers: a trailing underscore must not
+    // hide the earlier t088 temperature token.
+    packet = decode_one(
+        "`)M(m!gP/`\"4&}439.550MHz t088 -500 qth:dongguan DE BH7IRN_% ",
+        &case_ok, "R2TXX6");
+    ok = ok && case_ok;
+    ok = ok && packet.weather;
+    ok = ok && packet.has_temperature;
+    ok = ok && std::fabs(packet.temperature_c - 31.11f) < 0.5f;
+    std::printf("mic-e weather t088: %.1fC\n", packet.temperature_c);
+
+    // Some Mic-E stations use an uppercase T for the temperature.
+    packet = decode_one("`)DDl .K\\]\"3r}439.815MHz T088 -500= ",
+                        &case_ok, "R2UVY0");
+    ok = ok && case_ok;
+    ok = ok && packet.weather;
+    ok = ok && packet.has_temperature;
+    ok = ok && std::fabs(packet.temperature_c - 31.11f) < 0.5f;
+    std::printf("mic-e weather T088: %.1fC\n", packet.temperature_c);
+
     if (!ok) {
         std::fprintf(stderr, "APRS decoder test FAILED\n");
         return 1;
