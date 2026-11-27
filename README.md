@@ -21,11 +21,6 @@ dossier, ACARS messages, APRS detail / console / weather and the RFI survey.*
 > Press `→` there to switch to the settings tab (FM de-emphasis, audio AGC,
 > FFT size, sample rate). Press `H` again to close.
 
-| | |
-|:---:|:---:|
-| ![Wideband spectrum page](images/spectrum-sweep.png) | ![SDR page](images/sdr-fm.png) |
-| Wideband spectrum page: 460–480 MHz sweep with max hold | SDR page: 103.6 MHz FM with spectrum and waterfall |
-
 ## Features
 
 - Real-time spectrum and waterfall on a 320x170 framebuffer

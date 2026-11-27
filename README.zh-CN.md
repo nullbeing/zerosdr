@@ -19,11 +19,6 @@ ACARS 报文、APRS 站点详情 / 控制台 / 天气与 RFI 对比。*
 > 在帮助浮层里按 `→` 切到设置页（FM 去加重、音频 AGC、FFT 大小、采样率），
 > 再按 `H` 关闭。
 
-| | |
-|:---:|:---:|
-| ![宽带频谱页](images/spectrum-sweep.png) | ![SDR 页面](images/sdr-fm.png) |
-| 宽带频谱页：460–480 MHz 扫描 + 峰值保持 | SDR 页面：103.6 MHz FM 频谱与瀑布 |
-
 ## 功能
 
 - 320×170 framebuffer 上的实时频谱与瀑布
