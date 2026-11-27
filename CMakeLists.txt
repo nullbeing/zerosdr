@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(ZeroSDR VERSION 0.5.4 LANGUAGES C CXX)
+project(ZeroSDR VERSION 0.5.5 LANGUAGES C CXX)
 
 # Default to an optimized build. Without this, a plain `cmake ..` produces
 # an unoptimized binary that cannot keep up with real-time audio on the
@@ -109,6 +109,7 @@ set(SOURCES
     src/acars/acars_controller.cpp
     src/acars/acars_labels.cpp
     src/acars/acars_log.cpp
+    src/acars/acars_parser.cpp
 
     # ADSB integration
     src/adsb/readsb_controller.cpp
@@ -242,6 +243,15 @@ target_include_directories(aprs_log_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 target_link_libraries(aprs_log_test PRIVATE ${M_LIB})
+
+# ACARS text payload classification and frame merge test (development helper).
+add_executable(acars_parser_test
+    tests/acars_parser_test.cpp
+    src/acars/acars_parser.cpp
+)
+target_include_directories(acars_parser_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 
 # Link libraries
 target_link_libraries(zerosdr PRIVATE

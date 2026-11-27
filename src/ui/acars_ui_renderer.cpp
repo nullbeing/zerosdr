@@ -1,9 +1,11 @@
 #include "ui/acars_ui_renderer.h"
 
 #include "acars/acars_labels.h"
+#include "acars/acars_parser.h"
 #include "font.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -137,10 +139,11 @@ void AcarsUIRenderer::renderList(
     drawSmall(320 - smallWidth(status) - 2, 6, status, kDim);
 
     drawSmall(2, 21, "TIME", kDim);
-    drawSmall(62, 21, "FLIGHT", kDim);
-    drawSmall(118, 21, "TAIL", kDim);
-    drawSmall(169, 21, "LBL", kDim);
-    drawSmall(192, 21, "TEXT", kDim);
+    drawSmall(42, 21, "FLIGHT", kDim);
+    drawSmall(100, 21, "TAIL", kDim);
+    drawSmall(151, 21, "LB", kDim);
+    drawSmall(168, 21, "TAG", kDim);
+    drawSmall(200, 21, "TEXT", kDim);
     fb_.fillRect(0, 30, 320, 1, kGrid);
 
     if (messages.empty()) {
@@ -210,24 +213,42 @@ void AcarsUIRenderer::renderList(
             }
 
             const uint16_t color = is_selected ? 0xFFFF : kText;
-            const std::string time = clockString(msg.timestamp);
+            // Seconds only matter in the detail view; HH:MM keeps the row
+            // readable on 320 px.
+            const std::string time = clockString(msg.timestamp).substr(0, 5);
             drawSmall(2, y, time.c_str(), kDim);
 
             std::string flight = msg.flight.empty() ? "--" : msg.flight;
             if (flight.size() > 8) flight.resize(8);
-            drawSmall(62, y, flight.c_str(), is_selected ? 0xFFFF : kAccent);
+            drawSmall(42, y, flight.c_str(), is_selected ? 0xFFFF : kAccent);
 
             std::string tail = msg.tail.empty() ? "--" : msg.tail;
             if (tail.size() > 7) tail.resize(7);
-            drawSmall(118, y, tail.c_str(), color);
+            drawSmall(100, y, tail.c_str(), color);
 
             std::string label = msg.label.empty() ? "--" : msg.label;
-            if (label.size() > 3) label.resize(3);
-            drawSmall(169, y, label.c_str(), kText);
+            if (label.size() > 2) label.resize(2);
+            drawSmall(151, y, label.c_str(), kText);
+
+            const acars::Decoded decoded = acars::decodeText(msg);
+            uint16_t tag_color = kDim;
+            if (decoded.kind == acars::Kind::Position) {
+                tag_color = kAccent;
+            } else if (decoded.kind != acars::Kind::FreeText &&
+                       decoded.kind != acars::Kind::None) {
+                tag_color = kText;
+            }
+            drawSmall(168, y, acars::kindTag(decoded.kind), tag_color);
 
             std::string snippet = firstLine(msg.text);
-            if (snippet.size() > 18) snippet.resize(18);
-            drawSmall(192, y, snippet.c_str(), color);
+            if (msg.repeat_count > 1) {
+                char repeat[8];
+                std::snprintf(repeat, sizeof(repeat), "x%u ",
+                              static_cast<unsigned>(msg.repeat_count));
+                snippet = repeat + snippet;
+            }
+            if (snippet.size() > 16) snippet.resize(16);
+            drawSmall(200, y, snippet.c_str(), color);
 
             y += kMsgHeight;
         }
@@ -267,10 +288,15 @@ void AcarsUIRenderer::renderDetail(const acars::Message& message,
     }
 
     char meta[64];
-    std::snprintf(meta, sizeof(meta), "%s  %s  L:%d",
+    char repeats[12] = "";
+    if (message.repeat_count > 1) {
+        std::snprintf(repeats, sizeof(repeats), "  x%u",
+                      static_cast<unsigned>(message.repeat_count));
+    }
+    std::snprintf(meta, sizeof(meta), "%s  %s  L:%d%s",
                   clockString(message.timestamp).c_str(),
                   message.tail.empty() ? "--" : message.tail.c_str(),
-                  static_cast<int>(message.level));
+                  static_cast<int>(message.level), repeats);
     drawSmall(2, 28, meta, kDim);
 
     char meta2[48];
@@ -281,25 +307,79 @@ void AcarsUIRenderer::renderDetail(const acars::Message& message,
 
     // acarsdec reports a zero-based channel index.
     char meta3[64];
-    std::snprintf(meta3, sizeof(meta3), "SUB %s  BLK %s  MSG %s  CH %d",
+    std::snprintf(meta3, sizeof(meta3), "SUB %s  BLK %s  MSG %s  CH %d%s",
                   message.sublabel.empty() ? "--" : message.sublabel.c_str(),
                   message.block_id.empty() ? "-" : message.block_id.c_str(),
                   message.msgno.empty() ? "---" : message.msgno.c_str(),
-                  message.channel + 1);
+                  message.channel + 1,
+                  message.block_count > 1 ? "  MULTI" : "");
     drawSmall(2, 38, meta3, kDim);
     fb_.fillRect(0, 47, 320, 1, kGrid);
 
+    // Structured summary of the payload, when one was recognised. The raw
+    // text below is always the authority; this block never hides it.
+    const acars::Decoded decoded = acars::decodeText(message);
+    const bool has_block = decoded.kind != acars::Kind::FreeText;
+    int text_top = 50;
+    int visible = 10;
+    if (has_block) {
+        char head[48];
+        if (!decoded.subtype.empty()) {
+            std::snprintf(head, sizeof(head), "%s  %s",
+                          acars::kindName(decoded.kind),
+                          decoded.subtype.c_str());
+        } else {
+            std::snprintf(head, sizeof(head), "%s",
+                          acars::kindName(decoded.kind));
+        }
+        drawSmall(2, 49, head, kAccent);
+
+        std::string detail;
+        if (decoded.has_position) {
+            char coord[32];
+            std::snprintf(coord, sizeof(coord), "%.4f%c %.4f%c",
+                          std::fabs(decoded.latitude),
+                          decoded.latitude >= 0.0 ? 'N' : 'S',
+                          std::fabs(decoded.longitude),
+                          decoded.longitude >= 0.0 ? 'E' : 'W');
+            detail = coord;
+        }
+        if (!decoded.origin.empty() || !decoded.destination.empty()) {
+            if (!detail.empty()) detail += "  ";
+            detail += decoded.origin.empty() ? "----" : decoded.origin;
+            detail += ">";
+            detail += decoded.destination.empty() ? "----"
+                                                 : decoded.destination;
+        }
+        if (!decoded.report_time.empty()) {
+            if (!detail.empty()) detail += "  ";
+            detail += decoded.report_time;
+        }
+        if (decoded.has_altitude) {
+            char altitude[16];
+            std::snprintf(altitude, sizeof(altitude), "%dFT",
+                          decoded.altitude_ft);
+            if (!detail.empty()) detail += "  ";
+            detail += altitude;
+        }
+        if (detail.size() > 44) detail.resize(44);
+        if (!detail.empty()) drawSmall(2, 58, detail.c_str(), kText);
+
+        fb_.fillRect(0, 68, 320, 1, kGrid);
+        text_top = 71;
+        visible = 8;
+    }
+
     const auto lines = wrapText(message.text, 45);
-    constexpr int kVisible = 10;
     const int max_scroll =
-        std::max(0, static_cast<int>(lines.size()) - kVisible);
+        std::max(0, static_cast<int>(lines.size()) - visible);
     scroll = std::max(0, std::min(scroll, max_scroll));
 
-    for (int i = 0; i < kVisible; ++i) {
+    for (int i = 0; i < visible; ++i) {
         const int index = scroll + i;
         if (index >= static_cast<int>(lines.size())) break;
-        drawSmall(2, 50 + i * 10, lines[static_cast<size_t>(index)].c_str(),
-                  kText);
+        drawSmall(2, text_top + i * 10,
+                  lines[static_cast<size_t>(index)].c_str(), kText);
     }
 
     drawSmall(2, 160, "UP/DN SCROLL  L/R MSG  ESC  H", kDim);
@@ -325,7 +405,7 @@ void AcarsUIRenderer::renderHelp() {
         "ESC     BACK / CLOSE",
         "",
         "LOG  ~/.local/share/zerosdr/acars",
-        "CHANNELS IN config.json",
+        "TAGS POS ATS ADSC SYS TXT",
     };
     for (int i = 0; i < 10; ++i) {
         drawSmall(24, 48 + i * 10, lines[i], i < 7 ? kText : kDim);

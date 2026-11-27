@@ -28,6 +28,9 @@ struct Message {
     std::string flight;
     std::string sublabel;
     std::string text;
+    uint8_t repeat_count = 1;  // identical frames merged by the link layer
+    uint8_t block_count = 1;   // ACARS blocks merged into this text
+    char last_block = 'A';     // msgno suffix of the newest merged block
 };
 
 /**
@@ -61,6 +64,9 @@ private:
     void receiveLoop();
     void handleJson(const std::string& line);
     void loadHistory(int max_messages);
+    // Caller holds mutex_. Merges a repeated frame or a continuation block into
+    // the message already held, otherwise pushes the new frame on the front.
+    void storeFrame(Message message);
     void noteExit(int status);
     static std::string sanitizeText(const std::string& text);
 

@@ -555,12 +555,26 @@ covers them with one tuner setting. ACARS traffic is much sparser than AIS,
 so the page can sit on `WAITING FOR ACARS` for a while between messages.
 Use a VHF antenna; a quarter wave at 131 MHz is about 57 cm.
 
-Each row shows time, flight, registration, label and the first line of text;
-`Enter` opens the full message with word wrapping and scrolling. The detail
-view also spells out the usual meaning of the label (`H1` position/weather,
-`Q0` link test, `5Z` airline-defined, ...) and shows the sublabel, block id,
-message number and channel. Airline-specific labels are hints, not
-authoritative decodes.
+Each row shows time, flight, registration, label, payload tag and the first
+line of text; `Enter` opens the full message with word wrapping and scrolling.
+The detail view also spells out the usual meaning of the label (`H1`
+position/weather, `Q0` link test, `5Z` airline-defined, ...) and shows the
+sublabel, block id, message number and channel. Airline-specific labels are
+hints, not authoritative decodes.
+
+Payload tags classify what the text looks like: `POS` position report, `ATS`
+ARINC 622 datalink, `ADSC` ADS-C contract, `SYS` media/system advisory, `TXT`
+free text and `---` empty payload (link test or uplink acknowledge). A
+`DECODED` block above the raw text shows what could be recovered reliably:
+latitude/longitude, departure/arrival airport, report time and an explicit
+`ALT` altitude. The raw text is always shown and is never replaced by a guess;
+formats that need airline tables (POX tail fields, ARINC 622 internals,
+ADS-C binary payloads) are left as text.
+
+Frames the ACARS link layer repeats are merged into one row with an `xN`
+counter, and multi-block messages (`msgno` suffix A, B, C ...) are reassembled
+into a single text before display. `MULTI` marks a message built from more
+than one block.
 
 Messages are appended to daily JSONL files under
 `~/.local/share/zerosdr/acars/` (`YYYY-MM-DD.jsonl`, one object per line), so

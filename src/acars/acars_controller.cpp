@@ -1,6 +1,7 @@
 #include "acars/acars_controller.h"
 
 #include "acars/acars_log.h"
+#include "acars/acars_parser.h"
 
 #include <nlohmann/json.hpp>
 
@@ -243,12 +244,41 @@ void AcarsController::loadHistory(int max_messages) {
     if (loaded.empty()) return;
 
     std::lock_guard<std::mutex> lock(mutex_);
-    for (auto& msg : loaded) {
-        msg.seq = ++seq_counter_;
-        messages_.push_front(std::move(msg));
-    }
-    while (messages_.size() > kMaxMessages) messages_.pop_back();
+    for (auto& msg : loaded) storeFrame(std::move(msg));
     total_.fetch_add(loaded.size(), std::memory_order_relaxed);
+}
+
+void AcarsController::storeFrame(Message message) {
+    // ACARS repeats frames for reliability. Merge an identical transmission
+    // instead of showing the same line two or three times.
+    for (auto& held : messages_) {
+        if (isRepeatedFrame(held, message)) {
+            if (held.repeat_count < 255) ++held.repeat_count;
+            if (message.timestamp > held.timestamp) {
+                held.timestamp = message.timestamp;
+            }
+            return;
+        }
+        if (isMergedBlock(held, message)) return;
+    }
+
+    // Multi-block messages use msgno suffixes A, B, C...; append later blocks
+    // to the earliest block still held.
+    if (message.msgno.size() == 4 && message.msgno[3] > 'A') {
+        Message* base = nullptr;
+        for (auto& held : messages_) {
+            if (!isContinuationBlockOf(held, message)) continue;
+            if (base == nullptr || held.msgno[3] < base->msgno[3]) base = &held;
+        }
+        if (base != nullptr) {
+            appendContinuation(*base, message);
+            return;
+        }
+    }
+
+    message.seq = ++seq_counter_;
+    messages_.push_front(std::move(message));
+    while (messages_.size() > kMaxMessages) messages_.pop_back();
 }
 
 void AcarsController::receiveLoop() {
@@ -364,9 +394,7 @@ void AcarsController::handleJson(const std::string& line) {
 
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        msg.seq = ++seq_counter_;
-        messages_.push_front(std::move(msg));
-        while (messages_.size() > kMaxMessages) messages_.pop_back();
+        storeFrame(std::move(msg));
     }
     total_.fetch_add(1);
     session_total_.fetch_add(1);
