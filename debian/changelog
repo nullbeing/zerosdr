@@ -1,3 +1,16 @@
+zerosdr (0.5.5) trixie; urgency=medium
+
+  * ACARS: classify text payloads and show a DECODED summary (position,
+    origin/destination, report time, altitude) above the raw text; the raw
+    payload is always kept and never replaced by a guess
+  * ACARS: merge repeated link-layer frames into one row with an xN counter
+    and reassemble multi-block messages (msgno suffix A/B/C, marked MULTI)
+  * ACARS: the list gains a payload tag column (POS/ATS/ADSC/SYS/TXT) and a
+    shorter HH:MM time column so the row fits the 320 px display
+  * ACARS: parser and frame-merge regression test
+
+ -- Weiming Feng <bestedwin@gmail.com>  Fri, 27 Nov 2026 11:20:00 +0800
+
 zerosdr (0.5.4) trixie; urgency=medium
 
   * APRS: fix weather decoding in Mic-E comments. A trailing underscore
