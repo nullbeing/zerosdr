@@ -110,18 +110,10 @@ int PageManager::run() {
             key = APPKEY_NONE;
         }
 
-        // ESC requires a two second hold so a stray tap cannot close the
-        // viewer; there is no single-key quit.
-        if (key == APPKEY_ESC && !exit_hold_active_) {
-            exit_hold_active_ = true;
-            gettimeofday(&exit_hold_start_, nullptr);
-            // Freeze the page frame so the translucent prompt does not
-            // flicker between page redraws, and so repeated blends do not
-            // accumulate on the back buffer.
-            exit_snapshot_.resize(fb_.pixelCount());
-            std::memcpy(exit_snapshot_.data(), fb_.pixels(),
-                        exit_snapshot_.size() * sizeof(uint16_t));
-        }
+        // ESC is handled globally: a tap goes back to the page (the page
+        // decides whether that means closing a help/detail view or nothing),
+        // and only a long press shows the exit progress prompt. The prompt is
+        // deliberately delayed so a quick tap cannot flash the dim overlay.
 
         // Global volume keys stay live even while the page menu is open.
         if (key == APPKEY_V || key == APPKEY_C) {
@@ -148,18 +140,14 @@ int PageManager::run() {
         } else {
             if (key == APPKEY_ESC && !exit_hold_active_) {
                 exit_hold_active_ = true;
+                exit_prompt_shown_ = false;
                 gettimeofday(&exit_hold_start_, nullptr);
-                // Freeze the page frame so the translucent prompt does not
-                // flicker between page redraws, and so repeated blends do not
-                // accumulate on the back buffer.
-                exit_snapshot_.resize(fb_.pixelCount());
-                std::memcpy(exit_snapshot_.data(), fb_.pixels(),
-                            exit_snapshot_.size() * sizeof(uint16_t));
             }
 
             // Check for global page-switching keys
             if (key == APPKEY_ESC) {
-                // Swallow the press; the hold is handled after the page update.
+                // Swallow the press; the release (tap) or the hold is handled
+                // after the page update.
             } else if (!exit_hold_active_ && isPageSwitchKey(key)) {
                 openPageMenu();
             } else if (key != APPKEY_NONE) {
@@ -171,9 +159,11 @@ int PageManager::run() {
             }
         }
 
-        // Update current page (frozen while an overlay or toast is up).
+        // Update current page (frozen only while the exit prompt, an overlay
+        // or a toast is up; during the first moments of an ESC press the page
+        // keeps running so a tap looks like a normal back action).
         IPage* current_page = getCurrentPage();
-        if (current_page && !toast_active_ && !exit_hold_active_ &&
+        if (current_page && !toast_active_ && !exit_prompt_shown_ &&
             !page_menu_open_) {
             current_page->update(delta_time);
         }
@@ -205,14 +195,21 @@ int PageManager::run() {
             }
         }
 
-        // Hold-to-exit overlay and timing.
+        // Hold-to-exit overlay and timing. A tap (< 500 ms) is a plain back
+        // action; only after that does the exit prompt appear, and it fills
+        // until the two second mark quits the viewer.
+        constexpr float kExitHoldSeconds = 2.0f;
+        constexpr float kExitPromptDelay = 0.5f;
         if (exit_hold_active_) {
             if (!input_.escHeld()) {
                 exit_hold_active_ = false;
-                // Put the frozen page back before resuming updates.
-                if (!exit_snapshot_.empty()) {
-                    std::memcpy(fb_.pixels(), exit_snapshot_.data(),
-                                exit_snapshot_.size() * sizeof(uint16_t));
+                if (exit_prompt_shown_) {
+                    exit_prompt_shown_ = false;
+                    // Put the frozen page back before resuming updates.
+                    if (!exit_snapshot_.empty()) {
+                        std::memcpy(fb_.pixels(), exit_snapshot_.data(),
+                                    exit_snapshot_.size() * sizeof(uint16_t));
+                    }
                 }
                 // A short tap still reaches the page (cancel frequency input,
                 // leave the aircraft detail view, ...).
@@ -226,15 +223,26 @@ int PageManager::run() {
                 const float held =
                     (now.tv_sec - exit_hold_start_.tv_sec) +
                     (now.tv_usec - exit_hold_start_.tv_usec) / 1000000.0f;
-                if (held >= 2.0f) {
+                if (held >= kExitHoldSeconds) {
                     std::cout << "PageManager: Exit confirmed, stopping..."
                               << std::endl;
                     running_ = false;
-                } else {
-                    exit_snapshot_.resize(fb_.pixelCount());
+                } else if (held >= kExitPromptDelay) {
+                    if (!exit_prompt_shown_) {
+                        // Freeze the page frame so the translucent prompt
+                        // does not flicker between page redraws, and so
+                        // repeated blends do not accumulate on the buffer.
+                        exit_prompt_shown_ = true;
+                        exit_snapshot_.resize(fb_.pixelCount());
+                        std::memcpy(exit_snapshot_.data(), fb_.pixels(),
+                                    exit_snapshot_.size() * sizeof(uint16_t));
+                    }
+                    const float progress =
+                        (held - kExitPromptDelay) /
+                        (kExitHoldSeconds - kExitPromptDelay);
                     std::memcpy(fb_.pixels(), exit_snapshot_.data(),
                                 exit_snapshot_.size() * sizeof(uint16_t));
-                    drawExitPrompt(held / 2.0f);
+                    drawExitPrompt(progress);
                     fb_.update();
                 }
             }

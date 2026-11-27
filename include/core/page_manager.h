@@ -85,9 +85,10 @@ private:
     // Timing
     struct timeval last_update_time_;
 
-    // Hold-to-exit: ESC must be held for three seconds, with an on-screen
-    // semi-transparent prompt.
-    bool exit_hold_active_ = false;
+    // Hold-to-exit: a short ESC tap goes back (or leaves a sub-view) and a
+    // long press shows an on-screen progress prompt before quitting.
+    bool exit_hold_active_ = false;   // ESC is down
+    bool exit_prompt_shown_ = false;  // long enough to show the prompt
     struct timeval exit_hold_start_ {};
     std::vector<uint16_t> exit_snapshot_;
 

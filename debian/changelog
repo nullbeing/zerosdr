@@ -1,3 +1,14 @@
+zerosdr (0.5.7) trixie; urgency=medium
+
+  * ESC is now a normal back key: a tap closes a help or detail view or
+    cancels input immediately. The dimmed exit prompt appears only after a
+    500 ms hold, so a quick tap no longer flashes the overlay
+  * The exit progress bar starts empty when the prompt appears and fills over
+    the remaining 1.5 s; the viewer quits at the two second mark as before
+  * ESC pressed inside the page menu no longer also reaches the page below
+
+ -- Weiming Feng <bestedwin@gmail.com>  Fri, 27 Nov 2026 16:00:00 +0800
+
 zerosdr (0.5.6) trixie; urgency=medium
 
   * ACARS: resolve airport codes against a bundled OurAirports extract

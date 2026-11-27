@@ -234,7 +234,7 @@ codes, and plain letters are used for the SDR controls.
 | `0-9` `.` | Direct frequency input (MHz) |
 | `Enter` | Apply frequency |
 | `Backspace` | Delete last digit |
-| `Esc` | Cancel input |
+| `Esc` | Cancel input / back |
 | `P` | Frequency memories (`S` save, `Enter` recall, `Backspace` delete) |
 | `D` | Cycle demodulation mode (FM/NFM/AM/USB/LSB) |
 | `B` / `Fn`+`B` | Cycle demodulation bandwidth |
@@ -249,6 +249,7 @@ codes, and plain letters are used for the SDR controls.
 | `Fn`+`P` (F12) | Screenshot (`~/zerosdr_screenshot_*.png`) |
 | `H` | Key list, then `→` for settings |
 | `Tab` | Page menu (select with arrows, `Enter` opens) |
+| `Esc` | Back: close a help/detail view or cancel input |
 | `Esc` (hold 2 s) | Quit, with a centered progress prompt |
 
 ### Frequency memories
@@ -283,6 +284,7 @@ precedence over the saved frequency.
 | `Shift+S` | Screenshot (PC alias of `Fn`+`P`) |
 | `H` | Key list / settings |
 | `Tab` | Page menu |
+| `Esc` | Back / close |
 | `Esc` (hold 2 s) | Quit, with a centered progress prompt |
 
 ## Settings (`H` → `→`)
