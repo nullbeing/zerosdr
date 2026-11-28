@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(ZeroSDR VERSION 0.5.8 LANGUAGES C CXX)
+project(ZeroSDR VERSION 0.5.9 LANGUAGES C CXX)
 
 # Default to an optimized build. Without this, a plain `cmake ..` produces
 # an unoptimized binary that cannot keep up with real-time audio on the
@@ -84,6 +84,7 @@ set(SOURCES
     src/core/beep_player.cpp
     src/core/gps_locator.cpp
     src/core/first_run_guide.cpp
+    src/core/decimator.cpp
 
     # Pages
     src/pages/sdr_page.cpp
@@ -253,6 +254,16 @@ add_executable(acars_parser_test
 target_include_directories(acars_parser_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
+# Narrow-mode IQ decimator test (development helper).
+add_executable(decimator_test
+    tests/decimator_test.cpp
+    src/core/decimator.cpp
+)
+target_include_directories(decimator_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(decimator_test PRIVATE ${M_LIB})
 
 # ACARS airport table lookup test (development helper).
 add_executable(acars_airports_test

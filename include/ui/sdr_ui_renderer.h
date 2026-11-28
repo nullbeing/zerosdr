@@ -103,7 +103,8 @@ private:
                           uint32_t center_freq, uint32_t span, uint32_t demod_bandwidth);
     void drawDbScale(int x, int y, int h, float db_min, float db_max);
     uint16_t magnitudeToColor(float norm) const;
-    void formatFrequency(uint32_t freq, char* buf, size_t size) const;
+    void formatFrequency(uint32_t freq, char* buf, size_t size,
+                         int decimals = 3) const;
 };
 
 #endif // SDR_UI_RENDERER_H

@@ -14,14 +14,33 @@
 #include <sys/stat.h>
 
 // Static member initialization
-const uint32_t SDRPage::sample_rates_[] = {1024000, 1200000, 1800000, 2048000, 2400000};
-const int SDRPage::num_sample_rates_ = 5;
+// The existing wide rates come first so the default stays 1.024 MHz and a
+// command line -s value still matches. The narrow modes capture at 288 or
+// 384 kHz (the RTL-SDR floor is ~225 kHz) and decimate the audio to the
+// selected rate; the spectrum is the centre slice of that capture.
+const SDRPage::RatePreset SDRPage::sample_rates_[] = {
+    {1024000, 1024000, 1},
+    {1200000, 1200000, 1},
+    {1800000, 1800000, 1},
+    {2048000, 2048000, 1},
+    {2400000, 2400000, 1},
+    // Rates between 300 kHz and 900 kHz are not reachable on the RTL2832U,
+    // so the 192-768 kHz modes capture at 1.152 or 1.536 MHz and decimate.
+    {768000, 1536000, 2},
+    {384000, 1152000, 3},
+    {192000, 1152000, 6},
+    {96000, 288000, 3},
+    {48000, 288000, 6},
+};
+const int SDRPage::num_sample_rates_ = 10;
 
 const size_t SDRPage::fft_sizes_[] = {256, 512, 1024, 2048};
 const int SDRPage::num_fft_sizes_ = 4;
 
-const uint32_t SDRPage::display_bw_[] = {50000, 100000, 200000, 500000, 1000000, 2000000, 2800000, 3200000};
-const int SDRPage::num_display_bw_ = 8;
+const uint32_t SDRPage::display_bw_[] = {
+    10000, 25000, 48000, 96000, 192000, 384000, 768000,
+    1024000, 2000000, 2800000, 3200000};
+const int SDRPage::num_display_bw_ = 11;
 
 const uint32_t SDRPage::fm_bandwidths_[] = {200000, 250000, 300000, 400000, 500000};
 const uint32_t SDRPage::nfm_bandwidths_[] = {6250, 12500, 25000};
@@ -93,14 +112,16 @@ bool SDRPage::init() {
     demod_.setMode((AudioDemodulator::DemodMode)demod_mode_);
     demod_.setDeemphasisTau(deemphasis_tau_us_);
     demod_.setAudioAGC(audio_agc_);
-    demod_.setDemodBandwidth(getCurrentDemodBandwidth());
+    demod_.setDemodBandwidth(effectiveDemodBandwidth());
     fft_.setFFTSize(fft_sizes_[fft_index_]);
     setSpanToSampleRate();
+    decimator_.configure(capture_rate_, decimation_);
     std::cout << "SDR settings: deemphasis " << (int)deemphasis_tau_us_
               << " us, audio AGC " << (audio_agc_ ? "on" : "off")
               << ", FFT " << fft_sizes_[fft_index_]
-              << ", sample rate " << sample_rates_[rate_index_] << " Hz"
-              << std::endl;
+              << ", sample rate " << sample_rates_[rate_index_].rate << " Hz"
+              << " (capture " << capture_rate_ << " Hz, 1/"
+              << decimation_ << ")" << std::endl;
     std::cout << "SDRPage: Initialized" << std::endl;
     return true;
 }
@@ -135,15 +156,33 @@ void SDRPage::onEnter() {
         } else {
             center_freq_ = current;
         }
-        sample_rate_ = sdr_.getSampleRate();
-        // Restore the saved sample rate unless the command line overrode it
-        // (1024000 is the built-in default used by main()).
-        if (saved_sample_rate_ != 0 && sample_rate_ == 1024000 &&
-            saved_sample_rate_ != sample_rate_) {
-            sample_rate_ = saved_sample_rate_;
-            sdr_.setSampleRate(sample_rate_);
+        const uint32_t device_rate = sdr_.getSampleRate();
+        if (!rate_initialized_) {
+            rate_initialized_ = true;
+            // A command line -s rate wins on the first entry; otherwise the
+            // saved preset is restored when the device is still on the
+            // built-in 1.024 MHz default used by main().
+            const int device_index = indexOfHardwareRate(device_rate);
+            if (device_rate != 1024000 && device_index >= 0) {
+                rate_index_ = device_index;
+                sample_rate_ = sample_rates_[device_index].rate;
+                capture_rate_ = sample_rates_[device_index].hardware;
+                decimation_ = sample_rates_[device_index].factor;
+                decimator_.configure(capture_rate_, decimation_);
+                std::lock_guard<std::mutex> lock(demod_mutex_);
+                demod_.setSampleRate(sample_rate_);
+            } else if (saved_sample_rate_ != 0) {
+                const int saved_index = indexOfRate(saved_sample_rate_);
+                if (saved_index >= 0) applyRateIndex(saved_index);
+            }
+        } else if (device_rate != capture_rate_) {
+            // Another page (AIS, APRS, spectrum) retuned the dongle; put the
+            // SDR page's own capture and demod rate back.
+            sdr_.setSampleRate(capture_rate_);
+            decimator_.configure(capture_rate_, decimation_);
             std::lock_guard<std::mutex> lock(demod_mutex_);
             demod_.setSampleRate(sample_rate_);
+            demod_.setDemodBandwidth(effectiveDemodBandwidth());
         }
         // Keep the zoom inside the captured band (preserve the user's choice
         // when it still fits).
@@ -190,7 +229,13 @@ void SDRPage::onEnter() {
     }
 
     sdr_.setFrequency(center_freq_);
-    sdr_.setSampleRate(sample_rate_);
+    sdr_.setSampleRate(capture_rate_);
+    decimator_.configure(capture_rate_, decimation_);
+    {
+        std::lock_guard<std::mutex> lock(demod_mutex_);
+        demod_.setSampleRate(sample_rate_);
+        demod_.setDemodBandwidth(effectiveDemodBandwidth());
+    }
     resume_pending_ = false;
     if (gain_ >= 0) {
         // Manual mode first, gain last: setAGCMode(false) resets the
@@ -253,10 +298,31 @@ void SDRPage::update(float delta_time) {
     frame_accumulator_ += delta_time;
     if (frame_accumulator_ >= FRAME_INTERVAL_SEC) {
         frame_accumulator_ = 0.0f;
-        size_t fft_bytes = fft_.getFFTSize() * 2;
-        if (sdr_.getLatestSamplesSnapshot(fft_samples_, fft_bytes)) {
-            fft_.process(fft_samples_.data(), fft_bytes, magnitude_);
-            renderFrame();
+        const size_t fft_size = fft_.getFFTSize();
+        if (decimation_ > 1) {
+            // Snapshot enough captured samples for the filter warm-up plus
+            // one FFT window, then analyse the decimated tail. This keeps the
+            // bins at the selected rate (47 Hz at 48k/1024) instead of the
+            // 288 kHz capture rate.
+            const size_t needed = fft_size * decimation_ + decimator_.taps();
+            if (sdr_.getLatestSamplesSnapshot(fft_samples_, needed * 2)) {
+                Decimator block;
+                block.configure(capture_rate_, decimation_);
+                block.process(fft_samples_, fft_decimated_);
+                const size_t bytes = fft_size * 2;
+                if (fft_decimated_.size() >= bytes) {
+                    fft_.process(fft_decimated_.data() +
+                                     fft_decimated_.size() - bytes,
+                                 bytes, magnitude_);
+                    renderFrame();
+                }
+            }
+        } else {
+            const size_t bytes = fft_size * 2;
+            if (sdr_.getLatestSamplesSnapshot(fft_samples_, bytes)) {
+                fft_.process(fft_samples_.data(), bytes, magnitude_);
+                renderFrame();
+            }
         }
     }
 
@@ -303,7 +369,7 @@ void SDRPage::audioLoop() {
     auto last_success = std::chrono::steady_clock::now();
 
     while (audio_thread_running_.load()) {
-        size_t chunk_samples = std::max<size_t>(4096, sdr_.getSampleRate() / 5);
+        size_t chunk_samples = std::max<size_t>(2048, capture_rate_ / 5);
         if (!sdr_.getLatestSamples(iq_samples, chunk_samples)) {
             usleep(2000);
             continue;
@@ -333,7 +399,12 @@ void SDRPage::audioLoop() {
         auto t0 = std::chrono::steady_clock::now();
         {
             std::lock_guard<std::mutex> lock(demod_mutex_);
-            demod_.demodulate(iq_samples, pcm_samples);
+            if (decimation_ > 1) {
+                decimator_.process(iq_samples, decimated_samples_);
+                demod_.demodulate(decimated_samples_, pcm_samples);
+            } else {
+                demod_.demodulate(iq_samples, pcm_samples);
+            }
         }
         auto t1 = std::chrono::steady_clock::now();
 
@@ -416,6 +487,60 @@ uint32_t SDRPage::getCurrentDemodBandwidth() const {
     }
 }
 
+uint32_t SDRPage::effectiveDemodBandwidth() const {
+    // The demodulator filters at half the RF bandwidth; keeping that below
+    // Nyquist keeps the biquads stable on the narrow rates.
+    const uint32_t limit = sample_rate_ * 9 / 10;
+    return std::min(getCurrentDemodBandwidth(), limit);
+}
+
+int SDRPage::indexOfHardwareRate(uint32_t rate) const {
+    for (int i = 0; i < num_sample_rates_; ++i) {
+        if (sample_rates_[i].hardware == rate) return i;
+    }
+    return -1;
+}
+
+int SDRPage::indexOfRate(uint32_t rate) const {
+    for (int i = 0; i < num_sample_rates_; ++i) {
+        if (sample_rates_[i].rate == rate) return i;
+    }
+    return -1;
+}
+
+void SDRPage::applyRateIndex(int index) {
+    if (index < 0 || index >= num_sample_rates_) return;
+    rate_index_ = index;
+    sample_rate_ = sample_rates_[index].rate;
+    capture_rate_ = sample_rates_[index].hardware;
+    decimation_ = sample_rates_[index].factor;
+
+    sdr_.setSampleRate(capture_rate_);
+    // The ring still holds samples from the old rate; start clean so the
+    // demodulator does not chew through them at the new rate.
+    sdr_.flushBuffer();
+    {
+        std::lock_guard<std::mutex> lock(demod_mutex_);
+        decimator_.configure(capture_rate_, decimation_);
+        // 48 kHz cannot carry an FM broadcast's +/-75 kHz deviation; fall
+        // back to narrow FM instead of leaving the user with aliased noise.
+        if (sample_rate_ < 200000 && demod_mode_ == 0) {
+            squelch_values_[0] = squelch_;
+            demod_mode_ = 1;
+            squelch_ = squelch_values_[1];
+            demod_.setMode((AudioDemodulator::DemodMode)demod_mode_);
+            demod_.setSquelch(squelch_);
+            std::cout << "Narrow rate: FM switched to NFM" << std::endl;
+        }
+        demod_.setSampleRate(sample_rate_);
+        demod_.setDemodBandwidth(effectiveDemodBandwidth());
+    }
+    setSpanToSampleRate();
+    std::cout << "Sample rate: " << sample_rate_ << " Hz (capture "
+              << capture_rate_ << " Hz, 1/" << decimation_ << "), span "
+              << display_span_ / 1000 << " kHz" << std::endl;
+}
+
 uint32_t SDRPage::getAutoStep() const {
     // Sensible default per demod mode. Auto aims at the channel spacing
     // common for that mode; SSB gets a finer step than the demod bandwidth
@@ -463,8 +588,10 @@ const char* SDRPage::getStepLabel() const {
 
 void SDRPage::renderFrame() {
     fb_.fillRect(0, 0, 320, 77, COLOR_BG_DARK);
-    uint32_t current_demod_bw = getCurrentDemodBandwidth();
-    uint32_t sample_rate = sdr_.getSampleRate();
+    uint32_t current_demod_bw = effectiveDemodBandwidth();
+    // The magnitude buffer covers the analysis rate: either the raw capture
+    // (wide modes) or the decimated stream (narrow modes).
+    uint32_t sample_rate = sample_rate_;
 
     // A zoom level wider than the current sample rate would stretch the
     // frequency axis beyond the data actually captured. Clamp the rendered
@@ -499,7 +626,7 @@ void SDRPage::renderFrame() {
             view.deemphasis_us = static_cast<int>(deemphasis_tau_us_);
             view.audio_agc = audio_agc_;
             view.fft_size = static_cast<int>(fft_sizes_[fft_index_]);
-            view.sample_rate = static_cast<int>(sdr_.getSampleRate());
+            view.sample_rate = static_cast<int>(sample_rate_);
             view.selected = settings_index_;
             ui_.renderSettings(view);
         }
@@ -643,13 +770,17 @@ void SDRPage::handleAudioControls(AppKeyCode key) {
             std::lock_guard<std::mutex> lock(demod_mutex_);
             int old_mode = demod_mode_;
             demod_mode_ = (demod_mode_ + 1) % 5;
+            if (sample_rate_ < 200000 && demod_mode_ == 0) {
+                // The narrow modes cannot demodulate broadcast FM.
+                demod_mode_ = 1;
+            }
             demod_.setMode((AudioDemodulator::DemodMode)demod_mode_);
             // Save old mode's squelch, load new mode's squelch
             squelch_values_[old_mode] = squelch_;
             squelch_ = squelch_values_[demod_mode_];
             demod_.setSquelch(squelch_);
 
-            uint32_t new_bw = getCurrentDemodBandwidth();
+            uint32_t new_bw = effectiveDemodBandwidth();
             demod_.setDemodBandwidth(new_bw);
             std::cout << "Demod mode: " << demod_names_[demod_mode_]
                       << ", bandwidth: " << new_bw / 1000 << " kHz"
@@ -706,7 +837,7 @@ void SDRPage::handleModeControls(AppKeyCode key) {
                     case 3: ssb_bw_index_ = (ssb_bw_index_ + 1) % 3; break;  // USB
                     case 4: ssb_bw_index_ = (ssb_bw_index_ + 1) % 3; break;  // LSB
                 }
-                uint32_t new_bw = getCurrentDemodBandwidth();
+                uint32_t new_bw = effectiveDemodBandwidth();
                 {
                     std::lock_guard<std::mutex> lock(demod_mutex_);
                     demod_.setDemodBandwidth(new_bw);
@@ -730,22 +861,11 @@ void SDRPage::handleModeControls(AppKeyCode key) {
             break;
         }
         case APPKEY_PLUS:
-            rate_index_ = (rate_index_ + 1) % num_sample_rates_;
-            sample_rate_ = sample_rates_[rate_index_];
-            sdr_.setSampleRate(sample_rate_);
-            {
-                std::lock_guard<std::mutex> lock(demod_mutex_);
-                demod_.setSampleRate(sample_rate_);
-            }
+            applyRateIndex((rate_index_ + 1) % num_sample_rates_);
             break;
         case APPKEY_MINUS:
-            rate_index_ = (rate_index_ + num_sample_rates_ - 1) % num_sample_rates_;
-            sample_rate_ = sample_rates_[rate_index_];
-            sdr_.setSampleRate(sample_rate_);
-            {
-                std::lock_guard<std::mutex> lock(demod_mutex_);
-                demod_.setSampleRate(sample_rate_);
-            }
+            applyRateIndex((rate_index_ + num_sample_rates_ - 1) %
+                           num_sample_rates_);
             break;
         case APPKEY_T:
             // Cycle tuning step: Auto -> 100 -> 1k -> 5k -> 10k -> 100k -> 1M -> Auto
@@ -845,7 +965,7 @@ void SDRPage::applyTuneState() {
     std::lock_guard<std::mutex> lock(demod_mutex_);
     demod_.setMode((AudioDemodulator::DemodMode)demod_mode_);
     demod_.setSquelch(squelch_);
-    demod_.setDemodBandwidth(getCurrentDemodBandwidth());
+    demod_.setDemodBandwidth(effectiveDemodBandwidth());
 }
 
 void SDRPage::toggleMemoryPanel() {
@@ -1025,17 +1145,7 @@ void SDRPage::cycleSetting(int index) {
             runFirstRunGuide(fb_, input_);
             break;
         case 3:
-            rate_index_ = (rate_index_ + 1) % num_sample_rates_;
-            sample_rate_ = sample_rates_[rate_index_];
-            sdr_.setSampleRate(sample_rate_);
-            {
-                std::lock_guard<std::mutex> lock(demod_mutex_);
-                demod_.setSampleRate(sample_rate_);
-            }
-            // The old zoom may not fit the new band; show the full band.
-            setSpanToSampleRate();
-            std::cout << "Sample rate: " << sample_rate_ << " Hz, span "
-                      << display_span_ / 1000 << " kHz" << std::endl;
+            applyRateIndex((rate_index_ + 1) % num_sample_rates_);
             break;
         default:
             return;
@@ -1105,9 +1215,9 @@ void SDRPage::loadSettings() {
     }
     const long long rate = sdr.value("sample_rate", 0);
     for (int i = 0; i < num_sample_rates_; ++i) {
-        if (static_cast<long long>(sample_rates_[i]) == rate) {
+        if (static_cast<long long>(sample_rates_[i].rate) == rate) {
             rate_index_ = i;
-            saved_sample_rate_ = sample_rates_[i];
+            saved_sample_rate_ = sample_rates_[i].rate;
             break;
         }
     }
@@ -1124,7 +1234,7 @@ void SDRPage::saveSettings() {
     sdr["deemphasis_us"] = static_cast<int>(deemphasis_tau_us_);
     sdr["audio_agc"] = audio_agc_;
     sdr["fft_size"] = fft_sizes_[fft_index_];
-    sdr["sample_rate"] = sample_rates_[rate_index_];
+    sdr["sample_rate"] = sample_rates_[rate_index_].rate;
     sdr["theme"] = theme_index_;
 
     sdr["memories"] = nlohmann::json::array();

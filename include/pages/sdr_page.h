@@ -1,6 +1,7 @@
 #ifndef SDR_PAGE_H
 #define SDR_PAGE_H
 
+#include "core/decimator.h"
 #include "core/ipage.h"
 #include "framebuffer.h"
 #include "input_handler.h"
@@ -76,10 +77,23 @@ private:
     static constexpr int NUM_DEMOD_MODES = 5;
     float squelch_values_[NUM_DEMOD_MODES];
 
-    // Sample rate presets
-    static const uint32_t sample_rates_[];
+    // Sample rate presets. The RTL-SDR cannot sample below ~225 kHz, so the
+    // narrow rates keep the front end at 288/384 kHz and decimate the audio
+    // stream to the selected rate; the spectrum is the centre slice of the
+    // captured band.
+    struct RatePreset {
+        uint32_t rate;      // analysis/audio rate shown to the user
+        uint32_t hardware;  // RTL-SDR sample rate
+        uint32_t factor;    // integer decimation for the audio path
+    };
+    static const RatePreset sample_rates_[];
     static const int num_sample_rates_;
     int rate_index_;
+    uint32_t capture_rate_ = 1024000;
+    uint32_t decimation_ = 1;
+    bool rate_initialized_ = false;
+    Decimator decimator_;
+    std::vector<uint8_t> decimated_samples_;
 
     // FFT size presets
     static const size_t fft_sizes_[];
@@ -108,6 +122,7 @@ private:
 
     // Sample buffers
     std::vector<uint8_t> fft_samples_;
+    std::vector<uint8_t> fft_decimated_;
     std::vector<float> magnitude_;
     std::vector<int16_t> audio_samples_;
 
@@ -174,6 +189,10 @@ private:
 
     // Helper methods
     uint32_t getCurrentDemodBandwidth() const;
+    uint32_t effectiveDemodBandwidth() const;
+    void applyRateIndex(int index);
+    int indexOfHardwareRate(uint32_t rate) const;
+    int indexOfRate(uint32_t rate) const;
     int maxSpanIndex() const;              // widest zoom level that fits the sample rate
     void setSpanToSampleRate();            // reset zoom to the full captured band
     uint32_t getCurrentStep() const;       // Effective step in Hz (resolves Auto)

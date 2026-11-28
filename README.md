@@ -296,8 +296,16 @@ Rarely changed options live in the settings tab instead of hotkeys:
 | FM de-emphasis | 50 µs (CN/EU/Asia) / 75 µs (US) | 50 µs |
 | Audio AGC | On / Off | On |
 | FFT size | 256 / 512 / 1024 / 2048 | 512 |
-| Sample rate | 1.024 / 1.2 / 1.8 / 2.048 / 2.4 MHz | 1.024 MHz |
+| Sample rate | 48 / 96 / 192 / 384 / 768 kHz, 1.024 / 1.2 / 1.8 / 2.048 / 2.4 MHz | 1.024 MHz |
 | First-run guide | `SHOW GUIDE`: reopen it now | — |
+
+The RTL-SDR cannot sample below 225 kHz, so the 48–768 kHz modes keep the
+front end at 288 kHz (48/96 kHz), 1.152 MHz (192/384 kHz) or 1.536 MHz
+(768 kHz) and decimate with a windowed-sinc low-pass. The selected rate is
+what the demodulator and the spectrum use, so a 48 kHz span on 320 px shows
+about 150 Hz per pixel and much finer FFT bins than the wide modes. These
+rates are intended for AM/SSB/CW on shortwave; selecting one while in FM
+broadcast switches to narrow FM automatically.
 
 Changing the sample rate resets the display span to the widest level that fits
 the new band (1.2 M → 1.0 M, 2.048 M → 2.0 M), so `Y` never appears to do

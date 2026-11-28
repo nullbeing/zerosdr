@@ -366,11 +366,17 @@ void SDRUIRenderer::drawFreqAxis(uint32_t center_freq, uint32_t span, int y, int
     // Pre-format the labels and their clamped positions. On a small screen
     // the edge labels can collide with the quarter labels, so detect that
     // and fall back to three labels (left / centre / right).
-    char labels[5][16];
+    // A narrow span needs sub-kHz axis labels; a wide one does not.
+    int decimals = 3;
+    if (span < 1000000) decimals = 4;
+    if (span < 200000) decimals = 4;
+    if (span < 50000) decimals = 5;
+    if (span < 10000) decimals = 6;
+    char labels[5][24];
     int label_w[5];
     int label_x[5];
     for (int i = 0; i < 5; ++i) {
-        formatFrequency(freqs[i], labels[i], sizeof(labels[i]));
+        formatFrequency(freqs[i], labels[i], sizeof(labels[i]), decimals);
         label_w[i] = (int)strlen(labels[i]) * 7;
         label_x[i] = tick_x[i] - label_w[i] / 2;
         if (label_x[i] < 0) label_x[i] = 0;
@@ -559,13 +565,14 @@ const char* SDRUIRenderer::themeName() const {
     return kThemes[theme_index_].name;
 }
 
-void SDRUIRenderer::formatFrequency(uint32_t freq, char* buf, size_t size) const {
+void SDRUIRenderer::formatFrequency(uint32_t freq, char* buf, size_t size,
+                                    int decimals) const {
     if (freq >= 1000000000) {
-        snprintf(buf, size, "%.3fG", freq / 1e9);
+        snprintf(buf, size, "%.*fG", decimals, freq / 1e9);
     } else if (freq >= 1000000) {
-        snprintf(buf, size, "%.3fM", freq / 1e6);
+        snprintf(buf, size, "%.*fM", decimals, freq / 1e6);
     } else if (freq >= 1000) {
-        snprintf(buf, size, "%.1fk", freq / 1e3);
+        snprintf(buf, size, "%.*fk", decimals, freq / 1e3);
     } else {
         snprintf(buf, size, "%uHz", freq);
     }
@@ -855,7 +862,13 @@ void SDRUIRenderer::renderSettings(const SdrSettingsView& view) {
                   view.deemphasis_us, view.deemphasis_us == 50 ? "CN/EU" : "US");
     std::snprintf(values[1], sizeof(values[1]), "%s", view.audio_agc ? "ON" : "OFF");
     std::snprintf(values[2], sizeof(values[2]), "%d", view.fft_size);
-    std::snprintf(values[3], sizeof(values[3]), "%.3f MHz", view.sample_rate / 1e6);
+    if (view.sample_rate >= 1000000) {
+        std::snprintf(values[3], sizeof(values[3]), "%.3f MHz",
+                      view.sample_rate / 1e6);
+    } else {
+        std::snprintf(values[3], sizeof(values[3]), "%d kHz",
+                      view.sample_rate / 1000);
+    }
     std::snprintf(values[4], sizeof(values[4]), "OPEN NOW");
 
     fb_.fillRect(0, 0, 320, 170, COLOR_BLACK);

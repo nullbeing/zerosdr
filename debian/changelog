@@ -1,3 +1,17 @@
+zerosdr (0.5.9) trixie; urgency=medium
+
+  * SDR: sample-rate presets now include 48 / 96 / 192 / 384 / 768 kHz for
+    shortwave tuning. The RTL-SDR cannot sample below ~225 kHz, so these keep
+    the front end at 288 kHz / 1.152 MHz / 1.536 MHz and decimate the IQ with
+    a windowed-sinc low-pass; the demodulator and the FFT run at the selected
+    rate
+  * SDR: narrow display spans (10 / 25 / 48 / 96 kHz) and sub-kHz frequency
+    axis labels
+  * SDR: broadcast FM falls back to narrow FM below 200 kHz
+  * Add a decimator regression test
+
+ -- Weiming Feng <bestedwin@gmail.com>  Sat, 28 Nov 2026 11:30:00 +0800
+
 zerosdr (0.5.8) trixie; urgency=medium
 
   * APRS: station list, map and detail paging are ordered by the last packet,
