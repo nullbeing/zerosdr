@@ -45,6 +45,10 @@ dossier, ACARS messages, APRS detail / console / weather and the RFI survey.*
 - APRS station tracking: native receive-only 1200 baud AFSK / AX.25 decoder,
   list / map / detail / console views, Mic-E and compressed positions,
   weather and messages on 144.640 MHz (configurable)
+- Scanner page: sweeps a band (or every preset in turn), lists every signal
+  above the threshold and parks on one to play it (AM / NFM); when it drops
+  out the scanner moves on by itself after the hang time. Lockouts, skip,
+  hold, built-in band presets and your own saved presets
 - RFI survey: compare HF band noise with your equipment switched on and off
   (10m / 20m / 40m / 80m)
 - Global `Fn`+`P` screenshot on every page
@@ -191,7 +195,7 @@ On the first start ZeroSDR shows a short guide (reopen it from
 
 - `H` opens the key list and settings
 - `Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, ACARS, plus
-  RADAR, AIS and APRS on the second row)
+  RADAR, AIS, APRS and Scanner on the second row)
 - `Enter` cycles the ADSB views (radar → detail → list)
 - `M` toggles the SDR / radar colour theme
 - Observer position: entered by hand, or read from a GPS when one is present
@@ -205,8 +209,8 @@ On the first start ZeroSDR shows a short guide (reopen it from
 ### Press `H` first
 
 `Tab` opens a translucent page menu: `←`/`→` (or `Tab`) select a page,
-`↑`/`↓` move between the page row and the second row (RADAR, AIS and
-APRS), `Enter` opens it, `Esc` closes the menu. The RADAR tile jumps straight
+`↑`/`↓` move between the page row and the second row (RADAR, AIS, APRS
+and Scanner), `Enter` opens it, `Esc` closes the menu. The RADAR tile jumps straight
 into the ADSB radar view.
 
 The SDR page has a built-in reference:
@@ -367,7 +371,7 @@ the current sample rate can fill.
 ## ADSB page
 
 `Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, ACARS, with RADAR,
-AIS and APRS on the second row). In the ADSB list, `↑`/`↓` select, `←`/`→` move five
+AIS, APRS and Scanner on the second row). In the ADSB list, `↑`/`↓` select, `←`/`→` move five
 rows and `Enter` cycles radar → detail → list. `H` shows every key.
 
 The list is sorted by distance, nearest first; aircraft without a decoded
@@ -690,7 +694,7 @@ An offline replay tool shares the native decoder:
 ## Wideband spectrum page
 
 `Tab` opens the page menu (SDR, Spectrum, RFI, ADSB, ACARS, with RADAR,
-AIS and APRS on the second row). The spectrum page is a
+AIS, APRS and Scanner on the second row). The spectrum page is a
 swept analyzer in the style of qspectrumanalyzer: it retunes the RTL-SDR
 across a user supplied range, stitches the slices into one wide spectrum and draws a yellow trace
 with a waterfall below it. The RTL-SDR V4 range is 24–1766 MHz.
@@ -732,6 +736,84 @@ Notes:
   another part of the band is not shown.
 - The page stops the SDR capture when you leave it, releasing the dongle for
   the SDR and ADSB pages.
+
+## Scanner page
+
+`Tab` → **Scanner** (second row, after RADAR, AIS and APRS). An amber,
+tape-deck styled scanner built for finding signals with as few key presses
+as possible.
+
+- The top strip shows the scanner state (`SCAN`, `LOCK`, `HANG`, `HOLD`),
+  how many signals are live, battery and clock.
+- The list shows every signal heard in the last 30 s, highest frequency at
+  the top: its ID, a 20 s activity history, its position on the band scale
+  and a frequency tag. The tuned one is filled in, with RF (SNR) and AF
+  (audio) meters; the others show their SNR and how long they have been on
+  or how long ago they were last heard.
+- `OSC` shows the demodulated audio of the tuned signal next to its
+  frequency, ID, SNR and duration. While sweeping it shows the sweep position.
+- The bottom strip shows range, preset, gain, threshold, hang time, noise
+  floor and the number of lockouts.
+
+How it scans: the range is swept in ~0.8 MHz slices (a 19 MHz airband sweep
+takes about 0.6 s). After each sweep the scanner tunes to the strongest new
+signal and plays it. When its carrier stops for the hang time (`T`, default
+2 s) it jumps to another signal it can still hear nearby, or resumes sweeping.
+The listening window also keeps neighbouring signals in the list up to date.
+
+| Key | Action |
+|-----|--------|
+| `Space` | Hold the tuned frequency / resume scanning |
+| `Enter` | Skip this transmission (ignored for 15 s) |
+| `↑` / `↓` | Pick a signal from the list and hold it |
+| `←` / `→` | Threshold −/+ 1 dB (3–40 dB above the noise floor) |
+| `L` | Lock out the tuned frequency (or restore it) |
+| `Backspace` | Clear all lockouts |
+| `D` | Mode AM / NFM |
+| `G` | Gain: AUTO, then roughly 10/20/30/40/50 dB |
+| `T` | Hang time 0.5 / 1 / 2 / 3 / 5 / 10 s |
+| `M` | Mute |
+| `R` | Range editor: presets, ALL, add your own |
+| `H` | Key list |
+
+`R` opens the range editor. On the PRESET line `←`/`→` cycle through:
+
+- **ALL**: sweeps every preset in turn, each with its own mode and channel
+  step, and parks on whatever it finds. The bottom strip shows
+  `ALL n PRESETS` and the preset currently being swept or listened to.
+- The built-in presets: AIR 118–137 AM, MARINE, 2M HAM, 70CM HAM, PMR446,
+  FRS/GMRS, NOAA WX.
+- Your own presets (`USER 1`, `USER 2`, ...). `Backspace` twice on the
+  PRESET line deletes the one shown.
+- **+ ADD NEW**: fill in START/STOP, MODE and STEP below, then `Enter` saves
+  them as the next `USER n` preset and starts scanning it. Up to 16 can be
+  saved; a range identical to an existing preset is refused.
+
+`↑`/`↓` move between PRESET, START, STOP, MODE and STEP. START/STOP take
+digits and `.`; MODE (AM/NFM) and STEP (2.5–25 kHz) change with `←`/`→`.
+Editing a preset's values without + ADD NEW scans them as a one-off custom
+range. `Enter` starts scanning, `Esc` leaves without changes. In ALL mode `D`
+does nothing, since each preset brings its own mode. Everything, including
+your presets and lockouts, is saved in the `scanner` section of
+`~/.config/zerosdr/config.json`.
+
+Notes:
+
+- Detection uses a 1 kHz FFT, averaged and compared with the slice's noise
+  floor. Frequencies are snapped to the preset's channel raster (5 kHz by
+  default, 6.25 kHz for PMR446, 12.5/25 kHz for the marine and weather
+  presets).
+- The tuner's DC spike is masked, and alternate sweeps are offset by half a
+  slice so nothing hides under it. Weak mirror images of strong signals
+  (a direct-conversion artefact) are dropped.
+- Steady carriers on multiples of the dongle's 28.8 MHz crystal (144.000,
+  432.000 MHz, ...) are generated inside the RTL-SDR and are ignored.
+- While listening, the dongle is tuned 200 kHz below the signal and the
+  channel is filtered and demodulated in software, so neighbouring channels
+  and the DC spike do not leak into the audio.
+- A carrier that never stops (a birdie or a broadcast) keeps the scanner
+  parked: press `L` to lock it out, or `Enter` to skip it for now.
+- The page stops the SDR capture when you leave it, like the spectrum page.
 
 ## Command line options
 
