@@ -263,6 +263,17 @@ target_include_directories(acars_airports_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+# Scanner DSP regression test (development helper, not installed).
+add_executable(scanner_dsp_test
+    tests/scanner_dsp_test.cpp
+    src/scanner/scanner_dsp.cpp
+    src/fft_processor.cpp
+)
+target_include_directories(scanner_dsp_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(scanner_dsp_test PRIVATE ${M_LIB})
+
 # Link libraries
 target_link_libraries(zerosdr PRIVATE
     ${RTL_SDR_LIB}
