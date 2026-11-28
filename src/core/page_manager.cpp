@@ -473,17 +473,20 @@ void PageManager::openPageMenu() {
     int adsb_index = -1;
     int ais_index = -1;
     int aprs_index = -1;
+    int scanner_index = -1;
     for (int i = 0; i < (int)pages_.size(); ++i) {
         if (std::strcmp(pages_[i]->getName(), "ADSB") == 0) adsb_index = i;
         if (std::strcmp(pages_[i]->getName(), "AIS") == 0) ais_index = i;
         if (std::strcmp(pages_[i]->getName(), "APRS") == 0) aprs_index = i;
+        if (std::strcmp(pages_[i]->getName(), "Scanner") == 0) scanner_index = i;
     }
 
-    // First row: SDR, Spectrum, RFI, ADSB, ACARS. AIS and APRS move to the
-    // second row, after the RADAR shortcut, so the first row keeps five
-    // tiles.
+    // First row: SDR, Spectrum, RFI, ADSB, ACARS. AIS, APRS and the Scanner
+    // move to the second row, after the RADAR shortcut, so the first row
+    // keeps five tiles.
     for (int i = 0; i < (int)pages_.size(); ++i) {
         if ((i == ais_index || i == aprs_index) && adsb_index >= 0) continue;
+        if (i == scanner_index) continue;
         page_menu_entries_.push_back({i, false, 0});
     }
     if (adsb_index >= 0) {
@@ -494,6 +497,9 @@ void PageManager::openPageMenu() {
         if (aprs_index >= 0) {
             page_menu_entries_.push_back({aprs_index, false, 1});
         }
+    }
+    if (scanner_index >= 0) {
+        page_menu_entries_.push_back({scanner_index, false, 1});
     }
 
     page_menu_selection_ = 0;
@@ -655,6 +661,19 @@ void PageManager::drawPageIcon(int page_index, int x, int y,
         fb_.drawLine(x + 5, y + 9, x + 9, y + 16, color);
         fb_.drawLine(x + 13, y + 9, x + 9, y + 16, color);
         fb_.drawPixel(x + 9, y + 7, color);
+    } else if (std::strcmp(name, "Scanner") == 0) {
+        // Frequency scale with three tags on leaders; the middle one lit.
+        fb_.drawLine(x + 3, y + 1, x + 3, y + 17, color);
+        static const int rows[3] = {3, 9, 15};
+        for (int i = 0; i < 3; ++i) {
+            const int cy = y + rows[i];
+            fb_.drawLine(x + 4, cy, x + 7, cy, color);
+            fb_.drawPixel(x + 8, cy, color);
+            fb_.drawLine(x + 9, cy - 1, x + 17, cy - 1, color);
+            fb_.drawLine(x + 9, cy + 1, x + 17, cy + 1, color);
+            fb_.drawPixel(x + 17, cy, color);
+            if (i == 1) fb_.fillRect(x + 9, cy, 8, 1, color);
+        }
     } else if (std::strcmp(name, "ACARS") == 0) {
         // Radio mast with two side waves.
         fb_.drawLine(x + 9, y + 16, x + 9, y + 7, color);

@@ -12,6 +12,9 @@
 //   system   - guide_show
 //   sdr      - deemphasis_us, audio_agc, fft_size, sample_rate, theme
 //   spectrum - configured, start_hz, stop_hz, max_hold_decay_db_s
+//   scanner  - start_hz, stop_hz, raster_hz, preset, mode, threshold_db,
+//              hang_index, gain_tenths, lockouts, all_mode,
+//              user_presets [{name, start_hz, stop_hz, mode, raster_hz}]
 //   adsb     - observer_latitude, observer_longitude, manual_override
 //   ais      - udp_export, udp_host, udp_port (NMEA 0183 feed)
 //   imu      - enabled, heading_up, offset_deg, invert (radar compass)

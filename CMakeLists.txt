@@ -93,6 +93,10 @@ set(SOURCES
     src/pages/ais_page.cpp
     src/pages/aprs_page.cpp
     src/pages/acars_page.cpp
+    src/pages/scanner_page.cpp
+
+    # Scanner
+    src/scanner/scanner_dsp.cpp
 
     # AIS
     src/ais/ais_decoder.cpp
@@ -127,6 +131,7 @@ set(SOURCES
     src/ui/ais_portrait.cpp
     src/ui/aprs_ui_renderer.cpp
     src/ui/acars_ui_renderer.cpp
+    src/ui/scanner_view.cpp
     src/ui/ttf_text.cpp
 
     # Hardware
