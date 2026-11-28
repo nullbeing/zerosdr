@@ -17,6 +17,7 @@
 #include "pages/ais_page.h"
 #include "pages/aprs_page.h"
 #include "pages/acars_page.h"
+#include "pages/scanner_page.h"
 #include "app_config.h"
 #include "screenshot.h"
 #include "version.h"
@@ -267,7 +268,10 @@ int main(int argc, char* argv[]) {
     auto acars_page = std::make_unique<AcarsPage>(fb, sdr, input, acars_ui);
     page_manager.registerPage(std::move(acars_page));
 
-    std::cout << "Starting main loop with " << 7 << " pages..." << std::endl;
+    page_manager.registerPage(
+        std::make_unique<ScannerPage>(fb, sdr, audio_output, input));
+
+    std::cout << "Starting main loop with " << 8 << " pages..." << std::endl;
 
     // Run main loop (PageManager handles everything)
     int exit_code = page_manager.run();

@@ -93,6 +93,10 @@ set(SOURCES
     src/pages/ais_page.cpp
     src/pages/aprs_page.cpp
     src/pages/acars_page.cpp
+    src/pages/scanner_page.cpp
+
+    # Scanner
+    src/scanner/scanner_dsp.cpp
 
     # AIS
     src/ais/ais_decoder.cpp
@@ -127,6 +131,7 @@ set(SOURCES
     src/ui/ais_portrait.cpp
     src/ui/aprs_ui_renderer.cpp
     src/ui/acars_ui_renderer.cpp
+    src/ui/scanner_view.cpp
     src/ui/ttf_text.cpp
 
     # Hardware
@@ -262,6 +267,17 @@ add_executable(acars_airports_test
 target_include_directories(acars_airports_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
+# Scanner DSP regression test (development helper, not installed).
+add_executable(scanner_dsp_test
+    tests/scanner_dsp_test.cpp
+    src/scanner/scanner_dsp.cpp
+    src/fft_processor.cpp
+)
+target_include_directories(scanner_dsp_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(scanner_dsp_test PRIVATE ${M_LIB})
 
 # Link libraries
 target_link_libraries(zerosdr PRIVATE
