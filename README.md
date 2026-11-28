@@ -307,6 +307,11 @@ about 150 Hz per pixel and much finer FFT bins than the wide modes. These
 rates are intended for AM/SSB/CW on shortwave; selecting one while in FM
 broadcast switches to narrow FM automatically.
 
+![48 kHz shortwave view](images/sdr-hf-48k.png)
+
+*15.167 MHz AM at 48 kHz: the 320 px span is 48 kHz wide, so each pixel is
+about 150 Hz and the axis labels resolve 10 Hz.*
+
 Changing the sample rate resets the display span to the widest level that fits
 the new band (1.2 M → 1.0 M, 2.048 M → 2.0 M), so `Y` never appears to do
 nothing because the stored span was wider than the captured bandwidth.
