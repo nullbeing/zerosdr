@@ -81,6 +81,7 @@ private:
     std::vector<std::unique_ptr<IPage>> pages_;
     size_t current_page_index_;
     bool running_;
+    bool page_exited_ = false;  // current page left when run() returned
 
     // Timing
     struct timeval last_update_time_;

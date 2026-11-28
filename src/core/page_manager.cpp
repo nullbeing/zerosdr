@@ -17,7 +17,7 @@ PageManager::PageManager(Framebuffer& fb, InputHandler& input)
 PageManager::~PageManager() {
     // Cleanup all pages
     if (!pages_.empty() && current_page_index_ < pages_.size()) {
-        pages_[current_page_index_]->onExit();
+        if (!page_exited_) pages_[current_page_index_]->onExit();
         pages_[current_page_index_]->cleanup();
     }
 }
@@ -300,6 +300,12 @@ int PageManager::run() {
     }
 
     std::cout << "PageManager: Main loop stopped" << std::endl;
+    // Leave the page now, while the SDR is still open: main() closes the
+    // dongle next, and page worker threads must not touch it after that.
+    if (!pages_.empty() && current_page_index_ < pages_.size()) {
+        pages_[current_page_index_]->onExit();
+        page_exited_ = true;
+    }
     return 0;
 }
 
